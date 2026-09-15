@@ -1,0 +1,12 @@
+node_modules/
+dist/
+release/
+.env
+*.local
+*.log
+.DS_Store
+Thumbs.db
+coverage/
+
+# 开发者个人笔记（仅本地，不上传 GitHub）
+DEV_NOTES.md

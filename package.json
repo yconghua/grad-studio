@@ -1,0 +1,47 @@
+{
+  "name": "grad-studio",
+  "version": "0.0.1",
+  "releaseDate": "2026-09-15",
+  "description": "grad studio - Vue3 + Electron + MySQL",
+  "main": "electron/main.js",
+  "author": "yconghua",
+  "license": "MIT",
+  "publishConfig": {
+    "@yconghua:registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "vite": "vite",
+    "build": "vite build",
+    "start": "electron .",
+    "pack": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "mysql2": "^3.11.0",
+    "vue": "^3.4.27",
+    "vue-router": "^4.3.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "concurrently": "^8.2.2",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "vite": "^5.2.11",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.grad.studio",
+    "productName": "grad.studio",
+    "icon": "build/icon.ico",
+    "files": [
+      "electron/**/*",
+      "shared/**/*",
+      "dist/**/*",
+      "build/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    }
+  }
+}
