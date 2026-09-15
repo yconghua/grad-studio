@@ -1,6 +1,6 @@
 {
   "name": "grad-studio",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "releaseDate": "2026-09-15",
   "description": "grad studio - Vue3 + Electron + MySQL",
   "main": "electron/main.js",
