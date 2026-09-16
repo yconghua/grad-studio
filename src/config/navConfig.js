@@ -1,66 +1,145 @@
-// 左侧导航配置（数据驱动：父项 / 子项 / 顶部项的数量均可自由增减）
+// 导航配置（单一数据源：左侧一级大导航 + 二级小导航 + 个人主页导航）
 //
-// - 顶部项（topItem）：直接跳转的独立导航（如「首页」）；
-// - 父项（group）：下拉分组标题，点击展开 / 收起其子项；分组 key 用于大导航点击跳转到分组落地页；
-// - 子项（child）：实际可点击路由，页面位于 pages 对应的文件夹里的 vue。
+// - navGroups：左侧导航。每个一级大导航（group）包含若干二级小导航（children）。
+//   一级大导航 key 作为路由父路径段（如 workbench → /workbench），
+//   二级小导航 key 作为子路径段（如 overview → /workbench/overview）。
+// - profileNavItems：个人主页（右上角入口）内部的导航项，路径为 /profile/<key>。
+// - roles 权限字段：一级导航 / 二级导航均可选填，缺省表示「所有角色可见」；
+//   填写后仅列出的角色可见。二级导航未填时继承所属一级导航的 roles。
+//   角色取值见 shared/constants.js（ROLE_STUDENT / ROLE_MENTOR / ROLE_ADMIN）。
 //
-// 想加导航，只改这个文件即可：
-//   新增顶部项 → 往 navTopItems 加一个 { key, title }，并在 pages 对应的文件夹里面建页面
-//   新增父项   → 往 navGroups 加一个 { key, title, children: [...] }，并建 pages/<大组文件夹>/index.vue 落地页
-//   新增子项   → 往对应父项的 children 加一个 { key, title }，并在 pages 对应的文件夹里面建页面
-//   key 会同时用作路由 path（如 home → /home），需保持唯一并与页面文件夹名一致。
+// 想调整菜单，只改本文件即可；页面组件在 router/index.js 中统一指向占位页，
+// 后续接入真实页面时再按 key 映射对应组件。
 
-// 顶部独立导航项（直接跳转，非下拉分组）
-export const navTopItems = [
-  { key: 'home', title: '首页' }
-]
+import { ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from './constants'
 
-// 下拉分组：业务模块占位（模块一 / 模块二 / 模块三）+ 应急疏散
-// 子项 key 与页面文件一一对应：pages/<大组文件夹>/<语义名>.vue
+// 左侧一级大导航 + 二级小导航
 export const navGroups = [
   {
-    key: 'module-a',
-    title: '模块一',
+    key: 'workbench',
+    title: '工作台',
     children: [
-      { key: 'mod-a-1', title: '页面一' },
-      { key: 'mod-a-2', title: '页面二' }
+      { key: 'overview', title: '总览' },
+      { key: 'todo', title: '待办事项' },
+      { key: 'schedule', title: '日程安排' },
+      { key: 'notice', title: '通知公告' },
+      { key: 'shortcuts', title: '快捷入口' }
     ]
   },
   {
-    key: 'module-b',
-    title: '模块二',
+    key: 'research',
+    title: '科研管理',
     children: [
-      { key: 'mod-b-1', title: '页面一' }
+      { key: 'project', title: '项目管理' },
+      { key: 'paper', title: '论文著作' },
+      { key: 'patent', title: '专利软著' },
+      { key: 'subject', title: '课题申报' },
+      { key: 'log', title: '科研日志' },
+      { key: 'achievement', title: '成果登记' },
+      { key: 'fund', title: '经费管理', roles: [ROLE_MENTOR, ROLE_ADMIN] }
     ]
   },
   {
-    key: 'module-c',
-    title: '模块三',
+    key: 'studio',
+    title: '工作室事务',
     children: [
-      { key: 'mod-c-1', title: '页面一' },
-      { key: 'mod-c-2', title: '页面二' }
+      { key: 'member', title: '成员管理', roles: [ROLE_MENTOR, ROLE_ADMIN] },
+      { key: 'seat', title: '工位管理', roles: [ROLE_MENTOR, ROLE_ADMIN] },
+      { key: 'device', title: '设备管理' },
+      { key: 'attendance', title: '考勤值班' },
+      { key: 'duty', title: '卫生排班' },
+      { key: 'regulation', title: '规章制度' },
+      { key: 'join-leave', title: '入组离组', roles: [ROLE_MENTOR, ROLE_ADMIN] },
+      { key: 'borrow', title: '物品借用' }
     ]
   },
   {
-    key: 'evac',
-    title: '应急疏散',
+    key: 'resource',
+    title: '资源中心',
     children: [
-      { key: 'evac-sim', title: '仿真模拟' }
+      { key: 'doc', title: '文档库' },
+      { key: 'dataset', title: '数据集' },
+      { key: 'code', title: '代码库' },
+      { key: 'tool', title: '软件工具' },
+      { key: 'template', title: '模板中心' },
+      { key: 'drive', title: '共享网盘' },
+      { key: 'link', title: '常用链接' }
     ]
   },
   {
-    key: 'about',
-    title: '关于平台',
+    key: 'collaboration',
+    title: '协同办公',
     children: [
-      { key: 'about-intro', title: '系统介绍' },
-      { key: 'about-guide', title: '使用指南' },
-      { key: 'about-feedback', title: '意见反馈' },
-      { key: 'about-contact', title: '联系我们' }
+      { key: 'meeting', title: '组会管理' },
+      { key: 'activity', title: '活动报名' },
+      { key: 'task', title: '任务协作' },
+      { key: 'forum', title: '讨论区' },
+      { key: 'approval', title: '审批中心' }
+    ]
+  },
+  {
+    key: 'report',
+    title: '统计报表',
+    roles: [ROLE_MENTOR, ROLE_ADMIN],
+    children: [
+      { key: 'achievement-stat', title: '成果统计' },
+      { key: 'attendance-stat', title: '考勤统计' },
+      { key: 'task-stat', title: '任务统计' },
+      { key: 'device-stat', title: '设备使用' },
+      { key: 'activity-stat', title: '活跃度' },
+      { key: 'export', title: '报表导出' }
+    ]
+  },
+  {
+    key: 'system',
+    title: '系统设置',
+    roles: [ROLE_ADMIN],
+    children: [
+      { key: 'user', title: '用户管理' },
+      { key: 'role', title: '角色权限' },
+      { key: 'org', title: '组织架构' },
+      { key: 'menu', title: '菜单配置' },
+      { key: 'audit', title: '日志审计' },
+      { key: 'backup', title: '数据备份' },
+      { key: 'param', title: '系统参数' },
+      { key: 'update', title: '版本更新' }
     ]
   }
 ]
 
-// 默认重定向：优先顶部项「首页」，否则回退到个人主页
-export const defaultNavPath = navTopItems.length
-  ? `/${navTopItems[0].key}`
-  : '/profile'
+// 个人主页（右上角入口）内部的导航项
+export const profileNavItems = [
+  { key: 'overview', title: '主页概览' },
+  { key: 'academic', title: '学术档案' },
+  { key: 'my-project', title: '我的项目' },
+  { key: 'my-achievement', title: '我的成果' },
+  { key: 'my-task', title: '我的任务' },
+  { key: 'my-schedule', title: '我的日程' },
+  { key: 'message', title: '消息中心' },
+  { key: 'setting', title: '个人设置' }
+]
+
+// 一级导航可见角色：未设置时返回 null（表示所有角色可见）
+export function groupRoles(group) {
+  return group.roles || null
+}
+
+// 二级导航实际可见角色：子项未指定时继承所属一级导航的 roles；仍无则 null（所有角色可见）
+export function childRoles(group, child) {
+  return child.roles || group.roles || null
+}
+
+// 判断某项（roles 数组或 null）对指定角色是否可见
+export function isRoleAllowed(roles, role) {
+  if (!roles || !Array.isArray(roles) || roles.length === 0) return true
+  return roles.includes(role)
+}
+
+// 一级导航的默认落地路径：跳转到该组第一个二级导航
+export function groupDefaultPath(group) {
+  const first = group.children && group.children[0]
+  return first ? `/${group.key}/${first.key}` : `/${group.key}`
+}
+
+// 默认首页路径：第一个一级导航的默认落地路径
+export const defaultNavPath = groupDefaultPath(navGroups[0])

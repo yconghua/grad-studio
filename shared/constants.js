@@ -8,8 +8,11 @@
  * 注意：本文件只放「两端都可能用到的纯常量」，不含任何 Node / 浏览器专属 API。
  */
 module.exports = {
-  // 权限角色（两级）：admin 管理员 / user 普通用户
+  // 权限角色（三级）：admin 管理员 / mentor 导师 / student 学生
   ROLE_ADMIN: 'admin',
+  ROLE_MENTOR: 'mentor',
+  ROLE_STUDENT: 'student',
+  // 普通用户（兼容历史数据；权限与导航按「学生」处理）
   ROLE_USER: 'user',
 
   // 新增 / 重置用户时生成的随机密码位数（6 位纯数字）

@@ -11,3 +11,6 @@
 import sharedConstants from '../../shared/constants.js'
 
 export const ROLE_ADMIN = sharedConstants.ROLE_ADMIN
+export const ROLE_MENTOR = sharedConstants.ROLE_MENTOR
+export const ROLE_STUDENT = sharedConstants.ROLE_STUDENT
+export const ROLE_USER = sharedConstants.ROLE_USER

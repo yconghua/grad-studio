@@ -4,16 +4,16 @@
     <div class="profile-head">
       <h2 class="page-title">个人主页</h2>
 
-      <!-- 横向导航（按角色区分；点击切换路由，子页面由 RouterView 渲染） -->
+      <!-- 横向导航（点击切换路由，子页面由 RouterView 渲染） -->
       <nav class="tab-bar">
         <RouterLink
-          v-for="tab in tabs"
+          v-for="tab in profileNavItems"
           :key="tab.key"
           :to="`/profile/${tab.key}`"
           class="tab-item"
           :class="{ active: isTabActive(tab.key) }"
         >
-          {{ tab.label }}
+          {{ tab.title }}
         </RouterLink>
       </nav>
     </div>
@@ -25,29 +25,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ROLE_ADMIN } from '../../config/constants'
-import { useSession } from '../../composables/useSession'
+import { profileNavItems } from '../../config/navConfig'
 
 const route = useRoute()
-const { getSessionUser } = useSession()
-// 当前登录用户（登录时写入 localStorage；角色用于决定页签显示）
-const user = ref(getSessionUser())
-const isAdmin = computed(() => user.value?.role === ROLE_ADMIN)
-
-// 横向导航页签：所有用户 = 个人信息 + 网址收藏夹；管理员额外 = 用户管理 + 系统管理（网址收藏夹统一排最后）
-const tabs = computed(() => {
-  const base = [
-    { key: 'info', label: '个人信息' }
-  ]
-  if (isAdmin.value) {
-    base.push({ key: 'users', label: '用户管理' })
-    base.push({ key: 'sys', label: '系统管理' })
-  }
-  base.push({ key: 'weblinks', label: '网址收藏夹' })
-  return base
-})
 
 // 页签高亮：按当前路由精确匹配（直达 URL / 刷新后依然正确）
 function isTabActive(key) {
@@ -77,6 +58,7 @@ function isTabActive(key) {
   gap: 4px;
   border-bottom: 1px solid #eceff3;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 .tab-item {
   display: inline-block;
@@ -98,7 +80,7 @@ function isTabActive(key) {
   border-bottom-color: #0d80e0;
   font-weight: 600;
 }
-/* 内容区：独立滚动；隐藏滚动条但保留滚动效果（仅本页生效，其他页面不受影响） */
+/* 内容区：独立滚动；隐藏滚动条但保留滚动效果（仅本页生效） */
 .tab-body {
   flex: 1 1 auto;
   min-height: 0;

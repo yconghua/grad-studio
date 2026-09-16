@@ -1,6 +1,6 @@
 <template>
   <div class="home-layout">
-    <!-- 顶部标题栏 -->
+    <!-- 顶部标题栏：左侧品牌 + 右侧（时钟 / 个人主页入口 / 退出登录） -->
     <header class="home-header">
       <div class="brand-wrap">
         <img class="brand-logo" :src="logoUrl" alt="研究生工作室管理平台" />
@@ -8,34 +8,32 @@
       </div>
       <div class="header-right">
         <span class="clock">{{ clock }}</span>
-        <span class="current-user"><span class="label">当前用户：</span><span class="account">{{ currentUser?.username }}</span></span>
-        <RouterLink to="/profile" class="logout-btn">个人主页</RouterLink>
+        <!-- 个人主页入口（右上角）：头像 + 用户名，点击进入个人主页 -->
+        <RouterLink to="/profile" class="user-entry" title="进入个人主页">
+          <span class="user-avatar">{{ avatarText }}</span>
+          <span class="user-name">{{ currentUser?.username }}</span>
+        </RouterLink>
         <button class="logout-btn" @click="onLogout">退出登录</button>
       </div>
     </header>
 
-    <!-- 中间主体：左侧导航 + 右侧内容 -->
+    <!-- 中间主体：左侧下拉式导航 + 右侧内容区 -->
     <div class="home-body">
       <nav class="home-nav">
-        <div class="nav-top-wrap">
-          <RouterLink
-            v-for="item in navTopItems"
-            :key="item.key"
-            :to="`/${item.key}`"
-            class="nav-top"
-            @click="collapseAll"
-          >{{ item.title }}</RouterLink>
-        </div>
-        <div v-for="(group, gi) in navGroups" :key="gi" class="nav-group">
-          <button class="nav-parent" :class="{ active: gi === activeGroup }" @click="toggleGroup(gi)">
+        <div v-for="group in visibleGroups" :key="group.key" class="nav-group">
+          <button
+            class="nav-parent"
+            :class="{ active: group.key === activeGroupKey }"
+            @click="toggleGroup(group)"
+          >
             <span class="nav-parent-title">{{ group.title }}</span>
-            <span class="nav-caret" :class="{ open: openList[gi] || gi === activeGroup }">▸</span>
+            <span class="nav-caret" :class="{ open: isGroupOpen(group.key) }">▸</span>
           </button>
-          <div v-show="openList[gi] || gi === activeGroup" class="nav-children">
+          <div v-show="isGroupOpen(group.key)" class="nav-children">
             <RouterLink
-              v-for="child in group.children"
+              v-for="child in visibleChildren(group)"
               :key="child.key"
-              :to="`/${child.key}`"
+              :to="`/${group.key}/${child.key}`"
               class="nav-item"
             >{{ child.title }}</RouterLink>
           </div>
@@ -67,42 +65,57 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { logout } from '../api'
-import { navGroups, navTopItems } from '../config/navConfig'
+import { navGroups, groupRoles, childRoles, isRoleAllowed, groupDefaultPath } from '../config/navConfig'
+import { ROLE_STUDENT } from '../config/constants'
 import { useSession } from '../composables/useSession'
 import logoUrl from '../assets/logo.ico'
 
 const { clearSession, getSessionUser } = useSession()
-// 当前登录用户：布局仅在登录后渲染，username 必然存在；模板中用 ?. 兜底（setup 时取一次即可）
+// 当前登录用户：布局仅在登录后渲染，username 必然存在；模板中用 ?. 兜底
 const currentUser = getSessionUser()
 const router = useRouter()
 const route = useRoute()
 const showConfirm = ref(false)
 
-// 当前路由所属的分组索引：用于跳转（含快捷入口 router.push / 大导航点击）后自动展开对应分组并高亮父级
-const activeGroup = computed(() => {
+// 当前角色：登录用户角色缺失时按「学生」处理（最保守）
+const role = computed(() => currentUser?.role || ROLE_STUDENT)
+
+// 一级导航：按角色过滤可见模块
+const visibleGroups = computed(() =>
+  navGroups.filter((g) => isRoleAllowed(groupRoles(g), role.value))
+)
+
+// 当前激活的一级导航 key：由路由路径匹配（/groupKey 或 /groupKey/...）；
+// 在个人主页等非一级导航页面时为 null
+const activeGroupKey = computed(() => {
   const path = route.path
-  return navGroups.findIndex((g) =>
-    // 命中分组落地页（/groupKey）或子项页面均算作该分组激活
-    path === `/${g.key}` ||
-    g.children.some((c) => path === `/${c.key}` || path.startsWith(`/${c.key}/`))
+  const hit = visibleGroups.value.find(
+    (g) => path === `/${g.key}` || path.startsWith(`/${g.key}/`)
   )
+  return hit ? hit.key : null
 })
 
-// 左侧导航：手风琴式 —— 同一时间仅一个分组展开；登录默认全部收起
-const openList = ref(navGroups.map(() => false))
-// 点击某分组：手风琴式仅展开当前分组（再次点击不收起），并跳转到该分组落地页
-function toggleGroup(gi) {
-  openList.value = navGroups.map((_, i) => i === gi)
-  // 跳转分组落地页；若分组无 key（未来可能出现），则只展开不跳转
-  const key = navGroups[gi]?.key
-  if (key) {
-    router.push(`/${key}`)
-  }
+// 手风琴：记录当前手动展开的分组 key（同一时间仅一个分组展开）
+const openKey = ref(null)
+// 某分组是否展开：手动展开的，或当前路由激活的分组
+function isGroupOpen(key) {
+  return openKey.value === key || activeGroupKey.value === key
 }
-// 点击顶部「首页」等独立项：收起所有分组
-function collapseAll() {
-  openList.value = navGroups.map(() => false)
+// 某分组下按角色过滤后的可见子项
+function visibleChildren(group) {
+  return group.children.filter((c) => isRoleAllowed(childRoles(group, c), role.value))
 }
+// 点击分组：手风琴式展开当前分组，并跳转到该组第一个子项
+function toggleGroup(group) {
+  openKey.value = group.key
+  router.push(groupDefaultPath(group))
+}
+
+// 头像文字：取用户名首字母大写
+const avatarText = computed(() => {
+  const name = currentUser?.username || '?'
+  return name.charAt(0).toUpperCase()
+})
 
 // 实时时钟
 const clock = ref('')
@@ -185,17 +198,34 @@ function cancelLogout() {
   color: #8a9099;
   font-variant-numeric: tabular-nums;
 }
-.current-user {
+/* 个人主页入口（右上角） */
+.user-entry {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  text-decoration: none;
+  padding: 4px 10px 4px 4px;
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+.user-entry:hover {
+  background: #f5f7fa;
+}
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.user-name {
   font-size: 13px;
-  line-height: 1;
-}
-.current-user .label {
-  color: #8a9099;
-}
-.current-user .account {
   color: #1f2329;
   font-weight: 500;
 }
@@ -225,7 +255,7 @@ function cancelLogout() {
   display: flex;
   min-height: 0;
 }
-/* 左侧固定宽度导航 */
+/* 左侧固定宽度导航（单栏下拉式） */
 .home-nav {
   flex: 0 0 200px;
   width: 200px;
@@ -276,30 +306,6 @@ function cancelLogout() {
   display: flex;
   flex-direction: column;
 }
-/* 顶部独立导航项（如「首页」），位于下拉分组上方 */
-.nav-top-wrap {
-  padding-bottom: 4px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid #eceff3;
-}
-.nav-top {
-  display: block;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2329;
-  text-decoration: none;
-  border-left: 3px solid transparent;
-}
-.nav-top:hover {
-  background: #f5f7fa;
-}
-.nav-top.router-link-active {
-  color: #0d80e0;
-  background: #eef6ff;
-  border-left-color: #0d80e0;
-  font-weight: 600;
-}
 /* 子项（缩进显示） */
 .nav-item {
   padding: 9px 20px 9px 36px;
@@ -326,7 +332,7 @@ function cancelLogout() {
   background: #f5f7fa;
 }
 
-/* 底部页脚：仅居中系统名，高度刚好容纳文字 */
+/* 底部页脚：仅居中系统名 */
 .home-footer {
   flex: 0 0 auto;
   text-align: center;
