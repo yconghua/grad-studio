@@ -78,6 +78,7 @@ import { ref, onMounted } from 'vue'
 import { studio } from '../../api'
 import { JOIN_LEAVE_TYPE_OPTIONS, JOIN_LEAVE_STATUS_OPTIONS } from '../../config/fieldOptions'
 import { useRole } from '../../composables/useRole'
+import { dialogAlert, dialogPrompt } from '../../composables/useDialog'
 
 const { isManager } = useRole()
 const list = ref([])
@@ -137,16 +138,16 @@ async function submit() {
 }
 
 async function review(row, approved) {
-  const remark = window.prompt(approved ? '审核意见（可选）：' : '驳回理由（可选）：', '') || ''
+  const remark = (await dialogPrompt(approved ? '审核意见（可选）：' : '驳回理由（可选）：', '', approved ? '通过申请' : '驳回申请')) || ''
   try {
     const res = await studio.reviewJoinLeave(row.id, approved, remark)
     if (res && res.success) {
       await load()
     } else {
-      window.alert((res && res.message) || '操作失败')
+      await dialogAlert((res && res.message) || '操作失败')
     }
   } catch (e) {
-    window.alert('操作出现异常，请重试')
+    await dialogAlert('操作出现异常，请重试')
   }
 }
 

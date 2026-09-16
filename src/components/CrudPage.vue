@@ -109,6 +109,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { listMembers } from '../api'
+import { dialogAlert, dialogConfirm } from '../composables/useDialog'
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -250,6 +251,8 @@ async function submit() {
         : await props.api.update(editingId.value, payload)
     if (res && res.success) {
       formVisible.value = false
+      // 清空搜索关键词再刷新，避免残留的搜索条件把刚新增的记录过滤掉（导致「新增了却看不到」）
+      keyword.value = ''
       await load()
     } else {
       formError.value = (res && res.message) || '保存失败'
@@ -262,16 +265,17 @@ async function submit() {
 }
 
 async function confirmRemove(row) {
-  if (!window.confirm(`确定删除「${cellText(row, props.columns[0] || { key: 'id' })}」吗？`)) return
+  const ok = await dialogConfirm(`确定删除「${cellText(row, props.columns[0] || { key: 'id' })}」吗？`, '删除确认')
+  if (!ok) return
   try {
     const res = await props.api.remove(row.id)
     if (res && res.success) {
       await load()
     } else {
-      window.alert((res && res.message) || '删除失败')
+      await dialogAlert((res && res.message) || '删除失败')
     }
   } catch (e) {
-    window.alert('删除过程出现异常，请重试')
+    await dialogAlert('删除过程出现异常，请重试')
   }
 }
 

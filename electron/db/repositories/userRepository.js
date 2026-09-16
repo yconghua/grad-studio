@@ -67,11 +67,19 @@ function cols(columns) {
   return columns.map((c) => `\`${c}\``).join(', ')
 }
 
-// 从输入对象中提取白名单内的档案字段（值为 undefined 的跳过）
+// 从输入对象中提取白名单内的档案字段。
+// - undefined：跳过（未传，不写入）；
+// - 空字符串 ''：跳过（视为「未填写」）。关键：gender / degree_type 是 ENUM 列，
+//   前端下拉框未选时会是 ''，直接写入会触发 MySQL「Data truncated for column」，
+//   跳过后由数据库取 DEFAULT（NULL）即可；对 NOT NULL DEFAULT 列（如 status）也安全。
+// - null：保留（显式清空语义，写入 NULL）。
 function pickProfile(data) {
   const out = {}
   for (const k of PROFILE_FIELDS) {
-    if (data && data[k] !== undefined) out[k] = data[k]
+    const v = data ? data[k] : undefined
+    if (v === undefined) continue
+    if (typeof v === 'string' && v.trim() === '') continue
+    out[k] = v
   }
   return out
 }

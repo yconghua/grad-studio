@@ -80,6 +80,7 @@ import { ref, onMounted } from 'vue'
 import { collab } from '../../api'
 import { APPROVAL_STATUS_OPTIONS } from '../../config/fieldOptions'
 import { useRole } from '../../composables/useRole'
+import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 
 const { isManager } = useRole()
 const list = ref([])
@@ -138,24 +139,25 @@ async function submit() {
 }
 
 async function review(row, approved) {
-  const remark = window.prompt(approved ? '审批意见（可选）：' : '驳回理由（可选）：', '') || ''
+  const remark = (await dialogPrompt(approved ? '审批意见（可选）：' : '驳回理由（可选）：', '', approved ? '通过审批' : '驳回审批')) || ''
   try {
     const res = await collab.reviewApproval(row.id, approved, remark)
     if (res && res.success) await load()
-    else window.alert((res && res.message) || '操作失败')
+    else await dialogAlert((res && res.message) || '操作失败')
   } catch (e) {
-    window.alert('操作出现异常，请重试')
+    await dialogAlert('操作出现异常，请重试')
   }
 }
 
 async function removeApproval(row) {
-  if (!window.confirm(`确定撤销「${row.title}」吗？`)) return
+  const ok = await dialogConfirm(`确定撤销「${row.title}」吗？`, '撤销审批')
+  if (!ok) return
   try {
     const res = await collab.approval.remove(row.id)
     if (res && res.success) await load()
-    else window.alert((res && res.message) || '撤销失败')
+    else await dialogAlert((res && res.message) || '撤销失败')
   } catch (e) {
-    window.alert('撤销过程出现异常，请重试')
+    await dialogAlert('撤销过程出现异常，请重试')
   }
 }
 

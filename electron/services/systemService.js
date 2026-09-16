@@ -56,12 +56,14 @@ async function setParam(key, value, description) {
   if (!key) return { success: false, message: '参数键不能为空' }
   try {
     const exist = await systemParamRepo.list({ param_key: key })
+    let paramId = null
     if (exist.length) {
-      await systemParamRepo.update(exist[0].id, { param_value: value, description })
+      paramId = exist[0].id
+      await systemParamRepo.update(paramId, { param_value: value, description })
     } else {
-      await systemParamRepo.create({ param_key: key, param_value: value, description })
+      paramId = await systemParamRepo.create({ param_key: key, param_value: value, description })
     }
-    logService.record(exist.length ? 'update' : 'create', 'system_param', key)
+    logService.record(exist.length ? 'update' : 'create', 'system_param', paramId)
     return { success: true, message: '已保存' }
   } catch (err) {
     console.error('[systemParam.set] 数据库异常:', err)

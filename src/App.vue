@@ -1,10 +1,12 @@
 <template>
   <router-view />
+  <!-- 全局代码内弹窗（替代 window.alert / confirm / prompt 系统弹窗） -->
+  <AppDialog />
 </template>
 
 <script setup>
-// 根组件：仅承载路由出口（<router-view />），无任何业务逻辑；
-// 具体布局（顶栏 / 侧边导航）由 layouts/HomeLayout.vue 提供。
+import AppDialog from './components/AppDialog.vue'
+// 根组件：承载路由出口 + 全局弹窗；具体布局由 layouts/HomeLayout.vue 提供。
 </script>
 
 <style>

@@ -33,6 +33,7 @@
 import { ref } from 'vue'
 import { changePassword } from '../../api'
 import { useSession } from '../../composables/useSession'
+import { dialogAlert } from '../../composables/useDialog'
 
 const { getSessionUser } = useSession()
 const username = getSessionUser() ? getSessionUser().username : ''
@@ -61,7 +62,7 @@ async function save() {
   try {
     const res = await changePassword(username, oldPassword.value, newPassword.value)
     if (res && res.success) {
-      window.alert('密码已修改')
+      await dialogAlert('密码已修改')
       oldPassword.value = ''
       newPassword.value = ''
       confirmPassword.value = ''

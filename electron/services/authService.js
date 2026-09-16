@@ -164,15 +164,17 @@ async function createUser(payload) {
   const roleVal = normalizeRole(role)
   const plain = genRandomPassword()
   try {
+    // 新用户 id 在事务内捕获，事务提交后再写操作日志（避免在事务回调内 fire-and-forget 触发连接竞态）
+    let createdId = null
     // runTransaction 内部两步通过 acquireConn 自动拿到同一事务连接（无需显式传参）
     const result = await runTransaction(async () => {
       const exist = await userRepository.findByUsername(username.trim())
       if (exist) return { success: false, message: '该账号已存在' }
       const hash = await bcrypt.hash(plain, BCRYPT_ROUNDS)
-      const newId = await userRepository.createUser({ username: username.trim(), passwordHash: hash, role: roleVal, ...profile })
-      logService.record('create', 'user', newId)
-      return { success: true, message: '用户创建成功', plainPassword: plain }
+      createdId = await userRepository.createUser({ username: username.trim(), passwordHash: hash, role: roleVal, ...profile })
+      return { success: true, id: createdId, message: '用户创建成功', plainPassword: plain }
     })
+    if (result && result.success) logService.record('create', 'user', createdId)
     return result
   } catch (err) {
     console.error('[authService.createUser] 数据库异常:', err)
@@ -254,9 +256,11 @@ async function getMyProfile() {
 async function updateMyProfile(payload) {
   if (!currentUser) return { success: false, message: '未登录，请重新登录' }
   try {
-    await userRepository.updateById(currentUser.id, payload)
+    // 显式丢弃 role / password / username / id 等敏感字段，防止通过「改自己」接口越权改角色或改密
+    const { role, password, username, id, ...profile } = payload || {}
+    await userRepository.updateById(currentUser.id, profile)
     // 同步会话中的姓名显示，让顶栏/个人主页立即生效
-    if (payload && payload.real_name) currentUser.real_name = payload.real_name
+    if (profile && profile.real_name) currentUser.real_name = profile.real_name
     return { success: true, message: '保存成功' }
   } catch (err) {
     console.error('[authService.updateMyProfile] 数据库异常:', err)

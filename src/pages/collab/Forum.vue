@@ -102,6 +102,7 @@
 import { ref, onMounted } from 'vue'
 import { collab } from '../../api'
 import { FORUM_TYPE_OPTIONS } from '../../config/fieldOptions'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 
 const list = ref([])
 const loading = ref(false)
@@ -187,21 +188,22 @@ async function submitReply() {
       replies.value = r && r.success ? r.list || [] : []
       await load()
     } else {
-      window.alert((res && res.message) || '回复失败')
+      await dialogAlert((res && res.message) || '回复失败')
     }
   } catch (e) {
-    window.alert('回复过程出现异常，请重试')
+    await dialogAlert('回复过程出现异常，请重试')
   }
 }
 
 async function removePost(row) {
-  if (!window.confirm(`确定删除帖子「${row.title}」吗？`)) return
+  const ok = await dialogConfirm(`确定删除帖子「${row.title}」吗？`, '删除帖子')
+  if (!ok) return
   try {
     const res = await collab.post.remove(row.id)
     if (res && res.success) await load()
-    else window.alert((res && res.message) || '删除失败')
+    else await dialogAlert((res && res.message) || '删除失败')
   } catch (e) {
-    window.alert('删除过程出现异常，请重试')
+    await dialogAlert('删除过程出现异常，请重试')
   }
 }
 

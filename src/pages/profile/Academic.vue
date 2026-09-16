@@ -76,6 +76,7 @@
 import { ref, onMounted } from 'vue'
 import { getMyProfile, updateMyProfile } from '../../api'
 import { GENDER_OPTIONS, DEGREE_TYPE_OPTIONS } from '../../config/fieldOptions'
+import { dialogAlert } from '../../composables/useDialog'
 
 const loading = ref(true)
 const saving = ref(false)
@@ -101,7 +102,7 @@ async function save() {
   try {
     const res = await updateMyProfile(form.value)
     if (res && res.success) {
-      window.alert('保存成功')
+      await dialogAlert('保存成功')
     } else {
       error.value = (res && res.message) || '保存失败'
     }

@@ -131,6 +131,7 @@ import {
   ROLE_OPTIONS, GENDER_OPTIONS, DEGREE_TYPE_OPTIONS, ACCOUNT_STATUS_OPTIONS
 } from '../config/fieldOptions'
 import { ROLE_STUDENT, ACCOUNT_STATUS_ACTIVE } from '../config/constants'
+import { dialogAlert, dialogConfirm } from '../composables/useDialog'
 
 const list = ref([])
 const loading = ref(false)
@@ -203,6 +204,16 @@ function closeForm() {
   formVisible.value = false
 }
 
+// 提交前把空字符串统一转 null（未填写视为不设置），避免 ENUM 列（gender/degree_type）收到 '' 报错。
+// 双保险：后端 pickProfile 已跳过空串，这里再兜底一层，前后端双重防御。
+function cleanPayload(data) {
+  const out = {}
+  for (const [k, v] of Object.entries(data || {})) {
+    out[k] = typeof v === 'string' && v.trim() === '' ? null : v
+  }
+  return out
+}
+
 async function submit() {
   formError.value = ''
   if (!form.value.username || !String(form.value.username).trim()) {
@@ -217,12 +228,12 @@ async function submit() {
   try {
     let res
     if (formMode.value === 'create') {
-      res = await createUser(form.value)
+      res = await createUser(cleanPayload(form.value))
       if (res && res.success && res.plainPassword) {
-        window.alert(`创建成功！初始密码：${res.plainPassword}`)
+        await dialogAlert(`创建成功！初始密码：${res.plainPassword}`)
       }
     } else {
-      res = await updateUser({ id: editingId.value, ...form.value })
+      res = await updateUser(cleanPayload({ id: editingId.value, ...form.value }))
     }
     if (res && res.success) {
       formVisible.value = false
@@ -238,30 +249,32 @@ async function submit() {
 }
 
 async function resetPassword(row) {
-  if (!window.confirm(`确定重置「${row.username}」的密码吗？`)) return
+  const ok = await dialogConfirm(`确定重置「${row.username}」的密码吗？`, '重置密码')
+  if (!ok) return
   try {
     const res = await updateUser({ id: row.id, resetPassword: true })
     if (res && res.success && res.plainPassword) {
-      window.alert(`密码已重置，新密码：${res.plainPassword}`)
+      await dialogAlert(`密码已重置，新密码：${res.plainPassword}`)
     } else {
-      window.alert((res && res.message) || '重置失败')
+      await dialogAlert((res && res.message) || '重置失败')
     }
   } catch (e) {
-    window.alert('重置过程出现异常，请重试')
+    await dialogAlert('重置过程出现异常，请重试')
   }
 }
 
 async function confirmRemove(row) {
-  if (!window.confirm(`确定删除成员「${row.username}」吗？此操作不可恢复。`)) return
+  const ok = await dialogConfirm(`确定删除成员「${row.username}」吗？此操作不可恢复。`, '删除成员')
+  if (!ok) return
   try {
     const res = await deleteUser(row.id)
     if (res && res.success) {
       await load()
     } else {
-      window.alert((res && res.message) || '删除失败')
+      await dialogAlert((res && res.message) || '删除失败')
     }
   } catch (e) {
-    window.alert('删除过程出现异常，请重试')
+    await dialogAlert('删除过程出现异常，请重试')
   }
 }
 

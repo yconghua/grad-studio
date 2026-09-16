@@ -95,6 +95,7 @@
 import { ref, onMounted } from 'vue'
 import { studio, listMembers } from '../../api'
 import { BORROW_STATUS_OPTIONS } from '../../config/fieldOptions'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 
 const list = ref([])
 const loading = ref(false)
@@ -159,16 +160,17 @@ async function submit() {
 }
 
 async function returnItem(row) {
-  if (!window.confirm(`确定归还「${row.item_name}」吗？`)) return
+  const ok = await dialogConfirm(`确定归还「${row.item_name}」吗？`, '归还物品')
+  if (!ok) return
   try {
     const res = await studio.returnBorrow(row.id)
     if (res && res.success) {
       await load()
     } else {
-      window.alert((res && res.message) || '归还失败')
+      await dialogAlert((res && res.message) || '归还失败')
     }
   } catch (e) {
-    window.alert('归还过程出现异常，请重试')
+    await dialogAlert('归还过程出现异常，请重试')
   }
 }
 

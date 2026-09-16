@@ -117,6 +117,7 @@ import { ref, onMounted } from 'vue'
 import { collab } from '../../api'
 import { ACTIVITY_STATUS_OPTIONS, SIGNUP_STATUS_OPTIONS } from '../../config/fieldOptions'
 import { useRole } from '../../composables/useRole'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 
 const { isManager } = useRole()
 const list = ref([])
@@ -207,20 +208,20 @@ async function submit() {
 async function signup(row) {
   try {
     const res = await collab.signup(row.id)
-    if (res && res.success) window.alert(res.message || '报名成功')
-    else window.alert((res && res.message) || '报名失败')
+    if (res && res.success) await dialogAlert(res.message || '报名成功')
+    else await dialogAlert((res && res.message) || '报名失败')
   } catch (e) {
-    window.alert('报名过程出现异常，请重试')
+    await dialogAlert('报名过程出现异常，请重试')
   }
 }
 
 async function cancelSignup(row) {
   try {
     const res = await collab.cancelSignup(row.id)
-    if (res && res.success) window.alert(res.message || '已取消')
-    else window.alert((res && res.message) || '取消失败')
+    if (res && res.success) await dialogAlert(res.message || '已取消')
+    else await dialogAlert((res && res.message) || '取消失败')
   } catch (e) {
-    window.alert('取消过程出现异常，请重试')
+    await dialogAlert('取消过程出现异常，请重试')
   }
 }
 
@@ -236,13 +237,14 @@ async function showSignups(row) {
 }
 
 async function removeActivity(row) {
-  if (!window.confirm(`确定删除活动「${row.title}」吗？`)) return
+  const ok = await dialogConfirm(`确定删除活动「${row.title}」吗？`, '删除活动')
+  if (!ok) return
   try {
     const res = await collab.activity.remove(row.id)
     if (res && res.success) await load()
-    else window.alert((res && res.message) || '删除失败')
+    else await dialogAlert((res && res.message) || '删除失败')
   } catch (e) {
-    window.alert('删除过程出现异常，请重试')
+    await dialogAlert('删除过程出现异常，请重试')
   }
 }
 
