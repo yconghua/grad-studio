@@ -7,16 +7,134 @@ import { navGroups, profileNavItems, childRoles, groupDefaultPath, defaultNavPat
 import { useSession } from '../composables/useSession'
 import { getCurrentUser } from '../api'
 
+// 各二级导航 key -> 真实页面组件 的映射（`一级key.二级key`），未登记的回退到占位页
+import WorkbenchOverview from '../pages/workbench/Overview.vue'
+import WorkbenchTodo from '../pages/workbench/Todo.vue'
+import WorkbenchSchedule from '../pages/workbench/Schedule.vue'
+import WorkbenchNotice from '../pages/workbench/Notice.vue'
+import WorkbenchShortcuts from '../pages/workbench/Shortcuts.vue'
+import ResearchProject from '../pages/research/Project.vue'
+import ResearchPaper from '../pages/research/Paper.vue'
+import ResearchPatent from '../pages/research/Patent.vue'
+import ResearchSubject from '../pages/research/Subject.vue'
+import ResearchLog from '../pages/research/ResearchLog.vue'
+import ResearchAchievement from '../pages/research/Achievement.vue'
+import ResearchFund from '../pages/research/Fund.vue'
+import StudioMember from '../pages/studio/Member.vue'
+import StudioSeat from '../pages/studio/Seat.vue'
+import StudioDevice from '../pages/studio/Device.vue'
+import StudioAttendance from '../pages/studio/Attendance.vue'
+import StudioDuty from '../pages/studio/Duty.vue'
+import StudioRegulation from '../pages/studio/Regulation.vue'
+import StudioJoinLeave from '../pages/studio/JoinLeave.vue'
+import StudioBorrow from '../pages/studio/Borrow.vue'
+import ResourceDoc from '../pages/resource/Doc.vue'
+import ResourceDataset from '../pages/resource/Dataset.vue'
+import ResourceCode from '../pages/resource/Code.vue'
+import ResourceTool from '../pages/resource/Tool.vue'
+import ResourceTemplate from '../pages/resource/Template.vue'
+import ResourceDrive from '../pages/resource/Drive.vue'
+import ResourceLink from '../pages/resource/Link.vue'
+import CollabMeeting from '../pages/collab/Meeting.vue'
+import CollabActivity from '../pages/collab/Activity.vue'
+import CollabTask from '../pages/collab/Task.vue'
+import CollabForum from '../pages/collab/Forum.vue'
+import CollabApproval from '../pages/collab/Approval.vue'
+import ReportAchievementStat from '../pages/report/AchievementStat.vue'
+import ReportAttendanceStat from '../pages/report/AttendanceStat.vue'
+import ReportTaskStat from '../pages/report/TaskStat.vue'
+import ReportDeviceStat from '../pages/report/DeviceStat.vue'
+import ReportActivityStat from '../pages/report/ActivityStat.vue'
+import ReportExport from '../pages/report/Export.vue'
+import SystemUser from '../pages/system/User.vue'
+import SystemRole from '../pages/system/Role.vue'
+import SystemOrg from '../pages/system/Org.vue'
+import SystemMenu from '../pages/system/Menu.vue'
+import SystemAudit from '../pages/system/Audit.vue'
+import SystemBackup from '../pages/system/Backup.vue'
+import SystemParam from '../pages/system/Param.vue'
+import SystemUpdate from '../pages/system/Update.vue'
+import ProfileOverview from '../pages/profile/Overview.vue'
+import ProfileAcademic from '../pages/profile/Academic.vue'
+import ProfileMyProject from '../pages/profile/MyProject.vue'
+import ProfileMyAchievement from '../pages/profile/MyAchievement.vue'
+import ProfileMyTask from '../pages/profile/MyTask.vue'
+import ProfileMySchedule from '../pages/profile/MySchedule.vue'
+import ProfileMessage from '../pages/profile/Message.vue'
+import ProfileSetting from '../pages/profile/Setting.vue'
+
+// 左侧二级导航页面映射
+const navPageMap = {
+  'workbench.overview': WorkbenchOverview,
+  'workbench.todo': WorkbenchTodo,
+  'workbench.schedule': WorkbenchSchedule,
+  'workbench.notice': WorkbenchNotice,
+  'workbench.shortcuts': WorkbenchShortcuts,
+  'research.project': ResearchProject,
+  'research.paper': ResearchPaper,
+  'research.patent': ResearchPatent,
+  'research.subject': ResearchSubject,
+  'research.log': ResearchLog,
+  'research.achievement': ResearchAchievement,
+  'research.fund': ResearchFund,
+  'studio.member': StudioMember,
+  'studio.seat': StudioSeat,
+  'studio.device': StudioDevice,
+  'studio.attendance': StudioAttendance,
+  'studio.duty': StudioDuty,
+  'studio.regulation': StudioRegulation,
+  'studio.join-leave': StudioJoinLeave,
+  'studio.borrow': StudioBorrow,
+  'resource.doc': ResourceDoc,
+  'resource.dataset': ResourceDataset,
+  'resource.code': ResourceCode,
+  'resource.tool': ResourceTool,
+  'resource.template': ResourceTemplate,
+  'resource.drive': ResourceDrive,
+  'resource.link': ResourceLink,
+  'collaboration.meeting': CollabMeeting,
+  'collaboration.activity': CollabActivity,
+  'collaboration.task': CollabTask,
+  'collaboration.forum': CollabForum,
+  'collaboration.approval': CollabApproval,
+  'report.achievement-stat': ReportAchievementStat,
+  'report.attendance-stat': ReportAttendanceStat,
+  'report.task-stat': ReportTaskStat,
+  'report.device-stat': ReportDeviceStat,
+  'report.activity-stat': ReportActivityStat,
+  'report.export': ReportExport,
+  'system.user': SystemUser,
+  'system.role': SystemRole,
+  'system.org': SystemOrg,
+  'system.menu': SystemMenu,
+  'system.audit': SystemAudit,
+  'system.backup': SystemBackup,
+  'system.param': SystemParam,
+  'system.update': SystemUpdate
+}
+
+// 个人主页页签页面映射
+const profilePageMap = {
+  overview: ProfileOverview,
+  academic: ProfileAcademic,
+  'my-project': ProfileMyProject,
+  'my-achievement': ProfileMyAchievement,
+  'my-task': ProfileMyTask,
+  'my-schedule': ProfileMySchedule,
+  message: ProfileMessage,
+  setting: ProfileSetting
+}
+
 // 登录守卫需要会话判断；useSession 内部为纯函数（无生命周期钩子），可在此直接调用
 const { isSessionValid, clearSession, getSessionUser } = useSession()
 
 // 二级小导航路由：/groupKey/childKey（如 workbench/overview → /workbench/overview）
-// 全部指向占位组件；meta.roles 取「子项 roles 优先、否则继承一级导航 roles」（null = 所有角色可见）
+// 组件按 navPageMap 映射到真实页面，未登记的 key 回退到占位组件；meta.roles 取「子项 roles 优先、否则继承一级导航 roles」
 const navChildRoutes = navGroups.flatMap((group) =>
   group.children.map((child) => ({
     path: `${group.key}/${child.key}`,
     name: `${group.key}-${child.key}`,
-    component: PlaceholderView,
+    component: navPageMap[`${group.key}.${child.key}`] || PlaceholderView,
     meta: { title: child.title, roles: childRoles(group, child) }
   }))
 )
@@ -28,10 +146,11 @@ const navGroupRedirects = navGroups.map((group) => ({
 }))
 
 // 个人主页页签路由：/profile/<key>（容器由 ProfileView 提供，页签为独立子路由）
+// 组件按 profilePageMap 映射到真实页面，未登记的 key 回退到占位组件
 const profileTabRoutes = profileNavItems.map((tab) => ({
   path: tab.key,
   name: `profile-${tab.key}`,
-  component: PlaceholderView,
+  component: profilePageMap[tab.key] || PlaceholderView,
   meta: { title: tab.title }
 }))
 

@@ -15,6 +15,8 @@ const bcrypt = require('bcryptjs')
 const userRepository = require('../db/repositories/userRepository')
 // 事务上下文：createUser 用它保证「查重 + 插入」在同一连接上原子执行
 const { runTransaction } = require('../db/connection')
+// 操作日志（登录 / 退出 / 用户增删改的审计追溯）
+const logService = require('./logService')
 // 前后端共享常量（角色 / 密码长度 / bcrypt 成本等），单一事实来源，避免硬编码散落
 const { ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT, ROLE_USER, ACCOUNT_STATUS_DISABLED, ACCOUNT_STATUS_LEAVE, DEFAULT_PASSWORD_LENGTH, BCRYPT_ROUNDS } = require('../../shared/constants')
 
@@ -73,6 +75,7 @@ async function login({ username, password }) {
       real_name: user.real_name,
       created_at: user.created_at
     }
+    logService.record('login', 'user', user.id)
     return { success: true, message: '登录成功', user: currentUser }
   } catch (err) {
     console.error('[authService.login] 数据库异常:', err)
@@ -82,6 +85,7 @@ async function login({ username, password }) {
 
 // 退出登录：清空会话
 function logout() {
+  if (currentUser) logService.record('logout', 'user', currentUser.id)
   currentUser = null
   return { success: true }
 }
@@ -131,6 +135,25 @@ async function listUsers() {
   }
 }
 
+// 成员列表（轻量，所有登录用户可读）：供前端「关联字段下拉选人」使用。
+// 仅返回 id / username / real_name / role，不含任何敏感字段。
+async function listMembers() {
+  if (!currentUser) return { success: false, message: '未登录，请重新登录' }
+  try {
+    const users = await userRepository.list()
+    const members = users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      real_name: u.real_name,
+      role: u.role
+    }))
+    return { success: true, members }
+  } catch (err) {
+    console.error('[authService.listMembers] 数据库异常:', err)
+    return { success: false, message: '读取成员列表失败' }
+  }
+}
+
 // 新增用户：随机密码；用 runTransaction 包裹「查重 + 插入」保证原子性。
 // 支持携带档案字段（real_name / student_no / college 等，白名单过滤见 userRepository）
 async function createUser(payload) {
@@ -146,7 +169,8 @@ async function createUser(payload) {
       const exist = await userRepository.findByUsername(username.trim())
       if (exist) return { success: false, message: '该账号已存在' }
       const hash = await bcrypt.hash(plain, BCRYPT_ROUNDS)
-      await userRepository.createUser({ username: username.trim(), passwordHash: hash, role: roleVal, ...profile })
+      const newId = await userRepository.createUser({ username: username.trim(), passwordHash: hash, role: roleVal, ...profile })
+      logService.record('create', 'user', newId)
       return { success: true, message: '用户创建成功', plainPassword: plain }
     })
     return result
@@ -183,6 +207,7 @@ async function updateUser(payload) {
     if (Object.keys(data).length) {
       await userRepository.updateById(id, data)
     }
+    logService.record('update', 'user', id)
     return { success: true, message: '保存成功', plainPassword }
   } catch (err) {
     console.error('[authService.updateUser] 数据库异常:', err)
@@ -201,10 +226,41 @@ async function deleteUser({ id }) {
     const exist = await userRepository.findById(id)
     if (!exist) return { success: false, message: '用户不存在' }
     await userRepository.delete(id)
+    logService.record('delete', 'user', id)
     return { success: true, message: '已删除' }
   } catch (err) {
     console.error('[authService.deleteUser] 数据库异常:', err)
     return { success: false, message: '删除失败：' + (err && err.message ? err.message : '请稍后重试') }
+  }
+}
+
+// 读取当前登录用户自己的完整档案（不含 password），供「学术档案 / 个人设置」回显
+async function getMyProfile() {
+  if (!currentUser) return { success: false, message: '未登录，请重新登录' }
+  try {
+    const user = await userRepository.findByUsername(currentUser.username)
+    if (!user) return { success: false, message: '用户不存在' }
+    // 去掉 password，仅返回安全列
+    const { password, ...profile } = user
+    return { success: true, profile }
+  } catch (err) {
+    console.error('[authService.getMyProfile] 数据库异常:', err)
+    return { success: false, message: '读取档案失败，请稍后重试' }
+  }
+}
+
+// 更新当前登录用户自己的档案（仅档案字段，白名单过滤见 userRepository.updateById）。
+// 与 updateUser（管理员管理所有用户）区分：普通用户只能改自己，且不能改角色/账号/密码。
+async function updateMyProfile(payload) {
+  if (!currentUser) return { success: false, message: '未登录，请重新登录' }
+  try {
+    await userRepository.updateById(currentUser.id, payload)
+    // 同步会话中的姓名显示，让顶栏/个人主页立即生效
+    if (payload && payload.real_name) currentUser.real_name = payload.real_name
+    return { success: true, message: '保存成功' }
+  } catch (err) {
+    console.error('[authService.updateMyProfile] 数据库异常:', err)
+    return { success: false, message: '保存失败，请稍后重试' }
   }
 }
 
@@ -216,7 +272,10 @@ module.exports = {
   getCurrentUser,
   changePassword,
   listUsers,
+  listMembers,
   createUser,
   updateUser,
+  getMyProfile,
+  updateMyProfile,
   deleteUser
 }

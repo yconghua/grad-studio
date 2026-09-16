@@ -60,6 +60,16 @@ function register(ipcMain) {
     }
   })
 
+  // 成员列表（轻量，所有登录用户可读，供下拉选人）
+  ipcMain.handle('auth:list-members', async () => {
+    try {
+      return await authService.listMembers()
+    } catch (err) {
+      console.error('[auth:list-members] 未预期异常:', err)
+      return { success: false, message: '读取成员列表失败' }
+    }
+  })
+
   // 新增用户
   ipcMain.handle('auth:create-user', async (_evt, payload) => {
     try {
@@ -87,6 +97,26 @@ function register(ipcMain) {
     } catch (err) {
       console.error('[auth:delete-user] 未预期异常:', err)
       return { success: false, message: '删除失败，请稍后重试' }
+    }
+  })
+
+  // 读取当前登录用户自己的完整档案
+  ipcMain.handle('auth:get-my-profile', async () => {
+    try {
+      return await authService.getMyProfile()
+    } catch (err) {
+      console.error('[auth:get-my-profile] 未预期异常:', err)
+      return { success: false, message: '读取档案失败，请稍后重试' }
+    }
+  })
+
+  // 更新当前登录用户自己的档案（个人主页 → 学术档案 / 个人设置）
+  ipcMain.handle('auth:update-profile', async (_evt, payload) => {
+    try {
+      return await authService.updateMyProfile(payload)
+    } catch (err) {
+      console.error('[auth:update-profile] 未预期异常:', err)
+      return { success: false, message: '保存失败，请稍后重试' }
     }
   })
 }
