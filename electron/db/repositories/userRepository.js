@@ -5,10 +5,76 @@
  * 登录 / 改密 / 用户管理等业务相关的查询在此以裸 SQL 表达（保留原生 SQL 的绝对可控性）。
  * 列表过滤演示 buildWhereClause 的用法。
  *
+ * 安全约定：
+ *   - 返回给上层（进而返回前端）的字段统一走 SAFE_COLUMNS（不含 password）；
+ *   - 写入字段统一走 pickProfile 白名单，username / password / role 只能由服务层显式传入，
+ *     前端夹带的非法列名或敏感列（password / username / id）一律被丢弃，杜绝注入与越权。
+ *
  * 导出单例：全局共用同一个仓库实例。
  */
 const BaseRepository = require('./BaseRepository')
 const { buildWhereClause } = require('./queryHelpers')
+
+// 用户表安全返回列（不含 password）：列表 / 详情 / 登录回填共用
+const SAFE_COLUMNS = [
+  'id',
+  'username',
+  'role',
+  'real_name',
+  'gender',
+  'student_no',
+  'email',
+  'phone',
+  'avatar',
+  'bio',
+  'college',
+  'department',
+  'major',
+  'grade',
+  'degree_type',
+  'position',
+  'advisor_id',
+  'status',
+  'join_date',
+  'last_login_at',
+  'created_at',
+  'updated_at'
+]
+
+// 档案字段白名单：管理员可读写的用户档案列。
+// 注意：不含 username / password / role / id —— 这些由服务层显式处理，防止前端越权改写。
+const PROFILE_FIELDS = [
+  'real_name',
+  'gender',
+  'student_no',
+  'email',
+  'phone',
+  'avatar',
+  'bio',
+  'college',
+  'department',
+  'major',
+  'grade',
+  'degree_type',
+  'position',
+  'advisor_id',
+  'status',
+  'join_date'
+]
+
+// 列名拼接（反引号包裹，防与关键字冲突）
+function cols(columns) {
+  return columns.map((c) => `\`${c}\``).join(', ')
+}
+
+// 从输入对象中提取白名单内的档案字段（值为 undefined 的跳过）
+function pickProfile(data) {
+  const out = {}
+  for (const k of PROFILE_FIELDS) {
+    if (data && data[k] !== undefined) out[k] = data[k]
+  }
+  return out
+}
 
 class UserRepository extends BaseRepository {
   constructor() {
@@ -19,13 +85,13 @@ class UserRepository extends BaseRepository {
   /**
    * 按用户名查询（登录 / 改密 / 重名校验共用）
    * @param {string} username
-   * @returns {Object|null} 含 id/username/password/role/created_at
+   * @returns {Object|null} 含安全列 + password（password 仅供服务层比对哈希，不向上透传）
    */
   async findByUsername(username) {
     const { conn, release } = await this._acquire()
     try {
       const [rows] = await conn.execute(
-        'SELECT id, username, password, role, created_at FROM `user` WHERE username = ?',
+        `SELECT ${cols([...SAFE_COLUMNS, 'password'])} FROM \`user\` WHERE username = ?`,
         [username]
       )
       return rows[0] || null
@@ -35,14 +101,17 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * 用户列表（管理员视角），支持按角色 / 关键字过滤
-   * @param {{ role?: string, keyword?: string }} filters
+   * 用户列表（管理员视角），支持按角色 / 状态 / 关键字过滤
+   * @param {{ role?: string, status?: string, keyword?: string }} filters
    * @returns {Object[]} 仅返回安全列（不含 password）
    */
   async list(filters = {}) {
     const conditions = []
     if (filters.role) {
       conditions.push({ field: 'role', op: '=', value: filters.role })
+    }
+    if (filters.status) {
+      conditions.push({ field: 'status', op: '=', value: filters.status })
     }
     if (filters.keyword) {
       // 关键字模糊匹配账号（注意：value 经过 ? 占位，安全）
@@ -52,7 +121,7 @@ class UserRepository extends BaseRepository {
     const { conn, release } = await this._acquire()
     try {
       const [rows] = await conn.execute(
-        `SELECT id, username, role, created_at FROM \`user\` ${clause} ORDER BY id ASC`,
+        `SELECT ${cols(SAFE_COLUMNS)} FROM \`user\` ${clause} ORDER BY id ASC`,
         values
       )
       return rows
@@ -63,11 +132,16 @@ class UserRepository extends BaseRepository {
 
   /**
    * 新增用户（密码需调用方先 bcrypt 哈希后传入）
-   * @param {{ username: string, passwordHash: string, role: string }} param
+   * @param {{ username: string, passwordHash: string, role: string, ...profile }} param
+   *        除 username/passwordHash/role 外，其余档案字段经白名单过滤后一并写入
    * @returns {number} 新用户 id
    */
-  async createUser({ username, passwordHash, role }) {
-    return this.create({ username, password: passwordHash, role })
+  async createUser({ username, passwordHash, role, ...profile }) {
+    const data = pickProfile(profile)
+    data.username = username
+    data.password = passwordHash
+    data.role = role
+    return this.create(data)
   }
 
   /**
@@ -85,13 +159,16 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * 按主键增量更新（role / password 等），复用基类 update
+   * 按主键增量更新：仅白名单内的档案字段 + 服务层显式传入的 role / password 会被写入。
    * @param {number} id
-   * @param {Object} data
+   * @param {Object} data 字段->值 映射（role / password 由服务层显式设置，档案字段白名单过滤）
    * @returns {number} 受影响行数
    */
   async updateById(id, data) {
-    return this.update(id, data)
+    const profile = pickProfile(data)
+    if (data && data.role !== undefined) profile.role = data.role
+    if (data && data.password !== undefined) profile.password = data.password
+    return this.update(id, profile)
   }
 }
 

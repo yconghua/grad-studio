@@ -15,6 +15,11 @@ module.exports = {
   // 普通用户（兼容历史数据；权限与导航按「学生」处理）
   ROLE_USER: 'user',
 
+  // 账号状态：active 正常 / disabled 禁用 / leave 离组
+  ACCOUNT_STATUS_ACTIVE: 'active',
+  ACCOUNT_STATUS_DISABLED: 'disabled',
+  ACCOUNT_STATUS_LEAVE: 'leave',
+
   // 新增 / 重置用户时生成的随机密码位数（6 位纯数字）
   DEFAULT_PASSWORD_LENGTH: 6,
 
