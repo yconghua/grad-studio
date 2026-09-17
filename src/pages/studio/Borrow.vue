@@ -143,9 +143,15 @@ async function submit() {
     formError.value = '请填写借用人ID'
     return
   }
+  const payload = { ...form.value }
+  // 空字符串统一转 null：device_id 是数值列，borrow_date/expect_return_date 是日期列，
+  // 留空时以 '' 提交会让 MySQL 严格模式报 Incorrect value 错误
+  for (const k of ['device_id', 'borrow_date', 'expect_return_date', 'purpose']) {
+    if (payload[k] === '') payload[k] = null
+  }
   saving.value = true
   try {
-    const res = await studio.borrow.create(form.value)
+    const res = await studio.borrow.create(payload)
     if (res && res.success) {
       formVisible.value = false
       await load()

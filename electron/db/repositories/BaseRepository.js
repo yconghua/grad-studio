@@ -11,6 +11,18 @@
  */
 const { acquireConn } = require('../connection')
 
+// 写入前清洗：空字符串统一转 null。
+// 原因：前端表单留空的数值/日期/时间字段（如报名上限、关联设备ID、开始时间）会以 '' 提交，
+// MySQL 严格模式下直接报 "Incorrect integer/date/datetime value: ''"，导致保存失败。
+// 统一在此转 null 后，可空列安全写入 NULL；必填列（如 title）前端已做必填校验，不会走到这里。
+function sanitizeForWrite(data = {}) {
+  const out = {}
+  for (const [k, v] of Object.entries(data)) {
+    out[k] = (typeof v === 'string' && v.trim() === '') ? null : v
+  }
+  return out
+}
+
 class BaseRepository {
   /**
    * @param {string} tableName 表名（对应数据库中的物理表）
@@ -68,8 +80,9 @@ class BaseRepository {
   async create(data) {
     const { conn, release } = await this._acquire()
     try {
-      const cols = Object.keys(data)
-      const vals = Object.values(data)
+      const clean = sanitizeForWrite(data)
+      const cols = Object.keys(clean)
+      const vals = Object.values(clean)
       const placeholders = cols.map(() => '?').join(', ')
       const [result] = await conn.execute(
         `INSERT INTO \`${this.tableName}\` (${cols.map((c) => `\`${c}\``).join(', ')}) VALUES (${placeholders})`,
@@ -89,7 +102,8 @@ class BaseRepository {
    */
   async update(id, data) {
     const { buildUpdateSet } = require('./queryHelpers')
-    const { clause, values } = buildUpdateSet(data)
+    const clean = sanitizeForWrite(data)
+    const { clause, values } = buildUpdateSet(clean)
     if (!clause) return 0
     const { conn, release } = await this._acquire()
     try {

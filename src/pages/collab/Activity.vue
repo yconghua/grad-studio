@@ -185,6 +185,11 @@ async function submit() {
     return
   }
   const payload = { ...form.value }
+  // 空字符串统一转 null：max_signups 是数值列，start_time/end_time 是时间列，
+  // 留空时以 '' 提交会让 MySQL 严格模式报 Incorrect value 错误
+  for (const k of ['max_signups', 'start_time', 'end_time', 'location', 'description']) {
+    if (payload[k] === '') payload[k] = null
+  }
   if (payload.start_time) payload.start_time = payload.start_time.replace('T', ' ') + ':00'
   if (payload.end_time) payload.end_time = payload.end_time.replace('T', ' ') + ':00'
   saving.value = true
