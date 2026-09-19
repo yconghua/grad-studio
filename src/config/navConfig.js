@@ -96,13 +96,10 @@ export const navGroups = [
     roles: [ROLE_ADMIN],
     children: [
       { key: 'user', title: '用户管理' },
-      { key: 'role', title: '角色权限' },
-      { key: 'org', title: '组织架构' },
-      { key: 'menu', title: '菜单配置' },
       { key: 'audit', title: '日志审计' },
       { key: 'backup', title: '数据备份' },
       { key: 'param', title: '系统参数' },
-      { key: 'update', title: '版本更新' }
+      { key: 'update', title: '关于系统' }
     ]
   }
 ]

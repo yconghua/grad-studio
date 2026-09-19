@@ -149,7 +149,13 @@ async function submit() {
   }
   saving.value = true
   try {
-    const res = await collab.post.create(form.value)
+    // 构造普通对象再传，避免 Vue reactive proxy 直接走 IPC 导致序列化异常
+    const payload = {
+      title: String(form.value.title || '').trim(),
+      type: form.value.type || 'post',
+      content: String(form.value.content || '')
+    }
+    const res = await collab.post.create(payload)
     if (res && res.success) {
       formVisible.value = false
       await load()
@@ -157,6 +163,7 @@ async function submit() {
       formError.value = (res && res.message) || '发布失败'
     }
   } catch (e) {
+    console.error('[Forum.submit] 发布异常:', e)
     formError.value = '发布过程出现异常，请重试'
   } finally {
     saving.value = false

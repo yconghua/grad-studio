@@ -96,17 +96,35 @@ onMounted(async () => {
   }
 })
 
+// 学术档案表单实际可编辑的字段白名单。
+// 只提交这些字段，避免把 getMyProfile 回显的整个 profile（含 id/username/role/
+// created_at/updated_at/last_login_at 等只读或系统字段）原样回传，
+// 防止多余字段在 IPC 序列化或主进程白名单过滤时产生意外。
+const EDITABLE_FIELDS = [
+  'real_name', 'gender', 'student_no', 'email', 'phone',
+  'college', 'department', 'major', 'grade', 'degree_type', 'bio'
+]
+
 async function save() {
   error.value = ''
   saving.value = true
   try {
-    const res = await updateMyProfile(form.value)
+    // 只取表单白名单字段，空串转 undefined（不传给后端，避免覆盖已有值为 NULL）
+    const payload = {}
+    for (const k of EDITABLE_FIELDS) {
+      const v = form.value[k]
+      if (v === undefined || v === null) continue
+      if (typeof v === 'string' && v.trim() === '') continue
+      payload[k] = v
+    }
+    const res = await updateMyProfile(payload)
     if (res && res.success) {
       await dialogAlert('保存成功')
     } else {
       error.value = (res && res.message) || '保存失败'
     }
   } catch (e) {
+    console.error('[Academic.save] 保存个人信息异常:', e)
     error.value = '保存过程出现异常，请重试'
   } finally {
     saving.value = false

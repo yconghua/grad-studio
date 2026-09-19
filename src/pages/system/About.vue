@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div class="page">
-    <h3 class="title">版本更新</h3>
+    <h3 class="title">关于系统</h3>
 
     <!-- 版本信息（原有保留） -->
     <div class="card">

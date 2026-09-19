@@ -47,13 +47,10 @@ import ReportDeviceStat from '../pages/report/DeviceStat.vue'
 import ReportActivityStat from '../pages/report/ActivityStat.vue'
 import ReportExport from '../pages/report/Export.vue'
 import SystemUser from '../pages/system/User.vue'
-import SystemRole from '../pages/system/Role.vue'
-import SystemOrg from '../pages/system/Org.vue'
-import SystemMenu from '../pages/system/Menu.vue'
 import SystemAudit from '../pages/system/Audit.vue'
 import SystemBackup from '../pages/system/Backup.vue'
 import SystemParam from '../pages/system/Param.vue'
-import SystemUpdate from '../pages/system/Update.vue'
+import SystemAbout from '../pages/system/About.vue'
 import ProfileOverview from '../pages/profile/Overview.vue'
 import ProfileAcademic from '../pages/profile/Academic.vue'
 import ProfileMyProject from '../pages/profile/MyProject.vue'
@@ -104,13 +101,10 @@ const navPageMap = {
   'report.activity-stat': ReportActivityStat,
   'report.export': ReportExport,
   'system.user': SystemUser,
-  'system.role': SystemRole,
-  'system.org': SystemOrg,
-  'system.menu': SystemMenu,
   'system.audit': SystemAudit,
   'system.backup': SystemBackup,
   'system.param': SystemParam,
-  'system.update': SystemUpdate
+  'system.update': SystemAbout
 }
 
 // 个人主页页签页面映射

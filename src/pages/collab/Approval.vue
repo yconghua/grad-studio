@@ -124,7 +124,13 @@ async function submit() {
   }
   saving.value = true
   try {
-    const res = await collab.approval.create(form.value)
+    // 构造普通对象再传，避免 Vue reactive proxy 直接走 IPC 导致序列化异常
+    const payload = {
+      title: String(form.value.title || '').trim(),
+      type: form.value.type || '',
+      reason: form.value.content || ''
+    }
+    const res = await collab.approval.create(payload)
     if (res && res.success) {
       formVisible.value = false
       await load()
@@ -132,6 +138,7 @@ async function submit() {
       formError.value = (res && res.message) || '提交失败'
     }
   } catch (e) {
+    console.error('[Approval.submit] 提交异常:', e)
     formError.value = '提交过程出现异常，请重试'
   } finally {
     saving.value = false

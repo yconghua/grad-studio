@@ -29,16 +29,18 @@
           <tr v-if="loading" class="state-row">
             <td :colspan="columns.length + (writable ? 1 : 0)">加载中…</td>
           </tr>
-          <tr v-else-if="!list.length" class="state-row">
-            <td :colspan="columns.length + (writable ? 1 : 0)">暂无数据</td>
-          </tr>
-          <tr v-for="row in list" :key="row.id" v-else>
-            <td v-for="c in columns" :key="c.key" :title="cellText(row, c)">{{ cellText(row, c) }}</td>
-            <td v-if="writable" class="col-ops">
-              <button class="btn-link" @click="openEdit(row)">编辑</button>
-              <button class="btn-link danger" @click="confirmRemove(row)">删除</button>
-            </td>
-          </tr>
+          <template v-else>
+            <tr v-if="!list.length" class="state-row">
+              <td :colspan="columns.length + (writable ? 1 : 0)">暂无数据</td>
+            </tr>
+            <tr v-for="row in list" :key="row.id">
+              <td v-for="c in columns" :key="c.key" :title="cellText(row, c)">{{ cellText(row, c) }}</td>
+              <td v-if="writable" class="col-ops">
+                <button class="btn-link" @click="openEdit(row)">编辑</button>
+                <button class="btn-link danger" @click="confirmRemove(row)">删除</button>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -161,8 +163,8 @@ function cellText(row, c) {
 // 构造列表筛选条件（固定筛选 + 标题模糊搜索）
 function buildFilters() {
   const filters = { ...props.fixedFilters }
-  if (searchField && keyword.value.trim()) {
-    filters[searchField] = { op: 'LIKE', value: `%${keyword.value.trim()}%` }
+  if (props.searchField && keyword.value.trim()) {
+    filters[props.searchField] = { op: 'LIKE', value: `%${keyword.value.trim()}%` }
   }
   return filters
 }
@@ -170,13 +172,17 @@ function buildFilters() {
 async function load() {
   loading.value = true
   try {
-    const res = await props.api.list(buildFilters())
+    const filters = buildFilters()
+    const res = await props.api.list(filters)
+    console.log('[CrudPage.load]', props.title, 'filters=', JSON.parse(JSON.stringify(filters)), 'res=', res)
     if (res && res.success) {
       list.value = res.list || []
     } else {
+      console.warn('[CrudPage.load] 后端返回失败:', res && res.message)
       list.value = []
     }
   } catch (e) {
+    console.error('[CrudPage.load] 调用异常:', e)
     list.value = []
   } finally {
     loading.value = false
@@ -234,6 +240,8 @@ function preparePayload() {
       formError.value = `请填写「${f.label}」`
       return null
     }
+    // 空值不传给后端：让数据库用列默认值（避免 NOT NULL DEFAULT 列写入 null 报错）
+    if (v === null) continue
     payload[f.key] = v
   }
   return payload
