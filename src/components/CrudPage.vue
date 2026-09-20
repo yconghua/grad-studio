@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="crud-page">
     <!-- 头部：标题 + 搜索 + 新增 -->
     <div class="page-head">
@@ -37,7 +37,7 @@
               <td v-for="c in columns" :key="c.key" :title="cellText(row, c)">{{ cellText(row, c) }}</td>
               <td v-if="writable" class="col-ops">
                 <button class="btn-link" @click="openEdit(row)">编辑</button>
-                <button class="btn-link danger" @click="confirmRemove(row)">删除</button>
+                <button v-if="!canDelete || canDelete(row)" class="btn-link danger" @click="confirmRemove(row)">删除</button>
               </td>
             </tr>
           </template>
@@ -122,7 +122,8 @@ const props = defineProps({
   searchLabel: { type: String, default: '标题' },
   writable: { type: Boolean, default: true },
   // 固定筛选条件（如「我的项目」按 leader_id 过滤），列表查询时强制合并
-  fixedFilters: { type: Object, default: () => ({}) }
+  fixedFilters: { type: Object, default: () => ({}) },
+  canDelete: { type: Function, default: null }
 })
 
 const list = ref([])

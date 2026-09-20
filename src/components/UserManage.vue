@@ -5,7 +5,7 @@
       <div class="head-actions">
         <input v-model="keyword" class="search-input" placeholder="搜索账号" @keyup.enter="load" />
         <button class="btn" @click="load">查询</button>
-        <button class="btn btn-primary" @click="openCreate">新增成员</button>
+        <button v-if="isAdmin" class="btn btn-primary" @click="openCreate">新增成员</button>
       </div>
     </div>
 
@@ -16,26 +16,27 @@
             <th>账号</th>
             <th>姓名</th>
             <th>角色</th>
-            <th>学号/工号</th>
-            <th>学院</th>
+            <th class="col-no">学号/工号</th>
+            <th class="col-college">学院</th>
             <th>状态</th>
-            <th class="col-ops">操作</th>
+            <th v-if="isManager" class="col-ops">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading"><td colspan="7" class="state">加载中…</td></tr>
-          <tr v-else-if="!list.length"><td colspan="7" class="state">暂无成员</td></tr>
+          <tr v-if="loading"><td :colspan="isManager ? 7 : 6" class="state">加载中…</td></tr>
+          <tr v-else-if="!list.length"><td :colspan="isManager ? 7 : 6" class="state">暂无成员</td></tr>
           <tr v-for="row in list" :key="row.id" v-else>
             <td>{{ row.username }}</td>
             <td>{{ row.real_name || '-' }}</td>
             <td>{{ roleLabel(row.role) }}</td>
-            <td>{{ row.student_no || '-' }}</td>
-            <td>{{ row.college || '-' }}</td>
+            <td class="col-no">{{ row.student_no || '-' }}</td>
+            <td class="col-college">{{ row.college || '-' }}</td>
             <td>{{ statusLabel(row.status) }}</td>
-            <td class="col-ops">
-              <button class="btn-link" @click="openEdit(row)">编辑</button>
-              <button class="btn-link" @click="resetPassword(row)">重置密码</button>
-              <button class="btn-link danger" @click="confirmRemove(row)">删除</button>
+            <td v-if="isManager" class="col-ops">
+              <button v-if="isAdmin" class="btn-link" @click="openEdit(row)">编辑</button>
+              <button v-if="isAdmin" class="btn-link" @click="resetPassword(row)">重置密码</button>
+              <button v-if="isAdmin" class="btn-link danger" @click="confirmRemove(row)">删除</button>
+              <button class="btn-link" @click="openSendMsg(row)">发消息</button>
             </td>
           </tr>
         </tbody>
@@ -121,17 +122,46 @@
         </div>
       </div>
     </div>
+
+    <!-- 发消息弹窗 -->
+    <div v-if="msgVisible" class="modal-mask" @click.self="msgVisible = false">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h4>发送消息给 {{ msgTarget?.real_name || msgTarget?.username }}</h4>
+          <button class="modal-close" @click="msgVisible = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-item">
+            <label class="form-label">标题<span class="req"> *</span></label>
+            <input v-model="msgTitle" class="form-input" placeholder="如：请及时填写本周日志" />
+          </div>
+          <div class="form-item">
+            <label class="form-label">内容</label>
+            <textarea v-model="msgContent" class="form-input" rows="4" placeholder="消息正文（可选）"></textarea>
+          </div>
+          <p v-if="msgError" class="form-error">{{ msgError }}</p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" @click="msgVisible = false">取消</button>
+          <button class="btn btn-primary" @click="submitMsg" :disabled="msgSending">{{ msgSending ? '发送中…' : '发送' }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { listUsers, createUser, updateUser, deleteUser } from '../api'
+import { system } from '../api'
 import {
   ROLE_OPTIONS, GENDER_OPTIONS, DEGREE_TYPE_OPTIONS, ACCOUNT_STATUS_OPTIONS
 } from '../config/fieldOptions'
 import { ROLE_STUDENT, ACCOUNT_STATUS_ACTIVE } from '../config/constants'
 import { dialogAlert, dialogConfirm } from '../composables/useDialog'
+import { useRole } from '../composables/useRole'
+
+const { isAdmin, isManager } = useRole()
 
 const list = ref([])
 const loading = ref(false)
@@ -142,6 +172,14 @@ const form = ref({})
 const formError = ref('')
 const saving = ref(false)
 const editingId = ref(null)
+
+// 发消息弹窗状态
+const msgVisible = ref(false)
+const msgTarget = ref(null)
+const msgTitle = ref('')
+const msgContent = ref('')
+const msgError = ref('')
+const msgSending = ref(false)
 
 function roleLabel(v) {
   const o = ROLE_OPTIONS.find((x) => x.value === v)
@@ -278,6 +316,44 @@ async function confirmRemove(row) {
   }
 }
 
+function openSendMsg(row) {
+  msgTarget.value = row
+  msgTitle.value = ''
+  msgContent.value = ''
+  msgError.value = ''
+  msgVisible.value = true
+}
+
+async function submitMsg() {
+  msgError.value = ''
+  const target = msgTarget.value
+  if (!target) return
+  if (!msgTitle.value || !String(msgTitle.value).trim()) {
+    msgError.value = '请填写标题'
+    return
+  }
+  msgSending.value = true
+  try {
+    const res = await system.sendMessage({
+      receiver_id: target.id,
+      title: String(msgTitle.value).trim(),
+      content: String(msgContent.value || ''),
+      type: 'manual'
+    })
+    if (res && res.success) {
+      msgVisible.value = false
+      await dialogAlert(`已发送给 ${target.real_name || target.username}`)
+    } else {
+      msgError.value = (res && res.message) || '发送失败'
+    }
+  } catch (e) {
+    console.error('[sendMessage] 异常:', e)
+    msgError.value = '发送过程出现异常，请重试'
+  } finally {
+    msgSending.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -349,6 +425,7 @@ onMounted(load)
 }
 .data-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -376,7 +453,36 @@ onMounted(load)
   padding: 32px 0;
 }
 .col-ops {
-  width: 180px;
+  width: 150px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 6px;
+}
+.col-ops .btn-link {
+  padding: 2px 6px;
+  text-align: left;
+}
+.col-no {
+  width: 110px;
+}
+.col-college {
+  width: auto;
+}
+.data-table th:nth-child(1),
+.data-table td:nth-child(1) {
+  width: 120px;
+}
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) {
+  width: 110px;
+}
+.data-table th:nth-child(3),
+.data-table td:nth-child(3) {
+  width: 80px;
+}
+.data-table th:nth-child(6),
+.data-table td:nth-child(6) {
+  width: 80px;
 }
 .btn-link {
   border: none;

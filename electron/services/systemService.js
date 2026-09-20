@@ -92,6 +92,27 @@ async function sendMessage({ receiver_id, title, content, type }) {
   }
 }
 
+/**
+ * 内部自动通知（供其他 Service 在业务事件后调用，不暴露给前端）。
+ * 不做权限校验——调用方本身已经过业务校验；写入失败只打日志，不影响主业务流程。
+ * @param {{receiver_id:number, sender_id?:number|null, title?:string, content?:string, type?:string}} p
+ */
+async function notify({ receiver_id, sender_id = null, title, content, type } = {}) {
+  if (!receiver_id) return
+  try {
+    await messageRepo.create({
+      receiver_id,
+      sender_id,
+      title: title || null,
+      content: content || null,
+      type: type || null,
+      status: MESSAGE_STATUS_UNREAD
+    })
+  } catch (err) {
+    console.error('[message.notify] 写自动通知失败:', err)
+  }
+}
+
 // 我的消息（当前登录用户收到的，默认最新在前）
 async function myMessages(filters = {}) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
@@ -147,6 +168,7 @@ module.exports = {
   recordLog,
   listLogs,
   sendMessage,
+  notify,
   myMessages,
   unreadCount,
   markRead

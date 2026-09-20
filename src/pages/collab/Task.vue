@@ -6,6 +6,13 @@
 import CrudPage from '../../components/CrudPage.vue'
 import { collab } from '../../api'
 import { TASK_STATUS_OPTIONS, PRIORITY_OPTIONS } from '../../config/fieldOptions'
+import { useSession } from '../../composables/useSession'
+import { useRole } from '../../composables/useRole'
+
+const { getSessionUser } = useSession()
+const { isAdmin } = useRole()
+const me = getSessionUser()
+const myId = me ? me.id : null
 
 const config = {
   title: '任务协作',
@@ -29,6 +36,8 @@ const config = {
     { label: '状态', key: 'status', type: 'select', options: TASK_STATUS_OPTIONS, default: 'todo' },
     { label: '进度(0-100)', key: 'progress', type: 'number' },
     { label: '截止日期', key: 'due_date', type: 'date' }
-  ]
+  ],
+  // 仅管理员可删别人的任务；普通成员只能删自己创建的
+  canDelete: (row) => isAdmin.value || row.created_by === myId
 }
 </script>

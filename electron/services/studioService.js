@@ -95,4 +95,14 @@ const studio = {
   }
 }
 
+// 物品借用列表：管理员看全部；其他角色（导师/学生）只看自己借的
+const _borrowList = studio.borrowRecord.list
+studio.borrowRecord.list = async (filters = {}) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isAdmin()) {
+    filters.borrower_id = permission.currentUserId()
+  }
+  return _borrowList(filters)
+}
+
 module.exports = studio

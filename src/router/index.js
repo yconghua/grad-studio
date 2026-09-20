@@ -3,7 +3,8 @@ import LoginView from '../pages/auth/LoginView.vue'
 import HomeLayout from '../layouts/HomeLayout.vue'
 import ProfileView from '../pages/profile/index.vue'
 import PlaceholderView from '../pages/placeholder/index.vue'
-import { navGroups, profileNavItems, childRoles, groupDefaultPath, defaultNavPath } from '../config/navConfig'
+import { navGroups, profileNavItems, childRoles, groupDefaultPath, defaultNavPath, isRoleAllowed } from '../config/navConfig'
+import { ROLE_STUDENT } from '../config/constants'
 import { useSession } from '../composables/useSession'
 import { getCurrentUser } from '../api'
 
@@ -133,10 +134,17 @@ const navChildRoutes = navGroups.flatMap((group) =>
   }))
 )
 
-// 一级大导航落地路由：/groupKey 重定向到该组默认二级导航
+// 一级大导航落地路由：/groupKey 重定向到该组「当前用户角色可见」的第一个子项
+// （不能写死 children[0]，否则像学生点工作室事务会跳到无权限的「成员管理」，被守卫再弹回总览）
 const navGroupRedirects = navGroups.map((group) => ({
   path: group.key,
-  redirect: groupDefaultPath(group)
+  redirect: () => {
+    const u = getSessionUser()
+    const role = (u && u.role) || ROLE_STUDENT
+    const visible = group.children.filter((c) => isRoleAllowed(childRoles(group, c), role))
+    const first = visible[0]
+    return first ? `/${group.key}/${first.key}` : defaultNavPath
+  }
 }))
 
 // 个人主页页签路由：/profile/<key>（容器由 ProfileView 提供，页签为独立子路由）

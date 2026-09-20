@@ -32,7 +32,7 @@
             <td>{{ fmt(row.created_at) }}</td>
             <td class="col-ops">
               <button class="btn-link" @click="openDetail(row)">查看</button>
-              <button class="btn-link danger" @click="removePost(row)">删除</button>
+              <button v-if="row.author_id === myId || isAdmin" class="btn-link danger" @click="removePost(row)">删除</button>
             </td>
           </tr>
         </tbody>
@@ -103,6 +103,13 @@ import { ref, onMounted } from 'vue'
 import { collab } from '../../api'
 import { FORUM_TYPE_OPTIONS } from '../../config/fieldOptions'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { useSession } from '../../composables/useSession'
+import { useRole } from '../../composables/useRole'
+
+const { getSessionUser } = useSession()
+const { isAdmin } = useRole()
+const me = getSessionUser()
+const myId = me ? me.id : null
 
 const list = ref([])
 const loading = ref(false)

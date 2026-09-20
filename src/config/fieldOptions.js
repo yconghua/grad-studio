@@ -1,4 +1,4 @@
-// 表单 / 表格下拉选项集中定义（单一事实来源）
+﻿// 表单 / 表格下拉选项集中定义（单一事实来源）
 //
 // 各业务页面需要的「枚举 -> 中文 label」下拉选项统一在这里维护，
 // value 取自 shared/constants.js 的枚举常量，避免每个页面各自写死重复选项。
@@ -196,7 +196,6 @@ export const ROLE_OPTIONS = [
   { label: '管理员', value: ROLE_ADMIN },
   { label: '导师', value: ROLE_MENTOR },
   { label: '学生', value: ROLE_STUDENT },
-  { label: '普通用户', value: ROLE_USER }
 ]
 
 export const GENDER_OPTIONS = [

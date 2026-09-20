@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 认证服务（Service Layer）—— 会话状态与用户业务
  *
  * 职责：
@@ -121,10 +121,11 @@ async function changePassword({ username, oldPassword, newPassword }) {
   }
 }
 
-// 用户列表：仅管理员可见
+// 用户列表：管理员和导师均可查看（导师只读，新增/编辑/删除由各自接口校验）
 async function listUsers() {
-  if (!isAdmin()) {
-    return { success: false, message: '无权限：仅管理员可查看用户列表' }
+  if (!currentUser) return { success: false, message: '未登录，请重新登录' }
+  if (currentUser.role !== ROLE_ADMIN && currentUser.role !== ROLE_MENTOR) {
+    return { success: false, message: '无权限：仅管理员和导师可查看成员列表' }
   }
   try {
     const users = await userRepository.list()

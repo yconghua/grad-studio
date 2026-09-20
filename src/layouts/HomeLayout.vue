@@ -105,10 +105,12 @@ function isGroupOpen(key) {
 function visibleChildren(group) {
   return group.children.filter((c) => isRoleAllowed(childRoles(group, c), role.value))
 }
-// 点击分组：手风琴式展开当前分组，并跳转到该组第一个子项
+// 点击分组：手风琴式展开当前分组，并跳转到该组当前角色可见的第一个子项
 function toggleGroup(group) {
   openKey.value = group.key
-  router.push(groupDefaultPath(group))
+  const visible = visibleChildren(group)
+  const first = visible[0]
+  if (first) router.push(`/${group.key}/${first.key}`)
 }
 
 // 头像文字：取用户名首字母大写
