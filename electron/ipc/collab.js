@@ -12,6 +12,9 @@ function register(ipcMain) {
   registerCrud(ipcMain, 'collab:task', collabService.task)
   registerCrud(ipcMain, 'collab:post', collabService.forumPost)
   registerCrud(ipcMain, 'collab:approval', collabService.approval)
+  registerCrud(ipcMain, 'collab:weekly-report', collabService.weeklyReport)
+  registerCrud(ipcMain, 'collab:meeting-agenda', collabService.meetingAgenda)
+  registerCrud(ipcMain, 'collab:meeting-read', collabService.meetingRead)
 
   // 活动报名 / 取消 / 名单
   handle(ipcMain, 'collab:signup', (p) => collabService.signup(p && p.activityId))
@@ -27,6 +30,18 @@ function register(ipcMain) {
   handle(ipcMain, 'collab:approval-review', (p) =>
     collabService.reviewApproval(p && p.id, p && p.approved, p && p.remark)
   )
+
+  // 周报批注 / 转待办
+  handle(ipcMain, 'collab:weekly-report-review', (p) =>
+    collabService.reviewReport(p && p.id, p && p.comment, p && p.score)
+  )
+  handle(ipcMain, 'collab:weekly-report-to-task', (p) =>
+    collabService.reportToTask(p && p.reportId, p && p.title, p && p.assigneeId, p && p.dueDate)
+  )
+
+  // 会议已读回执
+  handle(ipcMain, 'collab:meeting-read-mark', (p) => collabService.markMeetingRead(p && p.meetingId))
+  handle(ipcMain, 'collab:meeting-read-list', (p) => collabService.meetingReadList(p && p.meetingId))
 }
 
 module.exports = { register }

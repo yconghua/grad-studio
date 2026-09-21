@@ -58,11 +58,20 @@ const fundRecordRepo = createCrudRepo('fund_record', {
   ]
 })
 
+// 毕业里程碑
+const graduationMilestoneRepo = createCrudRepo('graduation_milestone', {
+  writable: [
+    'user_id', 'type', 'deadline', 'materials', 'status',
+    'completed_at', 'remark'
+  ]
+})
+
 module.exports = {
   projectRepo,
   paperRepo,
   patentRepo,
   researchLogRepo,
   achievementRepo,
-  fundRecordRepo
+  fundRecordRepo,
+  graduationMilestoneRepo
 }

@@ -109,8 +109,8 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * 用户列表（管理员视角），支持按角色 / 状态 / 关键字过滤
-   * @param {{ role?: string, status?: string, keyword?: string }} filters
+   * 用户列表，支持按角色 / 状态 / 关键字 / 导师过滤
+   * @param {{ role?: string, status?: string, keyword?: string, advisor_id?: number }} filters
    * @returns {Object[]} 仅返回安全列（不含 password）
    */
   async list(filters = {}) {
@@ -121,8 +121,10 @@ class UserRepository extends BaseRepository {
     if (filters.status) {
       conditions.push({ field: 'status', op: '=', value: filters.status })
     }
+    if (filters.advisor_id) {
+      conditions.push({ field: 'advisor_id', op: '=', value: filters.advisor_id })
+    }
     if (filters.keyword) {
-      // 关键字模糊匹配账号（注意：value 经过 ? 占位，安全）
       conditions.push({ field: 'username', op: 'LIKE', value: `%${filters.keyword}%` })
     }
     const { clause, values } = buildWhereClause(conditions)

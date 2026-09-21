@@ -63,7 +63,8 @@ contextBridge.exposeInMainWorld('api', {
     patent: crudApi('research:patent'),
     log: crudApi('research:log'),
     achievement: crudApi('research:achievement'),
-    fund: crudApi('research:fund')
+    fund: crudApi('research:fund'),
+    milestone: crudApi('research:milestone')
   },
   // 工作室事务（对应 ipc/studio.js，通道前缀 studio:*）
   studio: {
@@ -90,13 +91,20 @@ contextBridge.exposeInMainWorld('api', {
     task: crudApi('collab:task'),
     post: crudApi('collab:post'),
     approval: crudApi('collab:approval'),
+    weeklyReport: crudApi('collab:weekly-report'),
+    meetingAgenda: crudApi('collab:meeting-agenda'),
+    meetingRead: crudApi('collab:meeting-read'),
     signup: createInvoke('collab:signup'),
     cancelSignup: createInvoke('collab:signup-cancel'),
     signupList: createInvoke('collab:signup-list'),
     viewPost: createInvoke('collab:post-view'),
     reply: createInvoke('collab:reply'),
     replyList: createInvoke('collab:reply-list'),
-    reviewApproval: createInvoke('collab:approval-review')
+    reviewApproval: createInvoke('collab:approval-review'),
+    reviewReport: createInvoke('collab:weekly-report-review'),
+    reportToTask: createInvoke('collab:weekly-report-to-task'),
+    markMeetingRead: createInvoke('collab:meeting-read-mark'),
+    meetingReadList: createInvoke('collab:meeting-read-list')
   },
   // 工作台（对应 ipc/workbench.js，通道前缀 workbench:*）
   workbench: {

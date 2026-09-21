@@ -128,7 +128,9 @@ async function listUsers() {
     return { success: false, message: '无权限：仅管理员和导师可查看成员列表' }
   }
   try {
-    const users = await userRepository.list()
+    const filters = {}
+    if (currentUser.role === ROLE_MENTOR) { filters.advisor_id = currentUser.id }
+    const users = await userRepository.list(filters)
     return { success: true, users }
   } catch (err) {
     console.error('[authService.listUsers] 数据库异常:', err)
@@ -146,7 +148,8 @@ async function listMembers() {
       id: u.id,
       username: u.username,
       real_name: u.real_name,
-      role: u.role
+      role: u.role,
+      advisor_id: u.advisor_id
     }))
     return { success: true, members }
   } catch (err) {

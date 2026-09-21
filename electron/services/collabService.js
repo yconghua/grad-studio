@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 协同办公服务（Service Layer）—— 组会 / 活动 / 活动报名 / 任务 / 讨论区 / 审批
  *
  * 标准 CRUD 用工厂生成；报名去重与名额校验、帖子浏览/回复计数、审批流转在下方补充。
@@ -10,9 +10,13 @@ const {
   taskRepo,
   forumPostRepo,
   forumReplyRepo,
-  approvalRepo
+  approvalRepo,
+  weeklyReportRepo,
+  meetingAgendaRepo,
+  meetingReadRepo
 } = require('../db/repositories/collabRepository')
 const { createCrudService } = require('./crudService')
+const userRepository = require('../db/repositories/userRepository')
 const permission = require('./permission')
 const logService = require('./logService')
 const systemService = require('./systemService')
@@ -21,7 +25,9 @@ const {
   SIGNUP_STATUS_SIGNED,
   SIGNUP_STATUS_CANCELLED,
   APPROVAL_STATUS_APPROVED,
-  APPROVAL_STATUS_REJECTED
+  APPROVAL_STATUS_REJECTED,
+  WEEKLY_REPORT_STATUS_SUBMITTED,
+  WEEKLY_REPORT_STATUS_REVIEWED
 } = require('../../shared/constants')
 
 const collab = {
@@ -35,6 +41,15 @@ const collab = {
   forumPost: createCrudService(forumPostRepo, { label: '帖子', write: 'member', creatorField: 'author_id' }),
   // 审批：成员发起（申请人=当前用户），审核走 reviewApproval
   approval: createCrudService(approvalRepo, { label: '审批', write: 'member', creatorField: 'applicant_id' }),
+
+  // 周报：学生提交（student_id 后端回填当前用户），导师批注走 reviewReport
+  weeklyReport: createCrudService(weeklyReportRepo, { label: '周报', write: 'member', creatorField: 'student_id' }),
+
+  // 会议议程：管理类写操作
+  meetingAgenda: createCrudService(meetingAgendaRepo, { label: '会议议程', write: 'manager' }),
+
+  // 会议已读回执：成员可标记
+  meetingRead: createCrudService(meetingReadRepo, { label: '会议已读', write: 'member' }),
 
   /**
    * 活动报名：校验活动状态与名额上限，去重后写入。
@@ -221,6 +236,106 @@ const collab = {
       console.error('[approval.review] 数据库异常:', err)
       return { success: false, message: '审批失败' }
     }
+  },
+
+  /**
+   * 周报批注：导师给学生周报写评语 + 打分。
+   * @param {number} id 周报 id
+   * @param {string} comment 批注内容
+   * @param {number} score 打分（0-100）
+   */
+  async reviewReport(id, comment, score) {
+    if (!permission.isManager()) return { success: false, message: '无权限：仅导师或管理员可批注' }
+    if (id === null || id === undefined) return { success: false, message: '缺少周报标识' }
+    try {
+      const exist = await weeklyReportRepo.get(id)
+      if (!exist) return { success: false, message: '周报不存在' }
+      await weeklyReportRepo.update(id, {
+        mentor_comment: comment || '',
+        mentor_score: score != null ? Number(score) : null,
+        mentor_id: permission.currentUserId(),
+        reviewed_at: new Date(),
+        status: WEEKLY_REPORT_STATUS_REVIEWED
+      })
+      logService.record('update', 'weekly_report', id, { action: 'review' })
+      // 自动通知学生：周报已批注
+      try {
+        await systemService.notify({
+          receiver_id: exist.student_id,
+          sender_id: permission.currentUserId(),
+          title: '你的周报已被批注',
+          content: `第 ${exist.week_start} 周周报已收到导师批注。`,
+          type: 'weekly_report'
+        })
+      } catch (e) { /* 通知失败不影响主流程 */ }
+      return { success: true, message: '批注成功' }
+    } catch (err) {
+      console.error('[weeklyReport.review] 数据库异常:', err)
+      return { success: false, message: '批注失败' }
+    }
+  },
+
+  /**
+   * 周报一键转待办：把周报里的问题或下周计划转成任务。
+   * @param {number} reportId 周报 id
+   * @param {string} title 任务标题
+   * @param {number} assigneeId 负责人（默认学生本人）
+   * @param {string} dueDate 截止日期（可选）
+   */
+  async reportToTask(reportId, title, assigneeId, dueDate) {
+    if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+    if (reportId === null || reportId === undefined) return { success: false, message: '缺少周报标识' }
+    try {
+      const report = await weeklyReportRepo.get(reportId)
+      if (!report) return { success: false, message: '周报不存在' }
+      const taskTitle = title || `周报事项：${report.week_start}`
+      const payload = {
+        title: taskTitle,
+        description: `来自周报（${report.week_start} 至 ${report.week_end}）\n\n【问题】${report.issues || '-'}\n\n【下周计划】${report.plan_next || '-'}`,
+        assignee_id: assigneeId || report.student_id,
+        priority: 'medium',
+        status: 'todo',
+        due_date: dueDate || null,
+        created_by: permission.currentUserId()
+      }
+      const id = await taskRepo.create(payload)
+      logService.record('create', 'task', id, { from_report: reportId })
+      return { success: true, id, message: '已转为任务' }
+    } catch (err) {
+      console.error('[weeklyReport.toTask] 数据库异常:', err)
+      return { success: false, message: '转任务失败' }
+    }
+  },
+
+  /**
+   * 标记会议已读回执。
+   * @param {number} meetingId 会议 id
+   */
+  async markMeetingRead(meetingId) {
+    if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+    if (meetingId === null || meetingId === undefined) return { success: false, message: '缺少会议标识' }
+    const me = permission.currentUserId()
+    try {
+      const exist = await meetingReadRepo.list({ meeting_id: meetingId, user_id: me })
+      if (exist.length) return { success: true, message: '已读' }
+      await meetingReadRepo.create({ meeting_id: meetingId, user_id: me })
+      return { success: true, message: '已确认已读' }
+    } catch (err) {
+      console.error('[meetingRead.mark] 数据库异常:', err)
+      return { success: false, message: '操作失败' }
+    }
+  },
+
+  // 某会议的已读人员列表
+  async meetingReadList(meetingId) {
+    if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+    try {
+      const list = await meetingReadRepo.list({ meeting_id: meetingId }, 'id ASC')
+      return { success: true, list }
+    } catch (err) {
+      console.error('[meetingRead.list] 数据库异常:', err)
+      return { success: false, message: '查询失败' }
+    }
   }
 }
 
@@ -281,6 +396,27 @@ collab.task.remove = async (id) => {
     return { success: false, message: '删除失败' }
   }
   return _taskRemove(id)
+}
+
+// 周报列表：管理员看全部；导师看自己学生的；学生只看自己的
+const _weeklyList = collab.weeklyReport.list
+collab.weeklyReport.list = async (filters = {}) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (permission.isAdmin()) {
+    return _weeklyList(filters)
+  }
+  const me = permission.currentUserId()
+  if (permission.isManager()) {
+    // 导师：查自己名下学生
+    const students = await userRepository.list({ advisor_id: me, role: 'student' })
+    const ids = (students || []).map((s) => s.id)
+    if (!ids.length) return { success: true, list: [] }
+    filters.student_id = { op: 'IN', value: ids }
+  } else {
+    // 学生：只看自己
+    filters.student_id = me
+  }
+  return _weeklyList(filters)
 }
 
 module.exports = collab

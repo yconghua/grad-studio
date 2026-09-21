@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="user-manage">
     <div class="page-head">
       <h3 class="page-title">成员管理</h3>
@@ -17,19 +17,21 @@
             <th>姓名</th>
             <th>角色</th>
             <th class="col-no">学号/工号</th>
+            <th>指导导师</th>
             <th class="col-college">学院</th>
             <th>状态</th>
             <th v-if="isManager" class="col-ops">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading"><td :colspan="isManager ? 7 : 6" class="state">加载中…</td></tr>
-          <tr v-else-if="!list.length"><td :colspan="isManager ? 7 : 6" class="state">暂无成员</td></tr>
+          <tr v-if="loading"><td :colspan="isManager ? 8 : 7" class="state">加载中…</td></tr>
+          <tr v-else-if="!list.length"><td :colspan="isManager ? 8 : 7" class="state">暂无成员</td></tr>
           <tr v-for="row in list" :key="row.id" v-else>
             <td>{{ row.username }}</td>
             <td>{{ row.real_name || '-' }}</td>
             <td>{{ roleLabel(row.role) }}</td>
             <td class="col-no">{{ row.student_no || '-' }}</td>
+            <td>{{ mentorName(row.advisor_id) }}</td>
             <td class="col-college">{{ row.college || '-' }}</td>
             <td>{{ statusLabel(row.status) }}</td>
             <td v-if="isManager" class="col-ops">
@@ -114,6 +116,13 @@
               </select>
             </div>
           </div>
+          <div v-if="form.role === 'student'" class="form-item">
+            <label class="form-label">指导导师</label>
+            <select v-model="form.advisor_id" class="form-input">
+              <option :value="null">请选择导师</option>
+              <option v-for="m in mentors" :key="m.id" :value="m.id">{{ m.real_name || m.username }}</option>
+            </select>
+          </div>
           <p v-if="formError" class="form-error">{{ formError }}</p>
         </div>
         <div class="modal-foot">
@@ -152,7 +161,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { listUsers, createUser, updateUser, deleteUser } from '../api'
+import { listUsers, createUser, updateUser, deleteUser, listMembers } from '../api'
 import { system } from '../api'
 import {
   ROLE_OPTIONS, GENDER_OPTIONS, DEGREE_TYPE_OPTIONS, ACCOUNT_STATUS_OPTIONS
@@ -172,6 +181,7 @@ const form = ref({})
 const formError = ref('')
 const saving = ref(false)
 const editingId = ref(null)
+const mentors = ref([])
 
 // 发消息弹窗状态
 const msgVisible = ref(false)
@@ -185,6 +195,12 @@ function roleLabel(v) {
   const o = ROLE_OPTIONS.find((x) => x.value === v)
   return o ? o.label : (v || '-')
 }
+function mentorName(id) {
+  if (!id) return '-'
+  const m = mentors.value.find((x) => x.id === id)
+  return m ? (m.real_name || m.username) : id
+}
+
 function statusLabel(v) {
   const o = ACCOUNT_STATUS_OPTIONS.find((x) => x.value === v)
   return o ? o.label : (v || '-')
@@ -354,7 +370,14 @@ async function submitMsg() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  listMembers().then((res) => {
+    if (res && res.success && Array.isArray(res.members)) {
+      mentors.value = res.members.filter((m) => m.role === 'mentor')
+    }
+  }).catch(() => {})
+})
 </script>
 
 <style scoped>
@@ -470,19 +493,27 @@ onMounted(load)
 }
 .data-table th:nth-child(1),
 .data-table td:nth-child(1) {
-  width: 120px;
+  width: 100px;
 }
 .data-table th:nth-child(2),
 .data-table td:nth-child(2) {
-  width: 110px;
+  width: 80px;
 }
 .data-table th:nth-child(3),
 .data-table td:nth-child(3) {
-  width: 80px;
+  width: 60px;
 }
-.data-table th:nth-child(6),
-.data-table td:nth-child(6) {
-  width: 80px;
+.data-table th:nth-child(4),
+.data-table td:nth-child(4) {
+  width: 100px;
+}
+.data-table th:nth-child(5),
+.data-table td:nth-child(5) {
+  width: 90px;
+}
+.data-table th:nth-child(7),
+.data-table td:nth-child(7) {
+  width: 60px;
 }
 .btn-link {
   border: none;

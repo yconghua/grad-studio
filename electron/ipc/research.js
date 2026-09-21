@@ -14,6 +14,7 @@ function register(ipcMain) {
   registerCrud(ipcMain, 'research:log', researchService.researchLog)
   registerCrud(ipcMain, 'research:achievement', researchService.achievement)
   registerCrud(ipcMain, 'research:fund', researchService.fundRecord)
+  registerCrud(ipcMain, 'research:milestone', researchService.graduationMilestone)
 }
 
 module.exports = { register }

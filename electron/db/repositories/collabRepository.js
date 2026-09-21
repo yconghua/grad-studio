@@ -53,6 +53,25 @@ const approvalRepo = createCrudRepo('approval', {
   ]
 })
 
+// 周报
+const weeklyReportRepo = createCrudRepo('weekly_report', {
+  writable: [
+    'student_id', 'week_start', 'week_end', 'progress', 'issues',
+    'plan_next', 'attachment', 'status', 'mentor_comment', 'mentor_score',
+    'mentor_id', 'reviewed_at'
+  ]
+})
+
+// 会议议程
+const meetingAgendaRepo = createCrudRepo('meeting_agenda', {
+  writable: ['meeting_id', 'order_no', 'content', 'speaker_id']
+})
+
+// 会议已读回执
+const meetingReadRepo = createCrudRepo('meeting_read', {
+  writable: ['meeting_id', 'user_id']
+})
+
 module.exports = {
   meetingRepo,
   activityRepo,
@@ -60,5 +79,8 @@ module.exports = {
   taskRepo,
   forumPostRepo,
   forumReplyRepo,
-  approvalRepo
+  approvalRepo,
+  weeklyReportRepo,
+  meetingAgendaRepo,
+  meetingReadRepo
 }

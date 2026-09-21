@@ -21,6 +21,7 @@ import ResearchSubject from '../pages/research/Subject.vue'
 import ResearchLog from '../pages/research/ResearchLog.vue'
 import ResearchAchievement from '../pages/research/Achievement.vue'
 import ResearchFund from '../pages/research/Fund.vue'
+import ResearchGraduation from '../pages/research/Graduation.vue'
 import StudioMember from '../pages/studio/Member.vue'
 import StudioSeat from '../pages/studio/Seat.vue'
 import StudioDevice from '../pages/studio/Device.vue'
@@ -41,6 +42,7 @@ import CollabActivity from '../pages/collab/Activity.vue'
 import CollabTask from '../pages/collab/Task.vue'
 import CollabForum from '../pages/collab/Forum.vue'
 import CollabApproval from '../pages/collab/Approval.vue'
+import CollabWeeklyReport from '../pages/collab/WeeklyReport.vue'
 import ReportAchievementStat from '../pages/report/AchievementStat.vue'
 import ReportAttendanceStat from '../pages/report/AttendanceStat.vue'
 import ReportTaskStat from '../pages/report/TaskStat.vue'
@@ -74,6 +76,7 @@ const navPageMap = {
   'research.subject': ResearchSubject,
   'research.log': ResearchLog,
   'research.achievement': ResearchAchievement,
+  'research.graduation': ResearchGraduation,
   'research.fund': ResearchFund,
   'studio.member': StudioMember,
   'studio.seat': StudioSeat,
@@ -91,6 +94,7 @@ const navPageMap = {
   'resource.drive': ResourceDrive,
   'resource.link': ResourceLink,
   'collaboration.meeting': CollabMeeting,
+  'collaboration.weekly-report': CollabWeeklyReport,
   'collaboration.activity': CollabActivity,
   'collaboration.task': CollabTask,
   'collaboration.forum': CollabForum,

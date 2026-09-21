@@ -151,5 +151,25 @@ module.exports = {
   LOG_ACTION_UPDATE: 'update',
   LOG_ACTION_DELETE: 'delete',
   LOG_ACTION_LOGIN: 'login',
-  LOG_ACTION_LOGOUT: 'logout'
+  LOG_ACTION_LOGOUT: 'logout',
+
+  // ===== 周报 =====
+  WEEKLY_REPORT_STATUS_DRAFT: 'draft',
+  WEEKLY_REPORT_STATUS_SUBMITTED: 'submitted',
+  WEEKLY_REPORT_STATUS_REVIEWED: 'reviewed',
+  WEEKLY_REPORT_STATUS_ARCHIVED: 'archived',
+
+  // ===== 任务看板 =====
+  TASK_STATUS_DELAYED: 'delayed',
+
+  // ===== 毕业里程碑 =====
+  MILESTONE_OPENING: 'opening',
+  MILESTONE_MIDTERM: 'midterm',
+  MILESTONE_PRE_DEFENSE: 'pre_defense',
+  MILESTONE_BLIND_REVIEW: 'blind_review',
+  MILESTONE_DEFENSE: 'defense',
+  MILESTONE_STATUS_PENDING: 'pending',
+  MILESTONE_STATUS_IN_PROGRESS: 'in_progress',
+  MILESTONE_STATUS_DONE: 'done',
+  MILESTONE_STATUS_DELAYED: 'delayed'
 }

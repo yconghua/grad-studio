@@ -136,14 +136,15 @@ function makeCrud(group, name) {
   }
 }
 
-// 科研管理：项目 / 论文 / 专利 / 科研日志 / 成果 / 经费
+// 科研管理：项目 / 论文 / 专利 / 科研日志 / 成果 / 经费 / 毕业里程碑
 export const research = {
   project: makeCrud('research', 'project'),
   paper: makeCrud('research', 'paper'),
   patent: makeCrud('research', 'patent'),
   log: makeCrud('research', 'log'),
   achievement: makeCrud('research', 'achievement'),
-  fund: makeCrud('research', 'fund')
+  fund: makeCrud('research', 'fund'),
+  milestone: makeCrud('research', 'milestone')
 }
 
 // 工作室事务：工位 / 设备 / 借用 / 考勤 / 排班 / 制度 / 入组离组
@@ -166,20 +167,27 @@ export const resource = {
   download: (id) => window.api.resource.download({ id })
 }
 
-// 协同办公：组会 / 活动 / 任务 / 讨论区 / 审批
+// 协同办公：组会 / 活动 / 任务 / 讨论区 / 审批 / 周报
 export const collab = {
   meeting: makeCrud('collab', 'meeting'),
   activity: makeCrud('collab', 'activity'),
   task: makeCrud('collab', 'task'),
   post: makeCrud('collab', 'post'),
   approval: makeCrud('collab', 'approval'),
+  weeklyReport: makeCrud('collab', 'weeklyReport'),
+  meetingAgenda: makeCrud('collab', 'meetingAgenda'),
+  meetingRead: makeCrud('collab', 'meetingRead'),
   signup: (activityId) => window.api.collab.signup({ activityId }),
   cancelSignup: (activityId) => window.api.collab.cancelSignup({ activityId }),
   signupList: (activityId) => window.api.collab.signupList({ activityId }),
   viewPost: (id) => window.api.collab.viewPost({ id }),
   reply: (postId, content, parentId) => window.api.collab.reply({ postId, content, parentId }),
   replyList: (postId) => window.api.collab.replyList({ postId }),
-  reviewApproval: (id, approved, remark) => window.api.collab.reviewApproval({ id, approved, remark })
+  reviewApproval: (id, approved, remark) => window.api.collab.reviewApproval({ id, approved, remark }),
+  reviewReport: (id, comment, score) => window.api.collab.reviewReport({ id, comment, score }),
+  reportToTask: (reportId, title, assigneeId, dueDate) => window.api.collab.reportToTask({ reportId, title, assigneeId, dueDate }),
+  markMeetingRead: (meetingId) => window.api.collab.markMeetingRead({ meetingId }),
+  meetingReadList: (meetingId) => window.api.collab.meetingReadList({ meetingId })
 }
 
 // 工作台：待办 / 日程 / 公告

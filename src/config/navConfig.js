@@ -36,6 +36,7 @@ export const navGroups = [
       { key: 'subject', title: '课题申报' },
       { key: 'log', title: '科研日志' },
       { key: 'achievement', title: '成果登记' },
+      { key: 'graduation', title: '毕业进度' },
       { key: 'fund', title: '经费管理', roles: [ROLE_MENTOR, ROLE_ADMIN] }
     ]
   },
@@ -70,6 +71,7 @@ export const navGroups = [
     key: 'collaboration',
     title: '协同办公',
     children: [
+      { key: 'weekly-report', title: '周报管理' },
       { key: 'meeting', title: '组会管理' },
       { key: 'activity', title: '活动报名' },
       { key: 'task', title: '任务协作' },
