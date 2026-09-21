@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="overview">
     <!-- 欢迎区 -->
     <div class="welcome card">
@@ -7,6 +7,17 @@
         <p class="welcome-sub">{{ dateStr }} · 欢迎回到研究生工作室管理平台</p>
       </div>
       <RouterLink to="/workbench/todo" class="quick-link">+ 新建待办</RouterLink>
+    </div>
+
+    <!-- 通知公告横向滚动 -->
+    <div v-if="notices.length" class="notice-bar" @click="$router.push('/workbench/notice')">
+      <span class="notice-label">📢 公告</span>
+      <div class="notice-scroll">
+        <div class="notice-track">
+          <span v-for="(n, i) in notices" :key="i" class="notice-item"><b>{{ n.title }}</b>：{{ n.content }}</span>
+          <span v-for="(n, i) in notices" :key="'b'+i" class="notice-item"><b>{{ n.title }}</b>：{{ n.content }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- 统计卡片 -->
@@ -106,6 +117,7 @@ const loading = ref(true)
 const stats = ref({ todo: 0, unread: 0, project: 0, task: 0, paper: 0, approval: 0 })
 const recentTodos = ref([])
 const recentMessages = ref([])
+    const notices = ref([])
 
 const greetings = computed(() => {
   const h = new Date().getHours()
@@ -132,14 +144,14 @@ function goMessage(m) {
 
 onMounted(async () => {
   try {
-    const [todo, unread, project, task, paper, approval, msgs] = await Promise.allSettled([
+    const [todo, unread, project, task, paper, approval, msgs, noticeList] = await Promise.allSettled([
       workbench.todo.list(),
       system.unreadCount(),
       research.project.list(),
       collab.task.list(),
       research.paper.list(),
       collab.approval.list(),
-      system.myMessages()
+      system.myMessages(), workbench.notice.list()
     ])
     stats.value.todo = todo.status === 'fulfilled' && todo.value.success ? (todo.value.list || []).length : 0
     stats.value.unread = unread.status === 'fulfilled' && unread.value.success ? unread.value.count : 0
@@ -150,6 +162,8 @@ onMounted(async () => {
       ? (approval.value.list || []).filter((a) => a.status === 'pending').length : 0
     recentTodos.value = todo.status === 'fulfilled' && todo.value.success
       ? (todo.value.list || []).slice(0, 5) : []
+    notices.value = noticeList.status === 'fulfilled' && noticeList.value.success
+      ? (noticeList.value.list || []).filter((n) => n.status === 'published').slice(0, 5) : []
     recentMessages.value = msgs.status === 'fulfilled' && msgs.value.success
       ? (msgs.value.list || []).slice(0, 5) : []
   } catch (e) {
@@ -204,6 +218,20 @@ onMounted(async () => {
 .quick-item {
   padding: 14px; background: #f7f9fc; border-radius: 10px; text-align: center;
   font-size: 13px; color: #4e5969; text-decoration: none; transition: all 0.15s;
+}
+.notice-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: #fffbe6; border: 1px solid #ffe58f; border-radius: 10px;
+  padding: 8px 14px; cursor: pointer; overflow: hidden;
+}
+.notice-bar:hover { background: #fff7cc; }
+.notice-label { font-size: 13px; font-weight: 600; color: #d48806; flex-shrink: 0; }
+.notice-scroll { flex: 1; overflow: hidden; }
+.notice-track { display: flex; gap: 40px; white-space: nowrap; animation: scroll-left 30s linear infinite; }
+.notice-item { font-size: 13px; color: #614700; }
+@keyframes scroll-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 .quick-item:hover { background: #eef6ff; color: #0d80e0; }
 </style>

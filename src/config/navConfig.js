@@ -1,4 +1,4 @@
-// 导航配置（单一数据源：左侧一级大导航 + 二级小导航 + 个人主页导航）
+﻿// 导航配置（单一数据源：左侧一级大导航 + 二级小导航 + 个人主页导航）
 //
 // - navGroups：左侧导航。每个一级大导航（group）包含若干二级小导航（children）。
 //   一级大导航 key 作为路由父路径段（如 workbench → /workbench），
@@ -19,7 +19,6 @@ export const navGroups = [
     key: 'workbench',
     title: '工作台',
     children: [
-      { key: 'overview', title: '总览' },
       { key: 'todo', title: '待办事项' },
       { key: 'schedule', title: '日程安排' },
       { key: 'notice', title: '通知公告' },
@@ -141,4 +140,4 @@ export function groupDefaultPath(group) {
 }
 
 // 默认首页路径：第一个一级导航的默认落地路径
-export const defaultNavPath = groupDefaultPath(navGroups[0])
+export const defaultNavPath = '/workbench'

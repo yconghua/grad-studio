@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 通用 CRUD 服务工厂（Service Layer 复用）
  *
  * 为「只需标准增删改查 + 统一权限规则」的业务资源，生成 list / get / create / update / remove 五个方法。

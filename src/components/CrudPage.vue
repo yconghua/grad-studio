@@ -33,16 +33,33 @@
             <tr v-if="!list.length" class="state-row">
               <td :colspan="columns.length + (writable ? 1 : 0)">暂无数据</td>
             </tr>
-            <tr v-for="row in list" :key="row.id">
+            <tr v-for="row in list" :key="row.id" class="data-row" @click="openDetail(row)">
               <td v-for="c in columns" :key="c.key" :title="cellText(row, c)">{{ cellText(row, c) }}</td>
-              <td v-if="writable" class="col-ops">
+              <td v-if="writable" class="col-ops" @click.stop>
                 <button class="btn-link" @click="openEdit(row)">编辑</button>
-                <button v-if="!canDelete || canDelete(row)" class="btn-link danger" @click="confirmRemove(row)">删除</button>`r`n                <button v-if="extraAction && extraAction(row)" class="btn-link" @click="extraAction(row).onClick(row)">{{ extraAction(row).label }}</button>
+                <button v-if="!canDelete || canDelete(row)" class="btn-link danger" @click="confirmRemove(row)">删除</button>
+                <button v-if="extraAction && extraAction(row)" class="btn-link" @click="runExtra(row)">{{ extraAction(row).label }}</button>
               </td>
             </tr>
           </template>
         </tbody>
       </table>
+    </div>
+
+    <!-- 详情弹窗（只读） -->
+    <div v-if="detailVisible" class="modal-mask" @click.self="detailVisible = false">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h4>详情</h4>
+          <button class="modal-close" @click="detailVisible = false" aria-label="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <div v-for="f in formFields" :key="f.key" class="detail-item">
+            <div class="detail-label">{{ f.label }}</div>
+            <div class="detail-value">{{ detailValue(f) }}</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 表单弹窗 -->
@@ -121,9 +138,9 @@ const props = defineProps({
   searchField: { type: String, default: '' },
   searchLabel: { type: String, default: '标题' },
   writable: { type: Boolean, default: true },
-  // 固定筛选条件（如「我的项目」按 leader_id 过滤），列表查询时强制合并
   fixedFilters: { type: Object, default: () => ({}) },
-  canDelete: { type: Function, default: null }
+  canDelete: { type: Function, default: null },
+  extraAction: { type: Function, default: null }
 })
 
 const list = ref([])
@@ -135,20 +152,18 @@ const form = ref({})
 const formError = ref('')
 const saving = ref(false)
 const editingId = ref(null)
-// 成员列表（供 type='user' 字段下拉选人）
 const members = ref([])
+const detailVisible = ref(false)
+const detailRow = ref({})
 
-// 成员下拉显示：姓名（账号），无姓名则只显示账号
 function memberLabel(m) {
   return m.real_name ? `${m.real_name}（${m.username}）` : m.username
 }
-// 成员 id -> 显示名
 function memberName(id) {
   const m = members.value.find((x) => x.id === id)
   return m ? memberLabel(m) : id
 }
 
-// 单元格显示：枚举映射 label，日期时间截断秒，成员字段映射姓名，空值显示 '-'
 function cellText(row, c) {
   const v = row[c.key]
   if (v === null || v === undefined || v === '') return '-'
@@ -161,7 +176,23 @@ function cellText(row, c) {
   return v
 }
 
-// 构造列表筛选条件（固定筛选 + 标题模糊搜索）
+function detailValue(f) {
+  const v = detailRow.value[f.key]
+  if (v === null || v === undefined || v === '') return '-'
+  if (f.type === 'select' && Array.isArray(f.options)) {
+    const opt = f.options.find((o) => o.value === v)
+    return opt ? opt.label : v
+  }
+  if (f.type === 'user') return memberName(v)
+  if (f.type === 'datetime') return String(v).slice(0, 16)
+  return v
+}
+
+function openDetail(row) {
+  detailRow.value = row
+  detailVisible.value = true
+}
+
 function buildFilters() {
   const filters = { ...props.fixedFilters }
   if (props.searchField && keyword.value.trim()) {
@@ -175,15 +206,12 @@ async function load() {
   try {
     const filters = buildFilters()
     const res = await props.api.list(filters)
-    console.log('[CrudPage.load]', props.title, 'filters=', JSON.parse(JSON.stringify(filters)), 'res=', res)
     if (res && res.success) {
       list.value = res.list || []
     } else {
-      console.warn('[CrudPage.load] 后端返回失败:', res && res.message)
       list.value = []
     }
   } catch (e) {
-    console.error('[CrudPage.load] 调用异常:', e)
     list.value = []
   } finally {
     loading.value = false
@@ -194,7 +222,6 @@ function openCreate() {
   formMode.value = 'create'
   editingId.value = null
   formError.value = ''
-  // 用 formFields 的 default 初始化（无 default 则为空串）
   const data = {}
   for (const f of props.formFields) {
     data[f.key] = f.default !== undefined ? f.default : ''
@@ -207,7 +234,6 @@ function openEdit(row) {
   formMode.value = 'edit'
   editingId.value = row.id
   formError.value = ''
-  // 复制行数据，datetime 字段转成 datetime-local 需要的格式
   const data = {}
   for (const f of props.formFields) {
     const v = row[f.key]
@@ -228,20 +254,17 @@ function closeForm() {
   formVisible.value = false
 }
 
-// 提交前做一次简单校验与值转换
 function preparePayload() {
   const payload = {}
   for (const f of props.formFields) {
     let v = form.value[f.key]
     if (v === '' || v === null || v === undefined) v = null
-    // datetime：'YYYY-MM-DDTHH:mm' -> 'YYYY-MM-DD HH:mm:00'
     if (f.type === 'datetime' && v) v = String(v).replace('T', ' ') + ':00'
     if (f.type === 'number' && v !== null && v !== '') v = Number(v)
     if (f.required && (v === null || v === '')) {
       formError.value = `请填写「${f.label}」`
       return null
     }
-    // 空值不传给后端：让数据库用列默认值（避免 NOT NULL DEFAULT 列写入 null 报错）
     if (v === null) continue
     payload[f.key] = v
   }
@@ -260,7 +283,6 @@ async function submit() {
         : await props.api.update(editingId.value, payload)
     if (res && res.success) {
       formVisible.value = false
-      // 清空搜索关键词再刷新，避免残留的搜索条件把刚新增的记录过滤掉（导致「新增了却看不到」）
       keyword.value = ''
       await load()
     } else {
@@ -271,6 +293,13 @@ async function submit() {
   } finally {
     saving.value = false
   }
+}
+
+async function runExtra(row) {
+  const act = props.extraAction ? props.extraAction(row) : null
+  if (!act) return
+  await act.onClick(row)
+  await load()
 }
 
 async function confirmRemove(row) {
@@ -290,7 +319,6 @@ async function confirmRemove(row) {
 
 onMounted(() => {
   load()
-  // 加载成员列表（供 type='user' 字段下拉选人；失败静默，下拉为空不影响主流程）
   listMembers()
     .then((res) => {
       if (res && res.success && Array.isArray(res.members)) members.value = res.members
@@ -389,6 +417,12 @@ onMounted(() => {
 .data-table td {
   color: #1f2329;
 }
+.data-row {
+  cursor: pointer;
+}
+.data-row:hover td {
+  background: #f9fafb;
+}
 .state-row td {
   text-align: center;
   color: #8a9099;
@@ -411,7 +445,6 @@ onMounted(() => {
 .btn-link:hover {
   opacity: 0.8;
 }
-/* 弹窗 */
 .modal-mask {
   position: fixed;
   inset: 0;
@@ -499,5 +532,19 @@ onMounted(() => {
   gap: 10px;
   padding: 14px 20px;
   border-top: 1px solid #eceff3;
+}
+.detail-item {
+  margin-bottom: 12px;
+}
+.detail-label {
+  font-size: 12px;
+  color: #8a9099;
+  margin-bottom: 4px;
+}
+.detail-value {
+  font-size: 14px;
+  color: #1f2329;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 </style>
