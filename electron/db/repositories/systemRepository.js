@@ -18,7 +18,7 @@ const systemParamRepo = createCrudRepo('system_param', {
 
 // 消息中心
 const messageRepo = createCrudRepo('message', {
-  writable: ['receiver_id', 'sender_id', 'title', 'content', 'type', 'status', 'read_at']
+  writable: ['receiver_id', 'sender_id', 'title', 'content', 'type', 'biz_type', 'biz_id', 'status', 'read_at']
 })
 
 module.exports = { operationLogRepo, systemParamRepo, messageRepo }

@@ -37,7 +37,7 @@
               <td v-for="c in columns" :key="c.key" :title="cellText(row, c)">{{ cellText(row, c) }}</td>
               <td v-if="writable" class="col-ops">
                 <button class="btn-link" @click="openEdit(row)">编辑</button>
-                <button v-if="!canDelete || canDelete(row)" class="btn-link danger" @click="confirmRemove(row)">删除</button>
+                <button v-if="!canDelete || canDelete(row)" class="btn-link danger" @click="confirmRemove(row)">删除</button>`r`n                <button v-if="extraAction && extraAction(row)" class="btn-link" @click="extraAction(row).onClick(row)">{{ extraAction(row).label }}</button>
               </td>
             </tr>
           </template>

@@ -1,4 +1,4 @@
-// 对 preload 暴露的 window.api 做一层薄封装，便于组件调用。
+﻿// 对 preload 暴露的 window.api 做一层薄封装，便于组件调用。
 // 若需要，可在此统一处理错误 / loading。
 
 export function login(username, password) {
@@ -177,6 +177,7 @@ export const collab = {
   weeklyReport: makeCrud('collab', 'weeklyReport'),
   meetingAgenda: makeCrud('collab', 'meetingAgenda'),
   meetingRead: makeCrud('collab', 'meetingRead'),
+  taskComment: makeCrud('collab', 'taskComment'),
   signup: (activityId) => window.api.collab.signup({ activityId }),
   cancelSignup: (activityId) => window.api.collab.cancelSignup({ activityId }),
   signupList: (activityId) => window.api.collab.signupList({ activityId }),
@@ -208,5 +209,6 @@ export const system = {
   sendMessage: (payload) => window.api.system.sendMessage(payload),
   myMessages: (filters) => window.api.system.myMessages(filters || {}),
   unreadCount: () => window.api.system.unreadCount(),
-  markRead: (id) => window.api.system.markRead({ id })
+  markRead: (id) => window.api.system.markRead({ id }),
+  markAllRead: () => window.api.system.markAllRead()
 }

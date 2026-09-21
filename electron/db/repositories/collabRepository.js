@@ -72,6 +72,11 @@ const meetingReadRepo = createCrudRepo('meeting_read', {
   writable: ['meeting_id', 'user_id']
 })
 
+// 任务评论
+const taskCommentRepo = createCrudRepo('task_comment', {
+  writable: ['task_id', 'author_id', 'content', 'mentions']
+})
+
 module.exports = {
   meetingRepo,
   activityRepo,
@@ -82,5 +87,6 @@ module.exports = {
   approvalRepo,
   weeklyReportRepo,
   meetingAgendaRepo,
-  meetingReadRepo
+  meetingReadRepo,
+  taskCommentRepo
 }

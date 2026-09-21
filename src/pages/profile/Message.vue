@@ -2,7 +2,10 @@
   <div class="page">
     <div class="head">
       <h3 class="title">消息中心</h3>
-      <span class="badge">{{ unread }} 条未读</span>
+      <div class="head-right">
+        <span class="badge">{{ unread }} 条未读</span>
+        <button class="btn-mark-all" @click="markAll" v-if="unread > 0">全部已读</button>
+      </div>
     </div>
 
     <div v-if="loading" class="empty">加载中…</div>
@@ -22,9 +25,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { system } from '../../api'
-import { MESSAGE_STATUS_OPTIONS } from '../../config/fieldOptions'
 
+const router = useRouter()
 const list = ref([])
 const loading = ref(true)
 const unread = ref(0)
@@ -47,15 +51,28 @@ async function load() {
   }
 }
 
+async function markAll() {
+  try {
+    await system.markAllRead()
+    await load()
+  } catch (e) {}
+}
+
 async function open(m) {
   if (m.status === 'unread') {
     try {
       await system.markRead(m.id)
-      await load()
-    } catch (e) {
-      // 忽略
-    }
+    } catch (e) {}
   }
+  // 根据 biz_type 跳转
+  if (m.biz_type === 'task') {
+    router.push('/collaboration/task')
+  } else if (m.biz_type === 'approval') {
+    router.push('/collaboration/approval')
+  } else if (m.biz_type === 'weekly_report') {
+    router.push('/collaboration/weekly-report')
+  }
+  await load()
 }
 
 onMounted(load)
@@ -74,6 +91,11 @@ onMounted(load)
   justify-content: space-between;
   margin-bottom: 14px;
 }
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .title {
   margin: 0;
   font-size: 16px;
@@ -85,6 +107,19 @@ onMounted(load)
   background: #eef6ff;
   padding: 4px 10px;
   border-radius: 999px;
+}
+.btn-mark-all {
+  font-size: 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+  padding: 4px 10px;
+  background: #fff;
+  cursor: pointer;
+  color: #4e5969;
+}
+.btn-mark-all:hover {
+  border-color: #0d80e0;
+  color: #0d80e0;
 }
 .empty {
   text-align: center;

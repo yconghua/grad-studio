@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 系统 / 个人服务（Service Layer）—— 操作日志（审计）/ 系统参数 / 消息中心
  *
  * - operation_log 只追加、不更新不删除：这里只暴露 recordLog（内部记录）与 listLogs（仅管理员查询）；
@@ -72,7 +72,7 @@ async function setParam(key, value, description) {
 }
 
 // 发送消息（仅导师 / 管理员，发送给指定接收人）
-async function sendMessage({ receiver_id, title, content, type }) {
+async function sendMessage({ receiver_id, title, content, type, biz_type, biz_id }) {
   if (!permission.isManager()) return { success: false, message: '无权限：仅导师或管理员可发消息' }
   if (!receiver_id) return { success: false, message: '缺少接收人' }
   try {
@@ -82,6 +82,8 @@ async function sendMessage({ receiver_id, title, content, type }) {
       title: title || null,
       content: content || null,
       type: type || null,
+      biz_type: biz_type || null,
+      biz_id: biz_id || null,
       status: MESSAGE_STATUS_UNREAD
     })
     logService.record('create', 'message', id)
@@ -94,10 +96,8 @@ async function sendMessage({ receiver_id, title, content, type }) {
 
 /**
  * 内部自动通知（供其他 Service 在业务事件后调用，不暴露给前端）。
- * 不做权限校验——调用方本身已经过业务校验；写入失败只打日志，不影响主业务流程。
- * @param {{receiver_id:number, sender_id?:number|null, title?:string, content?:string, type?:string}} p
  */
-async function notify({ receiver_id, sender_id = null, title, content, type } = {}) {
+async function notify({ receiver_id, sender_id = null, title, content, type, biz_type, biz_id } = {}) {
   if (!receiver_id) return
   try {
     await messageRepo.create({
@@ -106,8 +106,16 @@ async function notify({ receiver_id, sender_id = null, title, content, type } = 
       title: title || null,
       content: content || null,
       type: type || null,
+      biz_type: biz_type || null,
+      biz_id: biz_id || null,
       status: MESSAGE_STATUS_UNREAD
     })
+    try {
+      const { Notification } = require('electron')
+      if (Notification.isSupported()) {
+        new Notification({ title: title || '新消息', body: content || '' }).show()
+      }
+    } catch (e) {}
   } catch (err) {
     console.error('[message.notify] 写自动通知失败:', err)
   }
@@ -161,6 +169,21 @@ async function markRead(id) {
   }
 }
 
+// 全部标记已读
+async function markAllRead() {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  try {
+    await messageRepo.update(
+      { receiver_id: permission.currentUserId(), status: MESSAGE_STATUS_UNREAD },
+      { status: MESSAGE_STATUS_READ, read_at: new Date() }
+    )
+    return { success: true, message: '已全部已读' }
+  } catch (err) {
+    console.error('[message.markAllRead] 数据库异常:', err)
+    return { success: false, message: '操作失败' }
+  }
+}
+
 module.exports = {
   systemParam: systemParamService,
   getParam,
@@ -171,5 +194,6 @@ module.exports = {
   notify,
   myMessages,
   unreadCount,
-  markRead
+  markRead,
+  markAllRead
 }

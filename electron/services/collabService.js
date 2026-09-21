@@ -13,7 +13,8 @@ const {
   approvalRepo,
   weeklyReportRepo,
   meetingAgendaRepo,
-  meetingReadRepo
+  meetingReadRepo,
+  taskCommentRepo
 } = require('../db/repositories/collabRepository')
 const { createCrudService } = require('./crudService')
 const userRepository = require('../db/repositories/userRepository')
@@ -50,6 +51,7 @@ const collab = {
 
   // 会议已读回执：成员可标记
   meetingRead: createCrudService(meetingReadRepo, { label: '会议已读', write: 'member' }),
+  taskComment: createCrudService(taskCommentRepo, { label: '任务评论', write: 'member', creatorField: 'author_id' }),
 
   /**
    * 活动报名：校验活动状态与名额上限，去重后写入。
@@ -417,6 +419,35 @@ collab.weeklyReport.list = async (filters = {}) => {
     filters.student_id = me
   }
   return _weeklyList(filters)
+}
+
+// 任务评论 create 包装：写评论后给被@的人发通知
+const _taskCommentCreate = collab.taskComment.create
+collab.taskComment.create = async (payload) => {
+  const result = await _taskCommentCreate(payload)
+  if (result && result.success && result.id) {
+    try {
+      const mentions = (payload.mentions || '').toString().split(',').filter(Boolean).map(Number)
+      const me = permission.currentUserId()
+      const task = await taskRepo.get(payload.task_id)
+      const taskTitle = task ? task.title : ''
+      for (const uid of mentions) {
+        if (uid === me) continue
+        await systemService.notify({
+          receiver_id: uid,
+          sender_id: me,
+          title: '有人在任务中@了你',
+          content: `你在任务「${taskTitle}」中被@了`,
+          type: 'mention',
+          biz_type: 'task',
+          biz_id: payload.task_id
+        })
+      }
+    } catch (e) {
+      console.error('[taskComment.create] @通知失败:', e)
+    }
+  }
+  return result
 }
 
 module.exports = collab

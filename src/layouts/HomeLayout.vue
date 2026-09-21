@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="home-layout">
     <!-- 顶部标题栏：左侧品牌 + 右侧（时钟 / 个人主页入口 / 退出登录） -->
     <header class="home-header">
@@ -8,8 +8,9 @@
       </div>
       <div class="header-right">
         <span class="clock">{{ clock }}</span>
+        <span class="bell" @click="goMessages" title="消息中心">🔔<span v-if="unread > 0" class="bell-badge">{{ unread > 99 ? "99+" : unread }}</span></span>
         <!-- 个人主页入口（右上角）：头像 + 用户名，点击进入个人主页 -->
-        <RouterLink to="/profile" class="user-entry" title="进入个人主页">
+        <RouterLink v-if="currentUser?.username" to="/profile" class="user-entry" title="进入个人主页">
           <span class="user-avatar">{{ avatarText }}</span>
           <span class="user-name">{{ currentUser?.username }}</span>
         </RouterLink>
@@ -64,7 +65,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { logout } from '../api'
+import { logout, system } from '../api'
 import { navGroups, groupRoles, childRoles, isRoleAllowed, groupDefaultPath } from '../config/navConfig'
 import { ROLE_STUDENT } from '../config/constants'
 import { useSession } from '../composables/useSession'
@@ -76,6 +77,19 @@ const currentUser = getSessionUser()
 const router = useRouter()
 const route = useRoute()
 const showConfirm = ref(false)
+const unread = ref(0)
+let pollTimer = null
+
+async function refreshUnread() {
+  try {
+    const r = await system.unreadCount()
+    unread.value = (r && r.success) ? r.count : 0
+  } catch (e) {}
+}
+
+function goMessages() {
+  router.push('/profile/message')
+}
 
 // 当前角色：登录用户角色缺失时按「学生」处理（最保守）
 const role = computed(() => currentUser?.role || ROLE_STUDENT)
@@ -130,10 +144,13 @@ function tick() {
     `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 onMounted(() => {
+  refreshUnread()
+  pollTimer = setInterval(refreshUnread, 30000)
   tick()
   timer = setInterval(tick, 1000)
 })
 onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
   if (timer) clearInterval(timer)
 })
 
@@ -199,6 +216,26 @@ function cancelLogout() {
   font-size: 13px;
   color: #8a9099;
   font-variant-numeric: tabular-nums;
+}
+.bell {
+  position: relative;
+  cursor: pointer;
+  font-size: 18px;
+  user-select: none;
+}
+.bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: #ea4335;
+  color: #fff;
+  font-size: 10px;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 999px;
+  padding: 0 4px;
 }
 /* 个人主页入口（右上角） */
 .user-entry {

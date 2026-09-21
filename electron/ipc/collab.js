@@ -15,6 +15,7 @@ function register(ipcMain) {
   registerCrud(ipcMain, 'collab:weekly-report', collabService.weeklyReport)
   registerCrud(ipcMain, 'collab:meeting-agenda', collabService.meetingAgenda)
   registerCrud(ipcMain, 'collab:meeting-read', collabService.meetingRead)
+  registerCrud(ipcMain, 'collab:task-comment', collabService.taskComment)
 
   // 活动报名 / 取消 / 名单
   handle(ipcMain, 'collab:signup', (p) => collabService.signup(p && p.activityId))
