@@ -35,6 +35,7 @@ const SAFE_COLUMNS = [
   'position',
   'advisor_id',
   'status',
+  'must_change_password',
   'join_date',
   'last_login_at',
   'created_at',
@@ -151,15 +152,16 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * 按主键增量更新：仅白名单内的档案字段 + 服务层显式传入的 role / password 会被写入。
+   * 按主键增量更新：仅白名单内的档案字段 + 服务层显式传入的 role / password / must_change_password 会被写入。
    * @param {number} id
-   * @param {Object} data 字段->值 映射（role / password 由服务层显式设置，档案字段白名单过滤）
+   * @param {Object} data 字段->值 映射（role / password / must_change_password 由服务层显式设置，档案字段白名单过滤）
    * @returns {number} 受影响行数
    */
   async updateById(id, data) {
     const profile = pickProfile(data)
     if (data && data.role !== undefined) profile.role = data.role
     if (data && data.password !== undefined) profile.password = data.password
+    if (data && data.must_change_password !== undefined) profile.must_change_password = data.must_change_password
     return this.update(id, profile)
   }
 }

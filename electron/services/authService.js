@@ -18,7 +18,7 @@ const { runTransaction } = require('../db/connection')
 // 操作日志（登录 / 退出 / 用户增删改的审计追溯）
 const logService = require('./logService')
 // 前后端共享常量（角色 / 密码长度 / bcrypt 成本等），单一事实来源，避免硬编码散落
-const { ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT, ROLE_USER, ACCOUNT_STATUS_DISABLED, ACCOUNT_STATUS_LEAVE, DEFAULT_PASSWORD_LENGTH, BCRYPT_ROUNDS } = require('../../shared/constants')
+const { ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT, ROLE_USER, ACCOUNT_STATUS_DISABLED, ACCOUNT_STATUS_LEAVE, DEFAULT_PASSWORD_BY_ROLE, BCRYPT_ROUNDS } = require('../../shared/constants')
 
 /** 进程内的当前登录用户（未落库，仅随进程存活） */
 let currentUser = null
@@ -36,11 +36,10 @@ function normalizeRole(role) {
   return VALID_ROLES.includes(role) ? role : ROLE_STUDENT
 }
 
-// 生成 DEFAULT_PASSWORD_LENGTH 位数字随机密码（新增 / 重置用户密码时使用）
-function genRandomPassword() {
-  const min = Math.pow(10, DEFAULT_PASSWORD_LENGTH - 1)
-  const max = Math.pow(10, DEFAULT_PASSWORD_LENGTH) - 1
-  return String(Math.floor(min + Math.random() * (max - min + 1)))
+// 角色默认密码：按角色取固定初始密码（历史角色 user 按学生处理）；未知角色回退学生密码
+function defaultPasswordForRole(role) {
+  const r = role === ROLE_ADMIN ? ROLE_ADMIN : role === ROLE_MENTOR ? ROLE_MENTOR : ROLE_STUDENT
+  return DEFAULT_PASSWORD_BY_ROLE[r] || DEFAULT_PASSWORD_BY_ROLE[ROLE_STUDENT]
 }
 
 /**
@@ -73,7 +72,8 @@ async function login({ username, password }) {
       username: user.username,
       role: user.role,
       real_name: user.real_name,
-      created_at: user.created_at
+      created_at: user.created_at,
+      mustChangePassword: !!user.must_change_password
     }
     logService.record('login', 'user', user.id)
     return { success: true, message: '登录成功', user: currentUser }
@@ -113,7 +113,15 @@ async function changePassword({ username, oldPassword, newPassword }) {
       return { success: false, message: '原密码不正确' }
     }
     const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
-    await userRepository.updatePassword(username, hash)
+    // 改密成功后：若处于「首次登录强制改密」状态，一并解除（must_change_password 0）
+    await userRepository.updateById(user.id, {
+      password: hash,
+      must_change_password: 0
+    })
+    // 同步进程内会话状态，让当前会话立即解除强制改密
+    if (currentUser && currentUser.id === user.id) {
+      currentUser.mustChangePassword = false
+    }
     return { success: true, message: '密码已修改' }
   } catch (err) {
     console.error('[authService.changePassword] 数据库异常:', err)
@@ -158,7 +166,7 @@ async function listMembers() {
   }
 }
 
-// 新增用户：随机密码；用 runTransaction 包裹「查重 + 插入」保证原子性。
+// 新增用户：初始密码 = 该角色默认密码（首次登录强制修改）；用 runTransaction 包裹「查重 + 插入」保证原子性。
 // 支持携带档案字段（real_name / student_no / college 等，白名单过滤见 userRepository）
 async function createUser(payload) {
   if (!isAdmin()) return { success: false, message: '无权限：仅管理员可创建用户' }
@@ -166,7 +174,7 @@ async function createUser(payload) {
   if (!username || !username.trim()) return { success: false, message: '账号不能为空' }
   // 角色：admin 管理员 / mentor 导师 / student 学生（user 兼容历史），非法值回退「学生」
   const roleVal = normalizeRole(role)
-  const plain = genRandomPassword()
+  const plain = defaultPasswordForRole(roleVal)
   try {
     // 新用户 id 在事务内捕获，事务提交后再写操作日志（避免在事务回调内 fire-and-forget 触发连接竞态）
     let createdId = null
@@ -189,7 +197,7 @@ async function createUser(payload) {
 /**
  * 批量新增用户（成员管理 → 批量导入）。
  * 逐行校验：账号必填 / 账号查重 / 角色合法；失败行记录原因，不阻断其他行。
- * 初始密码：优先读系统参数 initial_password，未配置则随机生成（与单个新增一致）。
+ * 初始密码 = 各角色默认密码（首次登录强制修改）；每种角色只哈希一次，避免重复计算。
  * 成功行用事务统一插入，返回成功条数与失败明细，便于前端一次性提示。
  * @param {{ users: Array<{ username, role, real_name, ... }> }} payload
  */
@@ -229,19 +237,19 @@ async function batchCreateUsers(payload) {
       return { success: false, message: '没有可导入的有效数据', failedRows }
     }
 
-    // 初始密码：优先取系统参数 initial_password，未配置则随机
-    let plain = null
-    try {
-      const { systemParamRepo } = require('../db/repositories/systemRepository')
-      const params = await systemParamRepo.list({ param_key: 'initial_password' })
-      if (params[0] && params[0].param_value) plain = String(params[0].param_value)
-    } catch (e) {}
-    if (!plain) plain = genRandomPassword()
-    const hash = await bcrypt.hash(plain, BCRYPT_ROUNDS)
+    // 各角色默认密码（单一事实来源）；按角色缓存哈希，避免每行重复 bcrypt
+    const hashCache = {}
+    const plainPasswords = {}
+    for (const role of [ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT]) {
+      const plain = defaultPasswordForRole(role)
+      plainPasswords[role] = plain
+      hashCache[role] = await bcrypt.hash(plain, BCRYPT_ROUNDS)
+    }
 
     let createdCount = 0
     await runTransaction(async () => {
       for (const row of validRows) {
+        const hash = hashCache[row.role] || hashCache[ROLE_STUDENT]
         await userRepository.createUser({
           username: row.username,
           passwordHash: hash,
@@ -257,7 +265,7 @@ async function batchCreateUsers(payload) {
       message: `成功导入 ${createdCount} 条${failedRows.length ? `，失败 ${failedRows.length} 条` : ''}`,
       createdCount,
       failedRows,
-      plainPassword: plain
+      plainPasswords
     }
   } catch (err) {
     console.error('[authService.batchCreateUsers] 数据库异常:', err)
@@ -285,8 +293,10 @@ async function updateUser(payload) {
     }
     let plainPassword = null
     if (resetPassword) {
-      plainPassword = genRandomPassword()
+      // 重置为该角色默认密码，并置 must_change_password=1：下次登录需先修改密码
+      plainPassword = defaultPasswordForRole(exist.role)
       data.password = await bcrypt.hash(plainPassword, BCRYPT_ROUNDS)
+      data.must_change_password = 1
     }
     // 有字段变化才更新（复用基类的增量更新 buildUpdateSet；字段白名单过滤见 userRepository.updateById）
     if (Object.keys(data).length) {

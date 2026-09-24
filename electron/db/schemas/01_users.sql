@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `user` (
 
   -- ===== 状态与管理 =====
   `status`        VARCHAR(20)  NOT NULL DEFAULT 'active' COMMENT '账号状态：active 正常 / disabled 禁用 / leave 离组',
+  `must_change_password` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否必须修改初始密码：1 首次登录强制改密 / 0 已修改',
   `join_date`     DATE         NULL DEFAULT NULL       COMMENT '入组日期',
   `last_login_at` DATETIME     NULL DEFAULT NULL       COMMENT '最后登录时间',
   `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -46,14 +47,15 @@ CREATE TABLE IF NOT EXISTS `user` (
   KEY `idx_advisor_id` (`advisor_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统用户表';
 
--- 默认管理员（admin / admin123）：仅在账号不存在时插入，避免重复初始化冲突
+-- 默认管理员（admin / admin123456）：仅在账号不存在时插入，避免重复初始化冲突。
+-- must_change_password 默认 1 → 首次登录强制修改密码。
 INSERT INTO `user` (`username`, `password`, `role`)
-SELECT 'admin', '$2b$10$cPHMkHMubQkZDVOi75fpte.kilWcn/2vFqX7muTMvyOlYCDfqx1/C', 'admin'
+SELECT 'admin', '$2a$10$aREFAUZgCs49pDhdl2Soc.QOHhKYmSs9diBUE4f4OWkvH83b9QB4K', 'admin'
 WHERE NOT EXISTS (SELECT 1 FROM `user` WHERE `username` = 'admin');
 
--- 如需初始化导师 / 学生账号，仿照上面的写法：password 传 bcrypt 哈希（新增用户时默认密码
--- 为 6 位随机数字，由 authService 生成），role 传 mentor / student。示例（勿直接执行，
--- 密码需替换为真实哈希后再取消注释）：
+-- 如需初始化导师 / 学生账号，仿照上面的写法：password 传 bcrypt 哈希（新增用户时初始密码
+-- 为该角色默认密码，见 shared/constants.js 的 DEFAULT_PASSWORD_BY_ROLE；首次登录强制修改），
+-- role 传 mentor / student。示例（勿直接执行，密码需替换为真实哈希后再取消注释）：
 -- INSERT INTO `user` (`username`, `password`, `role`, `real_name`, `position`)
 -- SELECT 'mentor01', '<bcrypt_hash>', 'mentor', '张导师', '副教授'
 -- WHERE NOT EXISTS (SELECT 1 FROM `user` WHERE `username` = 'mentor01')

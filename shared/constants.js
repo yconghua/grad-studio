@@ -20,7 +20,14 @@ module.exports = {
   ACCOUNT_STATUS_DISABLED: 'disabled',
   ACCOUNT_STATUS_LEAVE: 'leave',
 
-  // 新增 / 重置用户时生成的随机密码位数（6 位纯数字）
+  // ===== 角色默认密码（单一事实来源）=====
+  // 新增用户 / 批量导入 / 重置密码统一使用；首次登录强制修改密码（must_change_password=1）
+  DEFAULT_PASSWORD_BY_ROLE: {
+    student: 'xs123456@', // 学生
+    mentor: 'ds123456@', // 导师
+    admin: 'admin123456' // 管理员
+  },
+  // 新增 / 重置用户时生成的随机密码位数（6 位纯数字；当前已被角色默认密码取代，仅保留兼容）
   DEFAULT_PASSWORD_LENGTH: 6,
   // bcrypt 哈希成本（越大越慢越安全）
   BCRYPT_ROUNDS: 10,

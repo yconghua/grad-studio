@@ -187,7 +187,12 @@
         <div class="modal-body">
           <div class="result-summary">
             <p class="result-main">{{ resultMessage }}</p>
-            <p v-if="resultPassword" class="result-pwd">初始密码：<b>{{ resultPassword }}</b>（所有新账号统一使用）</p>
+            <p v-if="resultPasswords.student || resultPasswords.mentor || resultPasswords.admin" class="result-pwd">
+              各角色默认密码（首次登录需修改）：
+              学生 <b>{{ resultPasswords.student }}</b>
+              / 导师 <b>{{ resultPasswords.mentor }}</b>
+              / 管理员 <b>{{ resultPasswords.admin }}</b>
+            </p>
           </div>
           <div v-if="resultFailed.length" class="result-failed">
             <div class="preview-head">失败明细（{{ resultFailed.length }} 条）</div>
@@ -271,7 +276,7 @@ const batchError = ref('')
 const importing = ref(false)
 const batchResultVisible = ref(false)
 const resultMessage = ref('')
-const resultPassword = ref('')
+const resultPasswords = ref({})
 const resultFailed = ref([])
 
 // 发消息弹窗状态
@@ -394,7 +399,7 @@ async function submit() {
     if (formMode.value === 'create') {
       res = await createUser(cleanPayload(form.value))
       if (res && res.success && res.plainPassword) {
-        await dialogAlert(`创建成功！初始密码：${res.plainPassword}`)
+        await dialogAlert(`创建成功！初始密码：${res.plainPassword}（${roleLabel(form.value.role)}默认密码），首次登录需修改密码`)
       }
     } else {
       res = await updateUser(cleanPayload({ id: editingId.value, ...form.value }))
@@ -561,7 +566,7 @@ async function submitBatch() {
     const res = await batchCreateUsers(payload)
     if (res && res.success) {
       resultMessage.value = res.message || '导入完成'
-      resultPassword.value = res.plainPassword || ''
+      resultPasswords.value = res.plainPasswords || {}
       resultFailed.value = res.failedRows || []
       batchResultVisible.value = true
       formVisible.value = false
@@ -583,7 +588,7 @@ async function resetPassword(row) {
   try {
     const res = await updateUser({ id: row.id, resetPassword: true })
     if (res && res.success && res.plainPassword) {
-      await dialogAlert(`密码已重置，新密码：${res.plainPassword}`)
+      await dialogAlert(`已重置为 ${res.plainPassword}（${roleLabel(row.role)}默认密码），该账号下次登录需先修改密码`)
     } else {
       await dialogAlert((res && res.message) || '重置失败')
     }

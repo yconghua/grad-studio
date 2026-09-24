@@ -389,12 +389,14 @@ async function onSubmit() {
   try {
     const res = await login(username.value.trim(), password.value)
     if (res.success && res.user) {
-      // 登录成功：弹「数据正在初始化中…」2 秒后进入首页
+      // 登录成功：弹「数据正在初始化中…」2 秒后进入首页；
+      // 首次登录（mustChangePassword=true）则进入强制改密页
       showInit.value = true
+      const mustChange = !!res.user.mustChangePassword
       setTimeout(() => {
         showInit.value = false
         setSession(res.user)
-        router.push('/')
+        router.push(mustChange ? '/force-password' : '/')
       }, 2000)
     } else {
       errorMsg.value = res.message || '登录失败，请重试'

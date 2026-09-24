@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import LoginView from '../pages/auth/LoginView.vue'
+import ForcePasswordView from '../pages/auth/ForcePassword.vue'
 import HomeLayout from '../layouts/HomeLayout.vue'
 import ProfileView from '../pages/profile/index.vue'
 import PlaceholderView from '../pages/placeholder/index.vue'
@@ -164,6 +165,7 @@ const profileTabRoutes = profileNavItems.map((tab) => ({
 
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
+  { path: '/force-password', name: 'force-password', component: ForcePasswordView },
   {
     path: '/',
     component: HomeLayout,
@@ -219,6 +221,13 @@ router.beforeEach(async (to) => {
   if (st === false) {
     clearSession()
     return '/login'
+  }
+  // 首次登录强制改密：未改密前只允许停留在改密页，其他页面一律拦截
+  if (to.path !== '/force-password' && to.path !== '/login') {
+    const su = getSessionUser()
+    if (su && su.mustChangePassword) {
+      return '/force-password'
+    }
   }
   const roles = to.meta && to.meta.roles
   if (Array.isArray(roles) && roles.length) {
