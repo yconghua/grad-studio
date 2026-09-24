@@ -186,6 +186,85 @@ async function createUser(payload) {
   }
 }
 
+/**
+ * 批量新增用户（成员管理 → 批量导入）。
+ * 逐行校验：账号必填 / 账号查重 / 角色合法；失败行记录原因，不阻断其他行。
+ * 初始密码：优先读系统参数 initial_password，未配置则随机生成（与单个新增一致）。
+ * 成功行用事务统一插入，返回成功条数与失败明细，便于前端一次性提示。
+ * @param {{ users: Array<{ username, role, real_name, ... }> }} payload
+ */
+async function batchCreateUsers(payload) {
+  if (!isAdmin()) return { success: false, message: '无权限：仅管理员可批量创建用户' }
+  const users = payload && payload.users
+  if (!Array.isArray(users) || !users.length) return { success: false, message: '没有可导入的用户数据' }
+  if (users.length > 500) return { success: false, message: '单次最多导入 500 条' }
+  try {
+    // 一次性查出所有已存在账号，内存去重判断（避免逐行查库）
+    const existingRows = await userRepository.list()
+    const existingSet = new Set(existingRows.map((u) => u.username))
+
+    const failedRows = []
+    const validRows = []
+    users.forEach((u, idx) => {
+      const rowNo = u.__row || idx + 1
+      const username = u && u.username ? String(u.username).trim() : ''
+      if (!username) {
+        failedRows.push({ row: rowNo, username: '', reason: '账号不能为空' })
+        return
+      }
+      if (existingSet.has(username)) {
+        failedRows.push({ row: rowNo, username, reason: '账号已存在' })
+        return
+      }
+      const roleVal = normalizeRole(u.role)
+      if (u.role && !VALID_ROLES.includes(roleVal)) {
+        failedRows.push({ row: rowNo, username, reason: '角色不合法（应为：管理员/导师/学生）' })
+        return
+      }
+      existingSet.add(username) // 防止同一批内重复
+      validRows.push({ username, role: roleVal, __profile: u })
+    })
+
+    if (!validRows.length) {
+      return { success: false, message: '没有可导入的有效数据', failedRows }
+    }
+
+    // 初始密码：优先取系统参数 initial_password，未配置则随机
+    let plain = null
+    try {
+      const { systemParamRepo } = require('../db/repositories/systemRepository')
+      const params = await systemParamRepo.list({ param_key: 'initial_password' })
+      if (params[0] && params[0].param_value) plain = String(params[0].param_value)
+    } catch (e) {}
+    if (!plain) plain = genRandomPassword()
+    const hash = await bcrypt.hash(plain, BCRYPT_ROUNDS)
+
+    let createdCount = 0
+    await runTransaction(async () => {
+      for (const row of validRows) {
+        await userRepository.createUser({
+          username: row.username,
+          passwordHash: hash,
+          role: row.role,
+          ...row.__profile
+        })
+        createdCount += 1
+      }
+    })
+    logService.record('create', 'user', null, { batch: createdCount })
+    return {
+      success: true,
+      message: `成功导入 ${createdCount} 条${failedRows.length ? `，失败 ${failedRows.length} 条` : ''}`,
+      createdCount,
+      failedRows,
+      plainPassword: plain
+    }
+  } catch (err) {
+    console.error('[authService.batchCreateUsers] 数据库异常:', err)
+    return { success: false, message: '批量导入失败：' + (err && err.message ? err.message : '请稍后重试') }
+  }
+}
+
 // 编辑用户：可改角色 / 重置密码 / 更新档案；仅组装需要更新的字段（增量更新）。
 // password 字段在此显式丢弃（改密走 changePassword，重置走 resetPassword），防止前端直接改密。
 async function updateUser(payload) {
@@ -282,6 +361,7 @@ module.exports = {
   listUsers,
   listMembers,
   createUser,
+  batchCreateUsers,
   updateUser,
   getMyProfile,
   updateMyProfile,

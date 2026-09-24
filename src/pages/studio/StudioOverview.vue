@@ -60,7 +60,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { navGroups, childRoles, isRoleAllowed } from '../../config/navConfig'
 import { useSession } from '../../composables/useSession'
-import { studio } from '../../api'
+import { studio, listUsers } from '../../api'
 
 const { getSessionUser } = useSession()
 const u = getSessionUser()
@@ -80,15 +80,16 @@ function roleText(r) {
 onMounted(async () => {
   try {
     const [m, d, b, j] = await Promise.allSettled([
-      studio.member.list(), studio.device.list(),
+      listUsers(), studio.device.list(),
       studio.borrow.list(), studio.joinLeave.list()
     ])
-    stats.value.member = m.status === 'fulfilled' && m.value.success ? (m.value.list || []).length : 0
+    // 成员走 auth.listUsers（返回 res.users）；member 不属于 studio CRUD 资源
+    stats.value.member = m.status === 'fulfilled' && m.value.success ? (m.value.users || []).length : 0
     stats.value.device = d.status === 'fulfilled' && d.value.success ? (d.value.list || []).length : 0
     stats.value.borrow = b.status === 'fulfilled' && b.value.success ? (b.value.list || []).length : 0
     stats.value.joinLeave = j.status === 'fulfilled' && j.value.success ? (j.value.list || []).length : 0
     recentBorrows.value = b.status === 'fulfilled' && b.value.success ? (b.value.list || []).slice(0, 5) : []
-    recentMembers.value = m.status === 'fulfilled' && m.value.success ? (m.value.list || []).slice(0, 6) : []
+    recentMembers.value = m.status === 'fulfilled' && m.value.success ? (m.value.users || []).slice(0, 6) : []
   } catch (e) {} finally { loading.value = false }
 })
 

@@ -33,6 +33,11 @@ export function createUser(payload) {
   return window.api.auth.createUser(payload)
 }
 
+// 批量新增用户（成员管理 → 批量导入）
+export function batchCreateUsers(users) {
+  return window.api.auth.batchCreateUsers({ users })
+}
+
 export function updateUser(payload) {
   return window.api.auth.updateUser(payload)
 }

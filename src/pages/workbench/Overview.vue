@@ -48,8 +48,8 @@
       </div>
     </div>
 
-    <!-- 两栏：待办列表 + 最新消息 -->
-    <div class="two-col">
+    <!-- 三栏：待办列表 + 最新消息 + 最近组会 -->
+    <div class="three-col">
       <!-- 最近待办 -->
       <div class="card section">
         <div class="section-head">
@@ -83,6 +83,23 @@
           </div>
         </div>
       </div>
+
+      <!-- 最近组会 -->
+      <div class="card section">
+        <div class="section-head">
+          <h4>最近组会</h4>
+          <RouterLink to="/collaboration/meeting" class="more-link">查看全部 →</RouterLink>
+        </div>
+        <div v-if="loading" class="empty">加载中…</div>
+        <div v-else-if="!recentMeetings.length" class="empty">暂无组会安排</div>
+        <div v-else class="msg-list">
+          <div v-for="mt in recentMeetings" :key="mt.id" class="msg-item" @click="router.push('/collaboration/meeting')">
+            <span class="meet-dot"></span>
+            <span class="msg-title">{{ mt.title }}</span>
+            <span class="msg-time">{{ fmtTime(mt.meeting_date) }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 快捷入口 -->
@@ -96,7 +113,7 @@
         <RouterLink to="/research/graduation" class="quick-item">🎓 毕业进度</RouterLink>
         <RouterLink to="/collaboration/forum" class="quick-item">💬 讨论区</RouterLink>
         <RouterLink to="/workbench/schedule" class="quick-item">🗓 日程安排</RouterLink>
-        <RouterLink to="/system/user" class="quick-item">👥 成员管理</RouterLink>
+        <RouterLink v-if="role === 'admin' || role === 'mentor'" to="/system/user" class="quick-item">👥 成员管理</RouterLink>
       </div>
     </div>
   </div>
@@ -112,11 +129,13 @@ const router = useRouter()
 const { getSessionUser } = useSession()
 const user = getSessionUser()
 const username = user ? (user.real_name || user.username) : ''
+const role = user ? user.role : ''
 
 const loading = ref(true)
 const stats = ref({ todo: 0, unread: 0, project: 0, task: 0, paper: 0, approval: 0 })
 const recentTodos = ref([])
 const recentMessages = ref([])
+const recentMeetings = ref([])
     const notices = ref([])
 
 const greetings = computed(() => {
@@ -144,14 +163,14 @@ function goMessage(m) {
 
 onMounted(async () => {
   try {
-    const [todo, unread, project, task, paper, approval, msgs, noticeList] = await Promise.allSettled([
+    const [todo, unread, project, task, paper, approval, msgs, noticeList, meetings] = await Promise.allSettled([
       workbench.todo.list(),
       system.unreadCount(),
       research.project.list(),
       collab.task.list(),
       research.paper.list(),
       collab.approval.list(),
-      system.myMessages(), workbench.notice.list()
+      system.myMessages(), workbench.notice.list(), collab.meeting.list()
     ])
     stats.value.todo = todo.status === 'fulfilled' && todo.value.success ? (todo.value.list || []).length : 0
     stats.value.unread = unread.status === 'fulfilled' && unread.value.success ? unread.value.count : 0
@@ -166,6 +185,8 @@ onMounted(async () => {
       ? (noticeList.value.list || []).filter((n) => n.status === 'published').slice(0, 5) : []
     recentMessages.value = msgs.status === 'fulfilled' && msgs.value.success
       ? (msgs.value.list || []).slice(0, 5) : []
+    recentMeetings.value = meetings.status === 'fulfilled' && meetings.value.success
+      ? (meetings.value.list || []).slice(0, 5) : []
   } catch (e) {
     // 静默
   } finally {
@@ -192,7 +213,7 @@ onMounted(async () => {
 .stat-num { font-size: 28px; font-weight: 600; color: #0d80e0; }
 .stat-label { margin-top: 4px; font-size: 12px; color: #8a9099; }
 
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .section { display: flex; flex-direction: column; }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .section-head h4 { margin: 0; font-size: 15px; font-weight: 600; }
@@ -211,6 +232,7 @@ onMounted(async () => {
 .msg-item { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 0; border-bottom: 1px solid #f5f7fa; cursor: pointer; }
 .msg-item:hover { background: #f9fafb; }
 .msg-dot { width: 8px; height: 8px; border-radius: 50%; background: #ea4335; flex-shrink: 0; }
+.meet-dot { width: 8px; height: 8px; border-radius: 50%; background: #1890ff; flex-shrink: 0; }
 .msg-title { flex: 1; color: #1f2329; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .msg-time { font-size: 12px; color: #8a9099; }
 

@@ -6,6 +6,18 @@
         <img class="brand-logo" :src="logoUrl" alt="logo" />
         <span class="brand">研究生工作室管理平台</span>
         <button class="collapse-btn" @click="collapsed = !collapsed" title="折叠/展开导航">☰</button>
+        <!-- 面包屑：大导航 > 小导航，均可点击 -->
+        <nav class="breadcrumb" v-if="breadcrumb.length">
+          <template v-for="(bc, i) in breadcrumb" :key="i">
+            <RouterLink v-if="bc.to !== route.path" class="crumb-link" :to="bc.to">
+              <span class="crumb-icon">{{ bc.icon }}</span>{{ bc.title }}
+            </RouterLink>
+            <span v-else class="crumb-current">
+              <span class="crumb-icon">{{ bc.icon }}</span>{{ bc.title }}
+            </span>
+            <span v-if="i < breadcrumb.length - 1" class="crumb-sep">›</span>
+          </template>
+        </nav>
       </div>
       <div class="header-right">
         <span class="clock">{{ clock }}</span>
@@ -67,10 +79,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { logout, system } from '../api'
-import { navGroups, groupRoles, childRoles, isRoleAllowed } from '../config/navConfig'
+import { navGroups, profileNavItems, groupRoles, childRoles, isRoleAllowed } from '../config/navConfig'
 import { ROLE_STUDENT } from '../config/constants'
 import { useSession } from '../composables/useSession'
 import logoUrl from '../assets/logo.ico'
@@ -108,10 +120,35 @@ const activeGroupKey = computed(() => {
   return hit ? hit.key : null
 })
 
+// 面包屑：大导航 > 小导航（均可点击跳转）；个人主页单独处理
+const breadcrumb = computed(() => {
+  const path = route.path
+  if (path === '/profile' || path.startsWith('/profile/')) {
+    const tab = profileNavItems.find((t) => path === `/profile/${t.key}`)
+    return [
+      { title: '个人主页', icon: '👤', to: '/profile' },
+      ...(tab ? [{ title: tab.title, icon: childIcon(tab.key), to: `/profile/${tab.key}` }] : [])
+    ]
+  }
+  const group = navGroups.find((g) => path === `/${g.key}` || path.startsWith(`/${g.key}/`))
+  if (!group) return []
+  const child = group.children.find((c) => path === `/${group.key}/${c.key}`)
+  return [
+    { title: group.title, icon: groupIcon(group.key), to: `/${group.key}` },
+    ...(child ? [{ title: child.title, icon: childIcon(child.key), to: `/${group.key}/${child.key}` }] : [])
+  ]
+})
+
 const openKey = ref(null)
 function isGroupOpen(key) {
   return openKey.value === key || activeGroupKey.value === key
 }
+// 路由切换时同步展开状态：
+// - 切到其他模块（如工作台 → 协同办公）：收起旧模块、展开新模块；
+// - 切到个人主页等不属于任何导航组的页面：全部收起（key 为 null）。
+watch(activeGroupKey, (key) => {
+  openKey.value = key || null
+})
 function visibleChildren(group) {
   return group.children.filter((c) => isRoleAllowed(childRoles(group, c), role.value))
 }
@@ -143,7 +180,9 @@ const childIcons = {
   'weekly-report': '📝', meeting: '👥', activity: '🎉', task: '📋', forum: '💬', approval: '✅',
   'achievement-stat': '📊', 'attendance-stat': '📈', 'task-stat': '📉',
   'device-stat': '🖥️', 'activity-stat': '🔥', export: '📤',
-  user: '👤', audit: '🔍', backup: '💾', param: '⚙️', update: 'ℹ️'
+  user: '👤', audit: '🔍', backup: '💾', param: '⚙️', update: 'ℹ️',
+  overview: '🏠', academic: '🎓', 'my-project': '📊', 'my-achievement': '🏆',
+  'my-task': '📋', 'my-schedule': '📅', message: '💬', setting: '⚙️'
 }
 function childIcon(key) { return childIcons[key] || '📄' }
 
@@ -166,10 +205,15 @@ onMounted(() => {
   pollTimer = setInterval(refreshUnread, 30000)
   tick()
   timer = setInterval(tick, 1000)
+  // 消息页标记已读后广播 events，顶部数字立即刷新
+  window.addEventListener('messages-read', refreshUnread)
+  // 路由变化（如从消息页跳到任务页/返回）时同步刷新未读数
+  watch(() => route.path, () => refreshUnread())
 })
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
   if (timer) clearInterval(timer)
+  window.removeEventListener('messages-read', refreshUnread)
 })
 
 const exiting = ref(false)
@@ -209,6 +253,28 @@ function cancelLogout() {
 }
 .collapse-btn:hover { border-color: #0d80e0; color: #0d80e0; }
 .collapse-btn:hover { border-color: #0d80e0; color: #0d80e0; }
+.breadcrumb {
+  display: flex; align-items: center; gap: 4px;
+  margin-left: 12px; padding: 4px 6px;
+  background: #f5f7fa; border: 1px solid #eceff3; border-radius: 10px;
+  font-size: 13px;
+}
+.crumb-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 7px;
+  color: #4e5969; text-decoration: none;
+  transition: all 0.15s;
+}
+.crumb-link:hover { background: #e8f2fc; color: #0d80e0; }
+.crumb-current {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 7px;
+  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
+  color: #fff; font-weight: 600;
+  box-shadow: 0 2px 6px rgba(13, 128, 224, 0.25);
+}
+.crumb-icon { font-size: 14px; }
+.crumb-sep { color: #c0c4cc; margin: 0 3px; user-select: none; font-size: 12px; }
 .brand-logo { width: 26px; height: 26px; object-fit: contain; }
 .brand { font-size: 15px; font-weight: 600; }
 .header-right { display: flex; align-items: center; gap: 16px; }

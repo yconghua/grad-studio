@@ -42,10 +42,18 @@ function createPool(config) {
 function setActiveConfig(config) {
   if (pool) {
     // 异步关闭旧池，不阻塞当前流程；忽略关闭过程中的异常
-    pool.end().catch(() => {})
+    pool.end().catch((e) => console.error('[DB-CONN] 关闭旧连接池失败:', e))
+    console.log('[DB-CONN] 已销毁旧连接池')
   }
   activeConfig = config
   pool = config ? createPool(config) : null
+  if (config) {
+    console.log(
+      `[DB-CONN] 连接池已建立 → host=${config.host} port=${config.port} database=${config.database} user=${config.user} limit=${CONNECTION_LIMIT}`
+    )
+  } else {
+    console.warn('[DB-CONN] 连接池已清空（当前未配置任何数据库连接）')
+  }
 }
 
 // 读取当前活跃连接配置（如 sys:db-info 展示用）
@@ -67,11 +75,17 @@ async function acquireConn() {
   }
   if (!pool) {
     // 未配置任何数据库连接（用户还没在「添加数据库」里添加）
+    console.error('[DB-CONN] acquireConn 失败：未配置数据库连接（请先在系统设置中添加数据库）')
     throw new Error('未配置数据库连接，请先添加数据库连接')
   }
-  const conn = await pool.getConnection()
-  // 非事务：归还连接到池
-  return { conn, release: () => conn.release() }
+  try {
+    const conn = await pool.getConnection()
+    // 非事务：归还连接到池
+    return { conn, release: () => conn.release() }
+  } catch (err) {
+    console.error('[DB-CONN] 从连接池获取连接失败:', err)
+    throw err
+  }
 }
 
 /**
@@ -82,17 +96,21 @@ async function acquireConn() {
  */
 async function runTransaction(fn) {
   if (!pool) {
+    console.error('[DB-TX] 启动事务失败：未配置数据库连接（请先添加数据库连接）')
     throw new Error('未配置数据库连接，请先添加数据库连接')
   }
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
     // 把事务连接挂入上下文，fn 及其内部 await 链均可取到
+    console.log('[DB-TX] 事务开始')
     const result = await txStorage.run({ conn }, fn)
     await conn.commit()
+    console.log('[DB-TX] 事务提交成功')
     return result
   } catch (err) {
     await conn.rollback().catch(() => {})
+    console.error('[DB-TX] 事务回滚:', err)
     throw err
   } finally {
     // 无论成功失败，事务连接都由这里统一释放

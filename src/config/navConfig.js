@@ -81,7 +81,7 @@ export const navGroups = [
   {
     key: 'report',
     title: '统计报表',
-    roles: [ROLE_MENTOR, ROLE_ADMIN],
+    roles: [ROLE_ADMIN],
     children: [
       { key: 'achievement-stat', title: '成果统计' },
       { key: 'attendance-stat', title: '考勤统计' },

@@ -54,6 +54,7 @@ async function load() {
 async function markAll() {
   try {
     await system.markAllRead()
+    window.dispatchEvent(new CustomEvent('messages-read'))
     await load()
   } catch (e) {}
 }
@@ -62,6 +63,8 @@ async function open(m) {
   if (m.status === 'unread') {
     try {
       await system.markRead(m.id)
+      // 通知顶部导航立即刷新未读数字
+      window.dispatchEvent(new CustomEvent('messages-read'))
     } catch (e) {}
   }
   // 根据 biz_type 跳转

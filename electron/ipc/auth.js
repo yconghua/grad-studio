@@ -80,6 +80,16 @@ function register(ipcMain) {
     }
   })
 
+  // 批量新增用户（成员管理 → 批量导入）
+  ipcMain.handle('auth:batch-create-users', async (_evt, payload) => {
+    try {
+      return await authService.batchCreateUsers(payload)
+    } catch (err) {
+      console.error('[auth:batch-create-users] 未预期异常:', err)
+      return { success: false, message: '批量导入失败，请稍后重试' }
+    }
+  })
+
   // 编辑用户（可重置密码）
   ipcMain.handle('auth:update-user', async (_evt, payload) => {
     try {

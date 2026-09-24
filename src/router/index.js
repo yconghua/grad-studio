@@ -152,7 +152,7 @@ const navGroupRedirects = navGroups.map((group) => ({
   path: group.key,
   name: `${group.key}-overview`,
   component: overviewMap[group.key] || PlaceholderView,
-  meta: { title: group.title }
+  meta: { title: group.title, roles: group.roles || null }
 }))
 
 const profileTabRoutes = profileNavItems.map((tab) => ({

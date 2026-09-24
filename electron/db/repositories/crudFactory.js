@@ -65,16 +65,11 @@ function createCrudRepo(tableName, opts = {}) {
      */
     async list(filters = {}, orderBy = 'id DESC', limit = null, offset = 0) {
       const { clause, values } = buildWhereClause(toConditions(filters))
-      const { conn, release } = await base._acquire()
-      try {
-        let sql = `SELECT * FROM \`${tableName}\` ${clause}`
-        if (orderBy) sql += ` ORDER BY ${orderBy}`
-        if (limit != null) sql += ` LIMIT ${Number(limit)} OFFSET ${Number(offset)}`
-        const [rows] = await conn.execute(sql, values)
-        return rows
-      } finally {
-        release()
-      }
+      let sql = `SELECT * FROM \`${tableName}\` ${clause}`
+      if (orderBy) sql += ` ORDER BY ${orderBy}`
+      if (limit != null) sql += ` LIMIT ${Number(limit)} OFFSET ${Number(offset)}`
+      const [rows] = await base._execute(sql, values, 'list')
+      return rows
     },
 
     // 按主键查询单条（无则 null）
@@ -100,27 +95,15 @@ function createCrudRepo(tableName, opts = {}) {
     // 计数（供统计 / 校验使用）
     async count(filters = {}) {
       const { clause, values } = buildWhereClause(toConditions(filters))
-      const { conn, release } = await base._acquire()
-      try {
-        const [rows] = await conn.execute(`SELECT COUNT(*) AS cnt FROM \`${tableName}\` ${clause}`, values)
-        return Number(rows[0].cnt)
-      } finally {
-        release()
-      }
+      const [rows] = await base._execute(`SELECT COUNT(*) AS cnt FROM \`${tableName}\` ${clause}`, values, 'count')
+      return Number(rows[0].cnt)
     },
 
     // 原子自增某数值字段（如浏览量 / 下载量），field 由模块代码传入（可信）
     async increment(id, field, delta = 1) {
-      const { conn, release } = await base._acquire()
-      try {
-        const [result] = await conn.execute(
-          `UPDATE \`${tableName}\` SET \`${field}\` = \`${field}\` + ? WHERE id = ?`,
-          [delta, id]
-        )
-        return result.affectedRows
-      } finally {
-        release()
-      }
+      const sql = `UPDATE \`${tableName}\` SET \`${field}\` = \`${field}\` + ? WHERE id = ?`
+      const [result] = await base._execute(sql, [delta, id], 'increment')
+      return result.affectedRows
     }
   }
 }

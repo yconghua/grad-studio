@@ -11,8 +11,34 @@
  */
 const { contextBridge, ipcRenderer } = require('electron')
 
+// 敏感字段脱敏：打印 payload 前把密码类字段替换为 ***
+function sanitize(value) {
+  if (value == null || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(sanitize)
+  const out = {}
+  for (const k of Object.keys(value)) {
+    if (/password|pwd/i.test(k)) out[k] = '***'
+    else out[k] = sanitize(value[k])
+  }
+  return out
+}
+
 // 工厂：把「某个 IPC 通道」固化成一个函数，调用时把唯一 payload 透传给主进程。
-const createInvoke = (channel) => (payload) => ipcRenderer.invoke(channel, payload)
+// 统一在此打印「请求 → 响应 → 耗时」，前端 DevTools 控制台即可看到每条调用链路，
+// 配合主进程 [IPC→]/[IPC←] 日志可快速定位是前端没发、主进程没回、还是数据库层出错。
+const createInvoke = (channel) => async (payload) => {
+  const t0 = Date.now()
+  console.log(`[API→] ${channel}`, sanitize(payload))
+  try {
+    const res = await ipcRenderer.invoke(channel, payload)
+    const status = res && res.success === false ? 'FAIL' : 'OK'
+    console.log(`[API←] ${channel} ${status} ${Date.now() - t0}ms`, res)
+    return res
+  } catch (err) {
+    console.error(`[API✗] ${channel} 调用异常 (${Date.now() - t0}ms)`, err)
+    throw err
+  }
+}
 
 // 生成某资源的「标准 CRUD 五件套」，通道命名 `<prefix>:<动作>`（与 ipc/crudRouter 一致）
 const crudApi = (prefix) => ({
@@ -33,6 +59,7 @@ contextBridge.exposeInMainWorld('api', {
     listUsers: createInvoke('auth:list-users'),
     listMembers: createInvoke('auth:list-members'),
     createUser: createInvoke('auth:create-user'),
+    batchCreateUsers: createInvoke('auth:batch-create-users'),
     updateUser: createInvoke('auth:update-user'),
     getMyProfile: createInvoke('auth:get-my-profile'),
     updateProfile: createInvoke('auth:update-profile'),

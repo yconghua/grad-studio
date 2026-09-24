@@ -52,15 +52,22 @@
           <h4>{{ formMode === 'create' ? '新增成员' : '编辑成员' }}</h4>
           <button class="modal-close" @click="closeForm">×</button>
         </div>
-        <div class="modal-body">
+        <!-- 新增时显示「单个 / 批量」切换；编辑不显示 -->
+        <div v-if="formMode === 'create'" class="modal-tabs">
+          <button class="tab-btn" :class="{ active: batchMode === false }" @click="batchMode = false">单个新增</button>
+          <button class="tab-btn" :class="{ active: batchMode === true }" @click="batchMode = true">批量导入</button>
+        </div>
+
+        <!-- 单个新增表单 -->
+        <div v-if="!batchMode" class="modal-body">
           <div class="form-item">
             <label class="form-label">账号<span class="req"> *</span></label>
-            <input v-model="form.username" class="form-input" :disabled="formMode === 'edit'" />
+            <input v-model="form.username" class="form-input" :disabled="formMode === 'edit'" placeholder="登录账号，必填" />
           </div>
           <div class="form-item">
             <label class="form-label">角色<span class="req"> *</span></label>
             <select v-model="form.role" class="form-input">
-              <option value="">请选择</option>
+              <option value="">请选择（必填）</option>
               <option v-for="o in ROLE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
           </div>
@@ -125,9 +132,81 @@
           </div>
           <p v-if="formError" class="form-error">{{ formError }}</p>
         </div>
+
+        <!-- 批量导入 -->
+        <div v-else class="modal-body">
+          <div class="batch-tip">
+            <div class="tip-title">填写说明</div>
+            <div>1. 先下载模板，按模板格式填写（<span class="req">账号*</span>、<span class="req">角色*</span> 为必填项）；</div>
+            <div>2. 角色填：管理员 / 导师 / 学生；性别填：男 / 女 / 其他；学位类型填：硕士 / 博士；</div>
+            <div>3. 「指导导师账号」填导师的登录账号（不填则无导师）；</div>
+            <div>4. 上传后系统会先校验必填项，再点「开始导入」。单次最多 500 行。</div>
+          </div>
+          <div class="batch-actions">
+            <button class="btn" @click="downloadTemplate">⬇ 下载导入模板</button>
+            <label class="btn btn-upload">
+              选择 CSV 文件
+              <input type="file" accept=".csv,.txt" class="hidden-file" @change="onFileChange" />
+            </label>
+            <span v-if="fileName" class="file-name">{{ fileName }}</span>
+          </div>
+          <div v-if="parsing" class="parsing-tip">正在解析文件，请稍候…</div>
+          <div v-else-if="parsedRows.length" class="batch-preview">
+            <div class="preview-head">
+              共识别 <b>{{ parsedRows.length }}</b> 行，有效 <b class="ok-num">{{ validCount }}</b> 行，问题 <b class="bad-num">{{ errorRows.length }}</b> 行
+            </div>
+            <ul v-if="errorRows.length" class="preview-errors">
+              <li v-for="r in errorRows" :key="r.__row">
+                第 {{ r.__row }} 行（账号：{{ r.username || '（空）' }}）：{{ r.reason }}
+              </li>
+            </ul>
+          </div>
+          <p v-if="!parsing && parsedRows.length && !validCount" class="form-error">没有可导入的有效数据，请先修正上方标红的问题行</p>
+          <p v-if="batchError" class="form-error">{{ batchError }}</p>
+        </div>
+
         <div class="modal-foot">
           <button class="btn" @click="closeForm">取消</button>
-          <button class="btn btn-primary" @click="submit" :disabled="saving">{{ saving ? '保存中…' : '保存' }}</button>
+          <template v-if="!batchMode">
+            <button class="btn btn-primary" @click="submit" :disabled="saving">{{ saving ? '保存中…' : '保存' }}</button>
+          </template>
+          <template v-else>
+            <button class="btn btn-primary" @click="submitBatch" :disabled="importing || !validCount">{{ importing ? '导入中…' : '开始导入' }}</button>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批量导入结果弹窗 -->
+    <div v-if="batchResultVisible" class="modal-mask" @click.self="batchResultVisible = false">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h4>导入结果</h4>
+          <button class="modal-close" @click="batchResultVisible = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="result-summary">
+            <p class="result-main">{{ resultMessage }}</p>
+            <p v-if="resultPassword" class="result-pwd">初始密码：<b>{{ resultPassword }}</b>（所有新账号统一使用）</p>
+          </div>
+          <div v-if="resultFailed.length" class="result-failed">
+            <div class="preview-head">失败明细（{{ resultFailed.length }} 条）</div>
+            <table class="fail-table">
+              <thead>
+                <tr><th>行号</th><th>账号</th><th>原因</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="(f, i) in resultFailed" :key="i">
+                  <td>{{ f.row }}</td>
+                  <td>{{ f.username || '-' }}</td>
+                  <td>{{ f.reason }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" @click="batchResultVisible = false">知道了</button>
         </div>
       </div>
     </div>
@@ -160,8 +239,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { listUsers, createUser, updateUser, deleteUser, listMembers } from '../api'
+import { ref, computed, onMounted } from 'vue'
+import { listUsers, createUser, updateUser, deleteUser, listMembers, batchCreateUsers } from '../api'
 import { system } from '../api'
 import {
   ROLE_OPTIONS, GENDER_OPTIONS, DEGREE_TYPE_OPTIONS, ACCOUNT_STATUS_OPTIONS
@@ -183,6 +262,18 @@ const saving = ref(false)
 const editingId = ref(null)
 const mentors = ref([])
 
+// 批量导入状态
+const batchMode = ref(false)
+const fileName = ref('')
+const parsedRows = ref([])
+const parsing = ref(false)
+const batchError = ref('')
+const importing = ref(false)
+const batchResultVisible = ref(false)
+const resultMessage = ref('')
+const resultPassword = ref('')
+const resultFailed = ref([])
+
 // 发消息弹窗状态
 const msgVisible = ref(false)
 const msgTarget = ref(null)
@@ -190,6 +281,21 @@ const msgTitle = ref('')
 const msgContent = ref('')
 const msgError = ref('')
 const msgSending = ref(false)
+
+// CSV 表头（列顺序固定，与下载模板一致）
+const HEADERS = ['username', 'role', 'real_name', 'gender', 'student_no', 'email', 'phone', 'college', 'major', 'degree_type', 'advisor_username']
+const HEADER_CN = ['账号*', '角色*', '姓名', '性别', '学号/工号', '邮箱', '手机号', '学院', '专业', '学位类型', '指导导师账号']
+// 中文值 → 数据库值 映射
+const ROLE_MAP = { 管理员: 'admin', 导师: 'mentor', 学生: 'student' }
+const GENDER_MAP = { 男: 'male', 女: 'female', 其他: 'other' }
+const DEGREE_MAP = { 硕士: 'master', 博士: 'doctor' }
+// 单次导入上限（与后端一致）
+const MAX_IMPORT_ROWS = 500
+// 导师账号集合（校验加速，避免逐行遍历）
+const mentorNameSet = computed(() => new Set(mentors.value.filter((m) => m.role === 'mentor').map((m) => m.username)))
+
+const validCount = computed(() => parsedRows.value.filter((r) => r.ok).length)
+const errorRows = computed(() => parsedRows.value.filter((r) => !r.ok))
 
 function roleLabel(v) {
   const o = ROLE_OPTIONS.find((x) => x.value === v)
@@ -228,8 +334,13 @@ async function load() {
 function openCreate() {
   formMode.value = 'create'
   editingId.value = null
+  batchMode.value = false
   form.value = { role: ROLE_STUDENT, status: ACCOUNT_STATUS_ACTIVE }
   formError.value = ''
+  parsedRows.value = []
+  fileName.value = ''
+  parsing.value = false
+  batchError.value = ''
   formVisible.value = true
 }
 
@@ -254,12 +365,11 @@ function openEdit(row) {
 }
 
 function closeForm() {
-  if (saving.value) return
+  if (saving.value || importing.value) return
   formVisible.value = false
 }
 
 // 提交前把空字符串统一转 null（未填写视为不设置），避免 ENUM 列（gender/degree_type）收到 '' 报错。
-// 双保险：后端 pickProfile 已跳过空串，这里再兜底一层，前后端双重防御。
 function cleanPayload(data) {
   const out = {}
   for (const [k, v] of Object.entries(data || {})) {
@@ -299,6 +409,171 @@ async function submit() {
     formError.value = '保存过程出现异常，请重试'
   } finally {
     saving.value = false
+  }
+}
+
+// ===== 批量导入 =====
+
+// 下载 CSV 模板（UTF-8 BOM，Excel 打开中文不乱码；含表头 + 一行示例）
+function downloadTemplate() {
+  const sample = ['zhangsan', '学生', '张三', '男', '2026001', 'zhangsan@example.com', '13800000000', '信息学院', '计算机技术', '硕士', 'teacher01']
+  const lines = [HEADER_CN.join(','), sample.join(',')]
+  const csv = '\uFEFF' + lines.join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = '成员导入模板.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// 解析 CSV 文本为对象数组（处理 BOM / CRLF / 引号包裹逗号）
+function parseCSV(text) {
+  const content = text.replace(/^\uFEFF/, '')
+  const lines = content.split(/\r\n|\n/)
+  const rows = []
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    const cells = parseCSVLine(line)
+    if (cells.every((c) => !String(c || '').trim())) continue
+    const obj = { __row: i + 1 }
+    HEADERS.forEach((h, idx) => { obj[h] = String(cells[idx] || '').trim() })
+    rows.push(obj)
+    if (rows.length >= MAX_IMPORT_ROWS) break // 超上限直接截断，避免大文件卡死
+  }
+  return rows
+}
+
+// 解析一行 CSV（支持 "a,b" 引号包裹）
+function parseCSVLine(line) {
+  const cells = []
+  let cur = ''
+  let inQ = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++ } else { inQ = false }
+      } else { cur += ch }
+    } else if (ch === '"') {
+      inQ = true
+    } else if (ch === ',') {
+      cells.push(cur)
+      cur = ''
+    } else {
+      cur += ch
+    }
+  }
+  cells.push(cur)
+  return cells
+}
+
+// 逐行校验必填与取值合法性（前端提示，后端仍会二次校验）
+function validateRows(rows) {
+  const names = mentorNameSet.value
+  return rows.map((r) => {
+    let reason = ''
+    if (!r.username) reason = '账号不能为空（必填）'
+    else if (!r.role) reason = '角色不能为空（必填）'
+    else if (!ROLE_MAP[r.role]) reason = '角色不合法（应为：管理员/导师/学生）'
+    else if (r.gender && !GENDER_MAP[r.gender]) reason = '性别不合法（应为：男/女/其他）'
+    else if (r.degree_type && !DEGREE_MAP[r.degree_type]) reason = '学位类型不合法（应为：硕士/博士）'
+    else if (r.advisor_username && !names.has(r.advisor_username)) reason = '指导导师账号不存在'
+    return { ...r, ok: !reason, reason }
+  })
+}
+
+function onFileChange(e) {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  // 只接受 CSV / 文本文件；误传 Excel(xlsx/xls) 会按文本硬解析导致卡死
+  const lower = (file.name || '').toLowerCase()
+  if (!/\.(csv|txt)$/.test(lower)) {
+    batchError.value = '请选择 .csv 文件（Excel 请先「另存为 CSV」再上传）'
+    parsedRows.value = []
+    fileName.value = ''
+    e.target.value = ''
+    return
+  }
+  // 限制文件大小（5MB 内），防止超大文件阻塞界面
+  if (file.size > 5 * 1024 * 1024) {
+    batchError.value = '文件过大（超过 5MB），请拆分后分批导入'
+    parsedRows.value = []
+    fileName.value = ''
+    e.target.value = ''
+    return
+  }
+  fileName.value = file.name
+  batchError.value = ''
+  parsedRows.value = []
+  parsing.value = true
+  const reader = new FileReader()
+  reader.onload = (ev) => {
+    const text = String(ev.target.result || '')
+    // 放入 setTimeout，让「正在解析」提示先渲染，解析本身不阻塞太久
+    setTimeout(() => {
+      const rows = parseCSV(text)
+      parsedRows.value = validateRows(rows)
+      parsing.value = false
+      if (!parsedRows.value.length) {
+        batchError.value = '文件为空或格式不正确，请下载模板后填写'
+      } else if (rows.length >= MAX_IMPORT_ROWS) {
+        batchError.value = `最多导入 ${MAX_IMPORT_ROWS} 行，已截断，请分批导入`
+      }
+    }, 30)
+  }
+  reader.onerror = () => {
+    parsing.value = false
+    batchError.value = '文件读取失败，请重试'
+  }
+  reader.readAsText(file)
+  e.target.value = '' // 允许重复选择同一文件
+}
+
+async function submitBatch() {
+  batchError.value = ''
+  const valid = parsedRows.value.filter((r) => r.ok)
+  if (!valid.length) {
+    batchError.value = '没有可导入的有效数据，请先修正必填项'
+    return
+  }
+  importing.value = true
+  try {
+    const payload = valid.map((r) => {
+      const mentor = r.advisor_username ? mentors.value.find((m) => m.username === r.advisor_username) : null
+      return {
+        __row: r.__row,
+        username: r.username,
+        role: ROLE_MAP[r.role],
+        real_name: r.real_name || '',
+        gender: GENDER_MAP[r.gender] || '',
+        student_no: r.student_no || '',
+        email: r.email || '',
+        phone: r.phone || '',
+        college: r.college || '',
+        major: r.major || '',
+        degree_type: DEGREE_MAP[r.degree_type] || '',
+        advisor_id: mentor ? mentor.id : null
+      }
+    })
+    const res = await batchCreateUsers(payload)
+    if (res && res.success) {
+      resultMessage.value = res.message || '导入完成'
+      resultPassword.value = res.plainPassword || ''
+      resultFailed.value = res.failedRows || []
+      batchResultVisible.value = true
+      formVisible.value = false
+      await load()
+    } else {
+      batchError.value = (res && res.message) || '批量导入失败'
+    }
+  } catch (e) {
+    console.error('[batchImport] 异常:', e)
+    batchError.value = '批量导入过程出现异常，请重试'
+  } finally {
+    importing.value = false
   }
 }
 
@@ -443,6 +718,18 @@ onMounted(() => {
   opacity: 0.6;
   cursor: not-allowed;
 }
+.btn-upload {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.hidden-file {
+  display: none;
+}
+.file-name {
+  font-size: 13px;
+  color: #8a9099;
+}
 .table-wrap {
   overflow-x: auto;
 }
@@ -571,6 +858,27 @@ onMounted(() => {
   line-height: 1;
   cursor: pointer;
 }
+.modal-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px 0;
+}
+.tab-btn {
+  padding: 6px 18px;
+  font-size: 13px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px 8px 0 0;
+  background: #f7f8fa;
+  color: #4e5969;
+  cursor: pointer;
+}
+.tab-btn.active {
+  background: #fff;
+  color: #0d80e0;
+  border-color: #0d80e0;
+  border-bottom-color: #fff;
+  font-weight: 600;
+}
 .modal-body {
   padding: 16px 20px;
   overflow-y: auto;
@@ -622,5 +930,94 @@ onMounted(() => {
   gap: 10px;
   padding: 14px 20px;
   border-top: 1px solid #eceff3;
+}
+.batch-tip {
+  background: #f7f8fa;
+  border: 1px solid #eceff3;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #4e5969;
+}
+.tip-title {
+  font-weight: 600;
+  color: #1f2329;
+  margin-bottom: 2px;
+}
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.parsing-tip {
+  color: #0d80e0;
+  font-size: 13px;
+  padding: 8px 0;
+}
+.batch-preview {
+  border: 1px solid #eceff3;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.preview-head {
+  color: #1f2329;
+}
+.ok-num {
+  color: #19a558;
+}
+.bad-num {
+  color: #ea4335;
+}
+.preview-errors {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: #ea4335;
+}
+.result-summary {
+  margin-bottom: 12px;
+}
+.result-main {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2329;
+  margin: 0 0 6px;
+}
+.result-pwd {
+  font-size: 13px;
+  color: #4e5969;
+  background: #f7f8fa;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.result-pwd b {
+  color: #0d80e0;
+}
+.result-failed {
+  border: 1px solid #f3d8d5;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.fail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.fail-table th,
+.fail-table td {
+  border-bottom: 1px solid #eceff3;
+  padding: 6px 8px;
+  text-align: left;
+}
+.fail-table th {
+  color: #4e5969;
+  font-weight: 600;
 }
 </style>

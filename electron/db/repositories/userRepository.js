@@ -96,16 +96,9 @@ class UserRepository extends BaseRepository {
    * @returns {Object|null} 含安全列 + password（password 仅供服务层比对哈希，不向上透传）
    */
   async findByUsername(username) {
-    const { conn, release } = await this._acquire()
-    try {
-      const [rows] = await conn.execute(
-        `SELECT ${cols([...SAFE_COLUMNS, 'password'])} FROM \`user\` WHERE username = ?`,
-        [username]
-      )
-      return rows[0] || null
-    } finally {
-      release()
-    }
+    const sql = `SELECT ${cols([...SAFE_COLUMNS, 'password'])} FROM \`user\` WHERE username = ?`
+    const [rows] = await this._execute(sql, [username], 'findByUsername')
+    return rows[0] || null
   }
 
   /**
@@ -128,16 +121,9 @@ class UserRepository extends BaseRepository {
       conditions.push({ field: 'username', op: 'LIKE', value: `%${filters.keyword}%` })
     }
     const { clause, values } = buildWhereClause(conditions)
-    const { conn, release } = await this._acquire()
-    try {
-      const [rows] = await conn.execute(
-        `SELECT ${cols(SAFE_COLUMNS)} FROM \`user\` ${clause} ORDER BY id ASC`,
-        values
-      )
-      return rows
-    } finally {
-      release()
-    }
+    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`user\` ${clause} ORDER BY id ASC`
+    const [rows] = await this._execute(sql, values, 'list')
+    return rows
   }
 
   /**
@@ -160,12 +146,8 @@ class UserRepository extends BaseRepository {
    * @param {string} passwordHash bcrypt 哈希后的密码
    */
   async updatePassword(username, passwordHash) {
-    const { conn, release } = await this._acquire()
-    try {
-      await conn.execute('UPDATE `user` SET password = ? WHERE username = ?', [passwordHash, username])
-    } finally {
-      release()
-    }
+    const sql = 'UPDATE `user` SET password = ? WHERE username = ?'
+    await this._execute(sql, [passwordHash, username], 'updatePassword')
   }
 
   /**
