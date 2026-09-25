@@ -110,6 +110,7 @@ async function notify({ receiver_id, sender_id = null, title, content, type, biz
       biz_id: biz_id || null,
       status: MESSAGE_STATUS_UNREAD
     })
+    // 系统桌面通知（保留）：新消息到达时弹系统通知；前端另有消息中心未读数提示。
     try {
       const { Notification } = require('electron')
       if (Notification.isSupported()) {

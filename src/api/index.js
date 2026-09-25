@@ -193,7 +193,10 @@ export const collab = {
   reviewReport: (id, comment, score) => window.api.collab.reviewReport({ id, comment, score }),
   reportToTask: (reportId, title, assigneeId, dueDate) => window.api.collab.reportToTask({ reportId, title, assigneeId, dueDate }),
   markMeetingRead: (meetingId) => window.api.collab.markMeetingRead({ meetingId }),
-  meetingReadList: (meetingId) => window.api.collab.meetingReadList({ meetingId })
+  meetingReadList: (meetingId) => window.api.collab.meetingReadList({ meetingId }),
+  meetingReadStatus: (meetingId) => window.api.collab.meetingReadStatus({ meetingId }),
+  remindMeetingUnread: (meetingId) => window.api.collab.remindMeetingUnread({ meetingId }),
+  calendarEvents: (start, end) => window.api.collab.calendarEvents({ start, end })
 }
 
 // 工作台：待办 / 日程 / 公告

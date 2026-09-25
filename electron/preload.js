@@ -121,6 +121,7 @@ contextBridge.exposeInMainWorld('api', {
     weeklyReport: crudApi('collab:weekly-report'),
     meetingAgenda: crudApi('collab:meeting-agenda'),
     meetingRead: crudApi('collab:meeting-read'),
+    taskComment: crudApi('collab:task-comment'),
     signup: createInvoke('collab:signup'),
     cancelSignup: createInvoke('collab:signup-cancel'),
     signupList: createInvoke('collab:signup-list'),
@@ -131,7 +132,10 @@ contextBridge.exposeInMainWorld('api', {
     reviewReport: createInvoke('collab:weekly-report-review'),
     reportToTask: createInvoke('collab:weekly-report-to-task'),
     markMeetingRead: createInvoke('collab:meeting-read-mark'),
-    meetingReadList: createInvoke('collab:meeting-read-list')
+    meetingReadList: createInvoke('collab:meeting-read-list'),
+    meetingReadStatus: createInvoke('collab:meeting-read-status'),
+    remindMeetingUnread: createInvoke('collab:meeting-read-remind'),
+    calendarEvents: createInvoke('collab:calendar-events')
   },
   // 工作台（对应 ipc/workbench.js，通道前缀 workbench:*）
   workbench: {

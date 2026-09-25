@@ -43,6 +43,11 @@ function register(ipcMain) {
   // 会议已读回执
   handle(ipcMain, 'collab:meeting-read-mark', (p) => collabService.markMeetingRead(p && p.meetingId))
   handle(ipcMain, 'collab:meeting-read-list', (p) => collabService.meetingReadList(p && p.meetingId))
+  handle(ipcMain, 'collab:meeting-read-status', (p) => collabService.meetingReadStatus(p && p.meetingId))
+  handle(ipcMain, 'collab:meeting-read-remind', (p) => collabService.remindMeetingUnread(p && p.meetingId))
+
+  // 日历事件聚合（组会 / 里程碑 / 日程 / 任务截止）
+  handle(ipcMain, 'collab:calendar-events', (p) => collabService.calendarEvents(p && { start: p.start, end: p.end }))
 }
 
 module.exports = { register }

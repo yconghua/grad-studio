@@ -51,6 +51,7 @@
 import { ref, watch, nextTick } from 'vue'
 import { collab } from '../api'
 import { listMembers } from '../api'
+import { dialogAlert } from '../composables/useDialog'
 
 const props = defineProps({
   visible: Boolean,
@@ -174,9 +175,13 @@ async function submit() {
       draft.value = ''
       mentionedIds.value = []
       await loadComments()
+    } else {
+      console.warn('[taskComment.submit] 后端拒绝:', res)
+      await dialogAlert((res && res.message) || '发送失败，请稍后重试')
     }
   } catch (e) {
-    alert('发送失败')
+    console.error('[taskComment.submit] 异常:', e)
+    await dialogAlert('发送失败，请稍后重试')
   } finally {
     sending.value = false
   }

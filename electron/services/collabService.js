@@ -18,6 +18,9 @@ const {
 } = require('../db/repositories/collabRepository')
 const { createCrudService } = require('./crudService')
 const userRepository = require('../db/repositories/userRepository')
+// 日历聚合用：毕业里程碑（科研模块）+ 日程（工作台模块）
+const { graduationMilestoneRepo } = require('../db/repositories/researchRepository')
+const { scheduleRepo } = require('../db/repositories/workbenchRepository')
 const permission = require('./permission')
 const logService = require('./logService')
 const systemService = require('./systemService')
@@ -338,6 +341,171 @@ const collab = {
       console.error('[meetingRead.list] 数据库异常:', err)
       return { success: false, message: '查询失败' }
     }
+  },
+
+  /**
+   * 会议已读状态总览：解析参会人（attendees 逗号分隔的姓名 / 账号）→ 用户，
+   * 并与已读回执对照，返回每个参会人是否已读。
+   * 参会人以 username 或 real_name 匹配（全量用户映射）；无法识别的名字标记 recognized=false。
+   * @param {number} meetingId 会议 id
+   */
+  async meetingReadStatus(meetingId) {
+    if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+    if (meetingId === null || meetingId === undefined) return { success: false, message: '缺少会议标识' }
+    try {
+      const meeting = await meetingRepo.get(meetingId)
+      if (!meeting) return { success: false, message: '会议不存在' }
+      // 全量用户：账号 / 姓名 → 用户 映射（姓名匹配支持 real_name 与 username）
+      const users = await userRepository.list()
+      const byName = new Map()
+      for (const u of users || []) {
+        if (u.username) byName.set(String(u.username).trim(), u)
+        if (u.real_name) byName.set(String(u.real_name).trim(), u)
+      }
+      // 参会人解析（逗号分隔、去空、去重）
+      const raw = String(meeting.attendees || '').split(',').map((s) => s.trim()).filter(Boolean)
+      const seen = new Set()
+      const attendees = []
+      for (const name of raw) {
+        if (seen.has(name)) continue
+        seen.add(name)
+        const u = byName.get(name)
+        attendees.push({ user_id: u ? u.id : null, name, recognized: !!u })
+      }
+      // 已读集合（key 统一转字符串，避免 user_id 数字/字符串类型不一致导致匹配失败）
+      const readRows = await meetingReadRepo.list({ meeting_id: meetingId }, 'id ASC')
+      const readMap = new Map(readRows.map((r) => [String(r.user_id), r]))
+      const list = attendees.map((a) => ({
+        user_id: a.user_id,
+        name: a.name,
+        recognized: a.recognized,
+        read: a.recognized && readMap.has(String(a.user_id)),
+        read_at: a.recognized && readMap.has(String(a.user_id)) ? readMap.get(String(a.user_id)).read_at : null
+      }))
+      const recognized = list.filter((x) => x.recognized)
+      console.log(`[meeting.readStatus] meetingId=${meetingId} 已读记录${readRows.length}条:`, JSON.stringify(readRows))
+      console.log(`[meeting.readStatus] 解析后参会人:`, JSON.stringify(list))
+      return {
+        success: true,
+        list,
+        total: recognized.length,
+        readCount: recognized.filter((x) => x.read).length
+      }
+    } catch (err) {
+      console.error('[meetingRead.status] 数据库异常:', err)
+      return { success: false, message: '查询失败' }
+    }
+  },
+
+  /**
+   * 一键提醒未读：给尚未确认阅读纪要的参会人批量写站内消息。
+   * 仅导师 / 管理员可操作；提醒失败的单人不影响其他（try/catch 单发）。
+   * @param {number} meetingId 会议 id
+   */
+  async remindMeetingUnread(meetingId) {
+    if (!permission.isManager()) return { success: false, message: '无权限：仅导师或管理员可提醒' }
+    if (meetingId === null || meetingId === undefined) return { success: false, message: '缺少会议标识' }
+    try {
+      const meeting = await meetingRepo.get(meetingId)
+      if (!meeting) return { success: false, message: '会议不存在' }
+      const status = await this.meetingReadStatus(meetingId)
+      const me = permission.currentUserId()
+      const unread = (status && status.list || []).filter((x) => x.recognized && !x.read)
+      for (const u of unread) {
+        try {
+          await systemService.notify({
+            receiver_id: u.user_id,
+            sender_id: me,
+            title: '组会纪要待查看',
+            content: `组会「${meeting.title || '（未命名）'}」的会议纪要已发布，请及时查看并确认。`,
+            type: 'meeting',
+            biz_type: 'meeting',
+            biz_id: meetingId
+          })
+        } catch (e) { /* 单条提醒失败不影响其他 */ }
+      }
+      return { success: true, message: `已提醒 ${unread.length} 人` }
+    } catch (err) {
+      console.error('[meetingRead.remind] 数据库异常:', err)
+      return { success: false, message: '提醒失败' }
+    }
+  },
+
+  /**
+   * 日历事件聚合：组会 + 毕业里程碑 + 个人日程 + 任务截止，统一返回 { date, title, type, ... }。
+   * 权限：组会全员可见；里程碑 / 任务截止 学生只看自己的，导师 / 管理员看全部；日程仅本人。
+   * @param {{ start?: string, end?: string }} range 日期范围 YYYY-MM-DD（缺省返回最近 3 个月）
+   */
+  async calendarEvents({ start, end } = {}) {
+    if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+    const me = permission.currentUserId()
+    const isManager = permission.isManager()
+    const now = new Date()
+    const s = start || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+    const e = end || s
+    try {
+      const events = []
+      const inRange = (dateStr) => dateStr >= s && dateStr <= e
+
+      // 1. 组会（全员可见，状态非 cancelled）
+      const meetings = await meetingRepo.list({}, 'meeting_date ASC')
+      for (const m of meetings || []) {
+        if (!m.meeting_date || m.status === 'cancelled') continue
+        const d = String(m.meeting_date).slice(0, 10)
+        if (!inRange(d)) continue
+        events.push({
+          date: d, title: m.title || '组会', type: 'meeting',
+          bizType: 'meeting', bizId: m.id, status: m.status,
+          extra: { time: String(m.meeting_date).slice(0, 16), location: m.location, host_id: m.host_id, summary: m.summary }
+        })
+      }
+
+      // 2. 毕业里程碑（学生只看自己的）
+      const milestones = await graduationMilestoneRepo.list(isManager ? {} : { user_id: me }, 'deadline ASC')
+      for (const ms of milestones || []) {
+        if (!ms.deadline) continue
+        const d = String(ms.deadline).slice(0, 10)
+        if (!inRange(d)) continue
+        events.push({
+          date: d, title: ms.type || '里程碑', type: 'milestone',
+          bizType: 'milestone', bizId: ms.id, status: ms.status,
+          extra: { user_id: ms.user_id, remark: ms.remark, type: ms.type }
+        })
+      }
+
+      // 3. 个人日程（仅本人）
+      const schedules = await scheduleRepo.list({ user_id: me }, 'start_time ASC')
+      for (const sc of schedules || []) {
+        if (!sc.start_time) continue
+        const d = String(sc.start_time).slice(0, 10)
+        if (!inRange(d)) continue
+        events.push({
+          date: d, title: sc.title || '日程', type: 'schedule',
+          bizType: 'schedule', bizId: sc.id,
+          extra: { time: String(sc.start_time).slice(0, 16), location: sc.location, description: sc.description, type: sc.type }
+        })
+      }
+
+      // 4. 任务截止（学生只看分配给自己的；已完成 / 已延期不重复展示）
+      const taskFilter = isManager ? {} : { assignee_id: me }
+      const tasks = await taskRepo.list(taskFilter, 'due_date ASC')
+      for (const t of tasks || []) {
+        if (!t.due_date || t.status === 'done') continue
+        const d = String(t.due_date).slice(0, 10)
+        if (!inRange(d)) continue
+        events.push({
+          date: d, title: `截止：${t.title || '任务'}`, type: 'task',
+          bizType: 'task', bizId: t.id, status: t.status,
+          extra: { assignee_id: t.assignee_id, priority: t.priority, tags: t.tags }
+        })
+      }
+
+      events.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+      return { success: true, list: events }
+    } catch (err) {
+      console.error('[calendar.events] 数据库异常:', err)
+      return { success: false, message: '日历数据加载失败' }
+    }
   }
 }
 
@@ -382,6 +550,26 @@ collab.forumPost.remove = async (id) => {
   return _forumPostRemove(id)
 }
 
+// 任务更新权限：管理员可更新任何人的；导师 / 学生只能更新"自己创建或被分配"的任务
+// （被分配人能拖看板改状态，否则看板无法运转）
+const _taskUpdate = collab.task.update
+collab.task.update = async (id, payload) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少任务标识' }
+  try {
+    const task = await taskRepo.get(id)
+    if (!task) return { success: false, message: '任务不存在' }
+    const me = permission.currentUserId()
+    if (!permission.isAdmin() && Number(task.created_by) !== Number(me) && Number(task.assignee_id) !== Number(me)) {
+      return { success: false, message: '无权限：只能编辑自己创建或被分配的任务' }
+    }
+  } catch (e) {
+    console.error('[task.update] 校验失败:', e)
+    return { success: false, message: '更新失败' }
+  }
+  return _taskUpdate(id, payload)
+}
+
 // 任务删除权限：管理员可删任何人的；导师 / 学生只能删自己创建的
 const _taskRemove = collab.task.remove
 collab.task.remove = async (id) => {
@@ -419,6 +607,26 @@ collab.weeklyReport.list = async (filters = {}) => {
     filters.student_id = me
   }
   return _weeklyList(filters)
+}
+
+// 任务列表包装：为每行计算 overdue（截止日已过且未完成 → 归入「延期」列）。
+// 看板前端据此分类：status=delayed 或 overdue 的任务进「延期」列。
+const _taskList = collab.task.list
+collab.task.list = async (filters = {}) => {
+  const res = await _taskList(filters)
+  if (res && res.success && Array.isArray(res.list)) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    for (const t of res.list) {
+      let overdue = false
+      if (t.due_date) {
+        const due = new Date(`${t.due_date}T00:00:00`)
+        if (!isNaN(due.getTime()) && due < today && t.status !== 'done') overdue = true
+      }
+      t.overdue = overdue
+    }
+  }
+  return res
 }
 
 // 任务评论 create 包装：写评论后给被@的人发通知

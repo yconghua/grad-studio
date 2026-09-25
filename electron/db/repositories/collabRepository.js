@@ -31,7 +31,7 @@ const activitySignupRepo = createCrudRepo('activity_signup', {
 const taskRepo = createCrudRepo('task', {
   writable: [
     'title', 'description', 'project_id', 'assignee_id', 'priority',
-    'status', 'progress', 'due_date', 'created_by'
+    'status', 'progress', 'due_date', 'tags', 'created_by'
   ]
 })
 
