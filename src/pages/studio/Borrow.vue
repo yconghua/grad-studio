@@ -56,10 +56,11 @@
           <div class="form-row">
             <div class="form-item">
               <label class="form-label">借用人<span class="req"> *</span></label>
-              <select v-model="form.borrower_id" class="form-input">
+              <select v-model="form.borrower_id" class="form-input" :disabled="!isAdmin">
                 <option :value="null">请选择</option>
                 <option v-for="m in members" :key="m.id" :value="m.id">{{ m.real_name ? `${m.real_name}（${m.username}）` : m.username }}</option>
               </select>
+              <p v-if="!isAdmin" class="form-tip">借用人已默认为当前登录用户</p>
             </div>
             <div class="form-item">
               <label class="form-label">关联设备ID</label>
@@ -96,6 +97,11 @@ import { ref, onMounted } from 'vue'
 import { studio, listMembers } from '../../api'
 import { BORROW_STATUS_OPTIONS } from '../../config/fieldOptions'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { useSession } from '../../composables/useSession'
+import { useRole } from '../../composables/useRole'
+
+const { getSessionUser } = useSession()
+const { isAdmin } = useRole()
 
 const list = ref([])
 const loading = ref(false)
@@ -128,7 +134,16 @@ async function load() {
 }
 
 function openCreate() {
-  form.value = { item_name: '', borrower_id: null, device_id: null, purpose: '', borrow_date: '', expect_return_date: '' }
+  // 非管理员（学生/导师）：借用人默认并固定为当前登录用户；仅管理员可下拉选择借用人
+  const sessionUser = getSessionUser()
+  form.value = {
+    item_name: '',
+    borrower_id: isAdmin ? null : (sessionUser ? sessionUser.id : null),
+    device_id: null,
+    purpose: '',
+    borrow_date: '',
+    expect_return_date: ''
+  }
   formError.value = ''
   formVisible.value = true
 }
@@ -346,6 +361,16 @@ onMounted(() => {
   margin: 8px 0 0;
   font-size: 13px;
   color: #ea4335;
+}
+.form-tip {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #8a9099;
+}
+.form-input:disabled {
+  background: #f7f8fa;
+  color: #4e5969;
+  cursor: not-allowed;
 }
 .modal-foot {
   display: flex;

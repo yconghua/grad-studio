@@ -7,7 +7,7 @@ import CrudPage from '../../components/CrudPage.vue'
 import { studio } from '../../api'
 import { useRole } from '../../composables/useRole'
 
-const { isManager } = useRole()
+const { isAdmin } = useRole()
 
 const SEAT_STATUS_OPTIONS = [
   { label: '空闲', value: 'vacant' },
@@ -20,7 +20,7 @@ const config = {
   api: studio.seat,
   searchField: 'name',
   searchLabel: '工位编号',
-  writable: isManager,
+  writable: isAdmin,
   columns: [
     { label: '工位编号', key: 'name' },
     { label: '位置', key: 'location' },

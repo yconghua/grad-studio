@@ -8,14 +8,14 @@ import { studio } from '../../api'
 import { DEVICE_STATUS_OPTIONS } from '../../config/fieldOptions'
 import { useRole } from '../../composables/useRole'
 
-const { isManager } = useRole()
+const { isAdmin } = useRole()
 
 const config = {
   title: '设备管理',
   api: studio.device,
   searchField: 'name',
   searchLabel: '设备名称',
-  writable: isManager,
+  writable: isAdmin,
   columns: [
     { label: '设备名称', key: 'name' },
     { label: '编号', key: 'code' },

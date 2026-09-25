@@ -30,6 +30,26 @@ async function completeTodo(id) {
   return res
 }
 
+// 待办 / 日程为「纯个人数据」：列表仅管理员可见全部，导师与学生都只能看到自己的。
+// （工厂 write='self' 的 list 过滤只对学生生效、导师豁免，此处显式收敛导师的可见范围）
+const _todoList = todoService.list
+todoService.list = async (filters = {}) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isAdmin()) {
+    return _todoList({ ...(filters || {}), user_id: permission.currentUserId() })
+  }
+  return _todoList(filters)
+}
+
+const _scheduleList = scheduleService.list
+scheduleService.list = async (filters = {}) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isAdmin()) {
+    return _scheduleList({ ...(filters || {}), user_id: permission.currentUserId() })
+  }
+  return _scheduleList(filters)
+}
+
 /**
  * 发布公告：置为已发布并记录发布时间。
  * @param {number} id 公告 id

@@ -4,7 +4,7 @@
 > 不需要自己搭后端服务：Electron 主进程直连你的 MySQL，登录即用。
 > 内置账号体系、角色权限（管理员 / 导师 / 学生）、数据库连接管理（**自动建库建表**）、系统管理，业务模块可自由扩展。
 
-![Version](https://img.shields.io/badge/version-1.0.8-blue)
+![Version](https://img.shields.io/badge/version-1.0.9-blue)
 ![Release](https://img.shields.io/badge/release-2026--09--25-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)

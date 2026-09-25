@@ -110,6 +110,37 @@ const studio = {
   }
 }
 
+// 仅管理员可写守卫（工位 / 设备）：导师 / 学生均不可新增、编辑、删除，仅可查看
+function wrapAdminWrite(service, label) {
+  const guard = () => {
+    if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+    if (!permission.isAdmin()) return { success: false, message: `无权限：仅管理员可操作${label}` }
+    return null
+  }
+  const _create = service.create
+  const _update = service.update
+  const _remove = service.remove
+  service.create = async (p) => {
+    const denied = guard()
+    if (denied) return denied
+    return _create(p)
+  }
+  service.update = async (id, p) => {
+    const denied = guard()
+    if (denied) return denied
+    return _update(id, p)
+  }
+  service.remove = async (id) => {
+    const denied = guard()
+    if (denied) return denied
+    return _remove(id)
+  }
+  return service
+}
+
+wrapAdminWrite(studio.seat, '工位')
+wrapAdminWrite(studio.device, '设备')
+
 // 物品借用列表：管理员看全部；其他角色（导师/学生）只看自己借的
 const _borrowList = studio.borrowRecord.list
 studio.borrowRecord.list = async (filters = {}) => {
