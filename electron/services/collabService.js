@@ -30,6 +30,7 @@ const {
   SIGNUP_STATUS_CANCELLED,
   APPROVAL_STATUS_APPROVED,
   APPROVAL_STATUS_REJECTED,
+  APPROVAL_STATUS_CANCELLED,
   WEEKLY_REPORT_STATUS_SUBMITTED,
   WEEKLY_REPORT_STATUS_REVIEWED
 } = require('../../shared/constants')
@@ -540,7 +541,7 @@ collab.forumPost.remove = async (id) => {
   try {
     const post = await forumPostRepo.get(id)
     if (!post) return { success: false, message: '帖子不存在' }
-    if (!permission.isAdmin() && post.author_id !== permission.currentUserId()) {
+    if (!permission.isAdmin() && Number(post.author_id) !== Number(permission.currentUserId())) {
       return { success: false, message: '无权限：只能删除自己的帖子' }
     }
   } catch (e) {
@@ -578,7 +579,7 @@ collab.task.remove = async (id) => {
   try {
     const task = await taskRepo.get(id)
     if (!task) return { success: false, message: '任务不存在' }
-    if (!permission.isAdmin() && task.created_by !== permission.currentUserId()) {
+    if (!permission.isAdmin() && Number(task.created_by) !== Number(permission.currentUserId())) {
       return { success: false, message: '无权限：只能删除自己创建的任务' }
     }
   } catch (e) {
@@ -656,6 +657,134 @@ collab.taskComment.create = async (payload) => {
     }
   }
   return result
+}
+
+// ========== P0 权限收紧：list/update/remove 归属校验（非管理员只能操作自己的） ==========
+
+// 审批列表：学生只看自己发起的；导师 / 管理员看全部（导师要审批）
+const _approvalList = collab.approval.list
+collab.approval.list = async (filters = {}) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isManager()) {
+    filters.applicant_id = permission.currentUserId()
+  }
+  return _approvalList(filters)
+}
+
+// 审批更新：仅申请人本人或管理员
+const _approvalUpdate = collab.approval.update
+collab.approval.update = async (id, payload) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少审批标识' }
+  try {
+    const row = await approvalRepo.get(id)
+    if (!row) return { success: false, message: '审批不存在' }
+    if (!permission.isAdmin() && Number(row.applicant_id) !== Number(permission.currentUserId())) {
+      return { success: false, message: '无权限：只能修改自己发起的审批' }
+    }
+  } catch (e) {
+    console.error('[approval.update] 校验失败:', e)
+    return { success: false, message: '更新失败' }
+  }
+  return _approvalUpdate(id, payload)
+}
+
+// 审批撤销（软撤销）：仅申请人本人或管理员（导师不能撤别人的，导师走通过 / 驳回）。
+// 撤销不删记录，置为 cancelled 保留审计痕迹。
+collab.approval.remove = async (id) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少审批标识' }
+  try {
+    const row = await approvalRepo.get(id)
+    if (!row) return { success: false, message: '审批不存在' }
+    if (!permission.isAdmin() && Number(row.applicant_id) !== Number(permission.currentUserId())) {
+      return { success: false, message: '无权限：只能撤销自己发起的审批' }
+    }
+    if (row.status !== 'pending') return { success: false, message: '该审批已处理，不可撤销' }
+    await approvalRepo.update(id, {
+      status: APPROVAL_STATUS_CANCELLED,
+      handle_time: new Date(),
+      handle_remark: '申请人撤销'
+    })
+    logService.record('update', 'approval', id, { action: 'cancel' })
+    return { success: true, message: '已撤销' }
+  } catch (e) {
+    console.error('[approval.remove] 撤销失败:', e)
+    return { success: false, message: '撤销失败' }
+  }
+}
+
+// 周报更新：仅学生本人或管理员（导师批注走 reviewReport 专用通道，不受影响）
+const _weeklyUpdate = collab.weeklyReport.update
+collab.weeklyReport.update = async (id, payload) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少周报标识' }
+  try {
+    const row = await weeklyReportRepo.get(id)
+    if (!row) return { success: false, message: '周报不存在' }
+    if (!permission.isAdmin() && Number(row.student_id) !== Number(permission.currentUserId())) {
+      return { success: false, message: '无权限：只能修改自己的周报' }
+    }
+  } catch (e) {
+    console.error('[weeklyReport.update] 校验失败:', e)
+    return { success: false, message: '更新失败' }
+  }
+  return _weeklyUpdate(id, payload)
+}
+
+// 周报删除：仅学生本人或管理员
+const _weeklyRemove = collab.weeklyReport.remove
+collab.weeklyReport.remove = async (id) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少周报标识' }
+  try {
+    const row = await weeklyReportRepo.get(id)
+    if (!row) return { success: false, message: '周报不存在' }
+    if (!permission.isAdmin() && Number(row.student_id) !== Number(permission.currentUserId())) {
+      return { success: false, message: '无权限：只能删除自己的周报' }
+    }
+  } catch (e) {
+    console.error('[weeklyReport.remove] 校验失败:', e)
+    return { success: false, message: '删除失败' }
+  }
+  return _weeklyRemove(id)
+}
+
+// 任务评论删除：仅作者本人或管理员
+const _taskCommentRemove = collab.taskComment.remove
+collab.taskComment.remove = async (id) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少评论标识' }
+  try {
+    const row = await taskCommentRepo.get(id)
+    if (!row) return { success: false, message: '评论不存在' }
+    if (!permission.isAdmin() && Number(row.author_id) !== Number(permission.currentUserId())) {
+      return { success: false, message: '无权限：只能删除自己的评论' }
+    }
+  } catch (e) {
+    console.error('[taskComment.remove] 校验失败:', e)
+    return { success: false, message: '删除失败' }
+  }
+  return _taskCommentRemove(id)
+}
+
+// 周报创建包装：同一学生同一周只能提交一次（唯一键 uk_student_week 兜底，先查给出友好提示）
+const _weeklyCreate = collab.weeklyReport.create
+collab.weeklyReport.create = async (payload) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  try {
+    const me = permission.currentUserId()
+    const weekStart = payload && payload.week_start
+    if (weekStart) {
+      const exist = await weeklyReportRepo.list({ student_id: me, week_start: weekStart })
+      if (exist.length) {
+        return { success: false, message: '本周已提交过周报，不能重复提交' }
+      }
+    }
+  } catch (e) {
+    console.error('[weeklyReport.create] 校验失败:', e)
+  }
+  return _weeklyCreate(payload)
 }
 
 module.exports = collab

@@ -72,6 +72,14 @@
             <label class="form-label">下周计划</label>
             <textarea v-model="form.plan_next" class="form-input" rows="3" placeholder="下周打算做什么…"></textarea>
           </div>
+          <div class="form-item">
+            <label class="form-label">附件（可选）</label>
+            <div class="attach-row">
+              <input v-model="form.attachment_name" class="form-input attach-input" readonly placeholder="未选择附件" />
+              <button type="button" class="btn" @click="chooseAttachment">{{ form.attachment ? '重新选择' : '选择文件' }}</button>
+              <button v-if="form.attachment" type="button" class="btn" @click="clearAttachment">清除</button>
+            </div>
+          </div>
           <p v-if="formError" class="form-error">{{ formError }}</p>
         </div>
         <div class="modal-foot">
@@ -95,6 +103,10 @@
           <p class="detail-text">{{ current.issues || '（无）' }}</p>
           <p class="detail-label">下周计划</p>
           <p class="detail-text">{{ current.plan_next || '（无）' }}</p>
+          <div v-if="current.attachment" class="attach-line">
+            <span class="detail-label">附件</span>
+            <button class="btn-link" @click="openCurrentAttachment">打开附件</button>
+          </div>
           <div v-if="current.mentor_comment" class="mentor-box">
             <p class="detail-label">导师批注（{{ current.mentor_score != null ? '打分：' + current.mentor_score : '' }}）</p>
             <p class="detail-text">{{ current.mentor_comment }}</p>
@@ -157,7 +169,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { collab, listMembers } from '../../api'
+import { collab, listMembers, pickAttachment, openAttachment } from '../../api'
 import { WEEKLY_REPORT_STATUS_OPTIONS } from '../../config/fieldOptions'
 import { useRole } from '../../composables/useRole'
 import { dialogAlert } from '../../composables/useDialog'
@@ -221,7 +233,7 @@ function openCreate() {
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
   const fmt = (d) => d.toISOString().slice(0, 10)
-  form.value = { week_start: fmt(monday), week_end: fmt(sunday), progress: '', issues: '', plan_next: '' }
+  form.value = { week_start: fmt(monday), week_end: fmt(sunday), progress: '', issues: '', plan_next: '', attachment: '', attachment_name: '' }
   formError.value = ''
   formVisible.value = true
 }
@@ -240,6 +252,7 @@ async function submit() {
       progress: form.value.progress || '',
       issues: form.value.issues || '',
       plan_next: form.value.plan_next || '',
+      attachment: form.value.attachment || null,
       status: 'submitted'
     }
     const res = await collab.weeklyReport.create(payload)
@@ -259,6 +272,37 @@ async function submit() {
 function openDetail(row) {
   current.value = row
   detailVisible.value = true
+}
+
+// 选择附件：调主进程文件对话框，文件复制到用户数据目录后回填路径与原始文件名
+async function chooseAttachment() {
+  try {
+    const res = await pickAttachment()
+    if (res && res.success) {
+      form.value.attachment = res.path
+      form.value.attachment_name = res.name || res.path
+    } else if (!(res && res.canceled)) {
+      await dialogAlert((res && res.message) || '选择附件失败')
+    }
+  } catch (e) {
+    await dialogAlert('选择附件过程出现异常，请重试')
+  }
+}
+function clearAttachment() {
+  form.value.attachment = ''
+  form.value.attachment_name = ''
+}
+// 打开详情中的附件（系统默认程序打开）
+async function openCurrentAttachment() {
+  if (!current.value.attachment) return
+  try {
+    const res = await openAttachment(current.value.attachment)
+    if (!(res && res.success)) {
+      await dialogAlert((res && res.message) || '打开附件失败')
+    }
+  } catch (e) {
+    await dialogAlert('打开附件过程出现异常，请重试')
+  }
 }
 
 function openReview(row) {
@@ -358,6 +402,10 @@ onMounted(() => {
 .form-label { display: block; font-size: 13px; color: #4e5969; margin-bottom: 6px; }
 .req { color: #ea4335; }
 .form-input { width: 100%; min-height: 36px; padding: 8px 10px; font-size: 13px; border: 1px solid #dfe3e8; border-radius: 8px; outline: none; box-sizing: border-box; }
+.attach-row { display: flex; align-items: center; gap: 8px; }
+.attach-input { flex: 1; min-width: 0; }
+.attach-line { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.attach-line .detail-label { margin: 0; }
 .form-error { margin: 8px 0 0; font-size: 13px; color: #ea4335; }
 .detail-label { font-size: 13px; font-weight: 600; color: #4e5969; margin: 12px 0 4px; }
 .detail-text { font-size: 13px; line-height: 1.7; color: #1f2329; white-space: pre-wrap; margin: 0; }

@@ -21,4 +21,9 @@ const messageRepo = createCrudRepo('message', {
   writable: ['receiver_id', 'sender_id', 'title', 'content', 'type', 'biz_type', 'biz_id', 'status', 'read_at']
 })
 
-module.exports = { operationLogRepo, systemParamRepo, messageRepo }
+// 用户通知偏好（订阅规则：哪类事件收站内 / 桌面通知）
+const notificationPrefRepo = createCrudRepo('user_notification_pref', {
+  writable: ['user_id', 'event_type', 'inapp_enabled', 'desktop_enabled']
+})
+
+module.exports = { operationLogRepo, systemParamRepo, messageRepo, notificationPrefRepo }

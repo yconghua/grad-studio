@@ -96,6 +96,7 @@ export const FORUM_TYPE_SHARE = sharedConstants.FORUM_TYPE_SHARE
 export const APPROVAL_STATUS_PENDING = sharedConstants.APPROVAL_STATUS_PENDING
 export const APPROVAL_STATUS_APPROVED = sharedConstants.APPROVAL_STATUS_APPROVED
 export const APPROVAL_STATUS_REJECTED = sharedConstants.APPROVAL_STATUS_REJECTED
+export const APPROVAL_STATUS_CANCELLED = sharedConstants.APPROVAL_STATUS_CANCELLED
 
 export const TODO_STATUS_PENDING = sharedConstants.TODO_STATUS_PENDING
 export const TODO_STATUS_DONE = sharedConstants.TODO_STATUS_DONE
@@ -113,6 +114,7 @@ export const NOTICE_TYPE_NEWS = sharedConstants.NOTICE_TYPE_NEWS
 export const NOTICE_TYPE_URGENT = sharedConstants.NOTICE_TYPE_URGENT
 export const NOTICE_STATUS_DRAFT = sharedConstants.NOTICE_STATUS_DRAFT
 export const NOTICE_STATUS_PUBLISHED = sharedConstants.NOTICE_STATUS_PUBLISHED
+export const NOTICE_STATUS_CLOSED = sharedConstants.NOTICE_STATUS_CLOSED
 
 export const MESSAGE_STATUS_UNREAD = sharedConstants.MESSAGE_STATUS_UNREAD
 export const MESSAGE_STATUS_READ = sharedConstants.MESSAGE_STATUS_READ

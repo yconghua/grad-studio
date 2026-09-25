@@ -1,5 +1,5 @@
 <template>
-  <StatPage title="成果统计" :fetch="research.achievement.list" group-field="type" :options="ACHIEVEMENT_TYPE_OPTIONS" />
+  <StatPage title="成果统计" :fetch="research.achievement.list" group-field="type" :options="ACHIEVEMENT_TYPE_OPTIONS" time-field="created_at" />
 </template>
 
 <script setup>

@@ -109,6 +109,16 @@ export function checkForUpdates() {
   return window.api.sys.checkForUpdates()
 }
 
+// 选择附件文件（周报附件）：弹出文件对话框并把文件复制到用户数据目录，返回存储路径与原始文件名
+export function pickAttachment() {
+  return window.api.sys.pickAttachment()
+}
+
+// 用系统默认程序打开附件（仅限用户数据目录 uploads 内的文件）
+export function openAttachment(path) {
+  return window.api.sys.openAttachment({ path })
+}
+
 // 数据库连接管理（清单 / 切换 / 新增 / 删除）
 export function getDbConnections() {
   return window.api.sys.dbConnections()
@@ -218,5 +228,7 @@ export const system = {
   myMessages: (filters) => window.api.system.myMessages(filters || {}),
   unreadCount: () => window.api.system.unreadCount(),
   markRead: (id) => window.api.system.markRead({ id }),
-  markAllRead: () => window.api.system.markAllRead()
+  markAllRead: () => window.api.system.markAllRead(),
+  getNotificationPref: () => window.api.system.getNotificationPref(),
+  saveNotificationPref: (prefs) => window.api.system.saveNotificationPref({ prefs })
 }

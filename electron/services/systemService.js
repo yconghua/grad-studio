@@ -8,12 +8,29 @@
 const {
   operationLogRepo,
   systemParamRepo,
-  messageRepo
+  messageRepo,
+  notificationPrefRepo
 } = require('../db/repositories/systemRepository')
 const { createCrudService } = require('./crudService')
 const permission = require('./permission')
 const logService = require('./logService')
 const { MESSAGE_STATUS_UNREAD, MESSAGE_STATUS_READ } = require('../../shared/constants')
+
+// 通知偏好事件类型（与 user_notification_pref 表 event_type 对应，前端设置页据此渲染）
+const NOTIFICATION_EVENT_TYPES = [
+  { event: 'task_assigned', label: '任务分配' },
+  { event: 'task_changed', label: '任务变更' },
+  { event: 'comment', label: '任务评论' },
+  { event: 'mention', label: '@ 我' },
+  { event: 'due_reminder', label: '截止提醒' }
+]
+
+// notify 的 type → 偏好 event_type 映射；没有映射的类型不参与偏好过滤（默认按开启处理）
+const NOTIFY_TYPE_TO_EVENT = {
+  task: 'task_assigned',
+  mention: 'mention',
+  comment: 'comment'
+}
 
 const systemParamService = createCrudService(systemParamRepo, { label: '系统参数', write: 'manager' })
 
@@ -96,6 +113,7 @@ async function sendMessage({ receiver_id, title, content, type, biz_type, biz_id
 
 /**
  * 内部自动通知（供其他 Service 在业务事件后调用，不暴露给前端）。
+ * 站内消息始终写入；桌面系统通知按接收人偏好过滤（无偏好记录默认启用）。
  */
 async function notify({ receiver_id, sender_id = null, title, content, type, biz_type, biz_id } = {}) {
   if (!receiver_id) return
@@ -110,7 +128,9 @@ async function notify({ receiver_id, sender_id = null, title, content, type, biz
       biz_id: biz_id || null,
       status: MESSAGE_STATUS_UNREAD
     })
-    // 系统桌面通知（保留）：新消息到达时弹系统通知；前端另有消息中心未读数提示。
+    // 系统桌面通知（保留）：弹窗前按接收人偏好过滤
+    const desktopOn = await desktopEnabled(receiver_id, type)
+    if (!desktopOn) return
     try {
       const { Notification } = require('electron')
       if (Notification.isSupported()) {
@@ -119,6 +139,84 @@ async function notify({ receiver_id, sender_id = null, title, content, type, biz
     } catch (e) {}
   } catch (err) {
     console.error('[message.notify] 写自动通知失败:', err)
+  }
+}
+
+// 桌面通知是否允许：无偏好记录 → 默认允许；记录中 desktop_enabled=0 → 不弹
+async function desktopEnabled(userId, type) {
+  if (!userId) return true
+  const event = NOTIFY_TYPE_TO_EVENT[type]
+  if (!event) return true // 未映射的事件类型不参与偏好过滤
+  try {
+    const prefs = await notificationPrefRepo.list({ user_id: userId, event_type: event })
+    return !prefs.length || Number(prefs[0].desktop_enabled) === 1
+  } catch (e) {
+    console.error('[notify.desktopEnabled] 查询偏好失败:', e)
+    return true
+  }
+}
+
+// 当前用户的通知偏好（缺省返回默认开启，不落库）
+async function getNotificationPref() {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  try {
+    const me = permission.currentUserId()
+    const rows = await notificationPrefRepo.list({ user_id: me })
+    console.log(`[notificationPref.get] me=${me} 命中记录数=${rows.length}`, rows.map((r) => ({ event_type: r.event_type, inapp_enabled: r.inapp_enabled, desktop_enabled: r.desktop_enabled })))
+    return {
+      success: true,
+      list: NOTIFICATION_EVENT_TYPES.map((t) => {
+        const row = rows.find((r) => r.event_type === t.event)
+        return {
+          event_type: t.event,
+          label: t.label,
+          inapp_enabled: row ? Number(row.inapp_enabled) : 1,
+          desktop_enabled: row ? Number(row.desktop_enabled) : 1
+        }
+      })
+    }
+  } catch (err) {
+    console.error('[notificationPref.get] 数据库异常:', err)
+    return { success: false, message: '读取偏好失败' }
+  }
+}
+
+// 保存当前用户通知偏好（逐条 upsert；仅接受白名单事件类型）
+async function saveNotificationPref(prefs = []) {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!Array.isArray(prefs)) return { success: false, message: '参数格式错误' }
+  const me = permission.currentUserId()
+  const allowed = NOTIFICATION_EVENT_TYPES.map((t) => t.event)
+  console.log(`[notificationPref.save] me=${me} 收到条目=${prefs.length}`, prefs.map((p) => ({ event_type: p.event_type, inapp_enabled: p.inapp_enabled, desktop_enabled: p.desktop_enabled })))
+  try {
+    for (const p of prefs) {
+      if (!p || !allowed.includes(p.event_type)) {
+        console.warn(`[notificationPref.save] 跳过未注册事件:`, p)
+        continue
+      }
+      const exist = await notificationPrefRepo.list({ user_id: me, event_type: p.event_type })
+      const data = {
+        user_id: me,
+        event_type: p.event_type,
+        inapp_enabled: p.inapp_enabled === 0 || p.inapp_enabled === '0' ? 0 : 1,
+        desktop_enabled: p.desktop_enabled === 0 || p.desktop_enabled === '0' ? 0 : 1
+      }
+      if (exist.length) {
+        const affected = await notificationPrefRepo.update(exist[0].id, {
+          inapp_enabled: data.inapp_enabled,
+          desktop_enabled: data.desktop_enabled
+        })
+        console.log(`[notificationPref.save] 更新 id=${exist[0].id} event=${p.event_type} inapp=${data.inapp_enabled} desktop=${data.desktop_enabled} → affected=${affected}`)
+      } else {
+        const newId = await notificationPrefRepo.create(data)
+        console.log(`[notificationPref.save] 新增 id=${newId} event=${p.event_type} inapp=${data.inapp_enabled} desktop=${data.desktop_enabled}`)
+      }
+    }
+    logService.record('update', 'user_notification_pref', me, { action: 'pref' })
+    return { success: true, message: '偏好已保存' }
+  } catch (err) {
+    console.error('[notificationPref.save] 数据库异常:', err)
+    return { success: false, message: '保存偏好失败' }
   }
 }
 
@@ -170,15 +268,18 @@ async function markRead(id) {
   }
 }
 
-// 全部标记已读
+// 全部标记已读：先查出当前用户未读消息，再逐条按主键更新（update 只支持主键，不能传 where 对象）
 async function markAllRead() {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   try {
-    await messageRepo.update(
-      { receiver_id: permission.currentUserId(), status: MESSAGE_STATUS_UNREAD },
-      { status: MESSAGE_STATUS_READ, read_at: new Date() }
-    )
-    return { success: true, message: '已全部已读' }
+    const unreadList = await messageRepo.list({
+      receiver_id: permission.currentUserId(),
+      status: MESSAGE_STATUS_UNREAD
+    })
+    for (const m of unreadList) {
+      await messageRepo.update(m.id, { status: MESSAGE_STATUS_READ, read_at: new Date() })
+    }
+    return { success: true, message: '已全部已读', count: unreadList.length }
   } catch (err) {
     console.error('[message.markAllRead] 数据库异常:', err)
     return { success: false, message: '操作失败' }
@@ -196,5 +297,7 @@ module.exports = {
   myMessages,
   unreadCount,
   markRead,
-  markAllRead
+  markAllRead,
+  getNotificationPref,
+  saveNotificationPref
 }

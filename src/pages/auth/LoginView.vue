@@ -34,6 +34,11 @@
           </div>
           <p class="card-sub">请输入账号密码以进入系统</p>
 
+          <!-- 默认账号提示：仅提示默认密码，首次登录需修改密码 -->
+          <div class="default-tip">
+            <b>默认密码提示</b>：管理员 <b>admin123456</b> · 导师 <b>ds123456@</b> · 学生 <b>xs123456@</b>（首次登录需修改密码）
+          </div>
+
           <form @submit.prevent="onSubmit">
             <label class="field-label" for="username">账号</label>
             <input
@@ -568,6 +573,20 @@ async function onSubmit() {
   font-size: 13px;
   color: #8a9099;
   margin: 0 0 20px;
+}
+/* 默认账号密码提示条 */
+.default-tip {
+  margin: 0 0 14px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #7a5b00;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 8px;
+}
+.default-tip b {
+  color: #d48806;
 }
 .field-label {
   display: block;

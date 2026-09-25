@@ -128,6 +128,7 @@ module.exports = {
   APPROVAL_STATUS_PENDING: 'pending', // 待审批
   APPROVAL_STATUS_APPROVED: 'approved', // 已通过
   APPROVAL_STATUS_REJECTED: 'rejected', // 已驳回
+  APPROVAL_STATUS_CANCELLED: 'cancelled', // 已撤销（软状态，保留记录）
 
   // ===== 待办 =====
   TODO_STATUS_PENDING: 'pending', // 未完成
@@ -148,6 +149,7 @@ module.exports = {
   NOTICE_TYPE_URGENT: 'urgent', // 紧急
   NOTICE_STATUS_DRAFT: 'draft', // 草稿
   NOTICE_STATUS_PUBLISHED: 'published', // 已发布
+  NOTICE_STATUS_CLOSED: 'closed', // 已关闭（用户不再看到，记录保留）
 
   // ===== 消息 =====
   MESSAGE_STATUS_UNREAD: 'unread', // 未读

@@ -1,5 +1,5 @@
 <template>
-  <StatPage title="任务统计" :fetch="collab.task.list" group-field="status" :options="TASK_STATUS_OPTIONS" />
+  <StatPage title="任务统计" :fetch="collab.task.list" group-field="status" :options="TASK_STATUS_OPTIONS" time-field="created_at" />
 </template>
 
 <script setup>

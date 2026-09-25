@@ -250,6 +250,77 @@ function register(ipcMain) {
     }
   })
 
+  // 选择附件文件：弹出打开对话框，把所选文件复制到用户数据目录 uploads/ 后返回存储路径与原始文件名；需登录。
+  // 存副本而非直接存原路径：原文件可能被移动 / 删除，复制后可长期保留。
+  ipcMain.handle('sys:pick-attachment', async (event) => {
+    if (!authService.getCurrentUser()) {
+      return { success: false, message: '未登录，请重新登录' }
+    }
+    const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null
+    let picked
+    try {
+      const options = {
+        title: '选择附件',
+        properties: ['openFile'],
+        filters: [
+          { name: '常用文件', extensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md', 'zip', 'png', 'jpg', 'jpeg'] },
+          { name: '所有文件', extensions: ['*'] }
+        ]
+      }
+      picked = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    } catch (err) {
+      console.error('[sys:pick-attachment] 打开对话框异常:', err)
+      return { success: false, message: '打开选择窗口失败，请重试' }
+    }
+    if (!picked || picked.canceled || !picked.filePaths || !picked.filePaths.length) {
+      return { success: false, canceled: true, message: '已取消选择' }
+    }
+    const src = picked.filePaths[0]
+    try {
+      const uploadsDir = path.join(app.getPath('userData'), 'uploads')
+      fs.mkdirSync(uploadsDir, { recursive: true })
+      const base = path.basename(src)
+      const d = new Date()
+      const pad2 = (n) => String(n).padStart(2, '0')
+      const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
+      const dest = path.join(uploadsDir, `${stamp}_${base}`)
+      fs.copyFileSync(src, dest)
+      return { success: true, path: dest, name: base }
+    } catch (err) {
+      console.error('[sys:pick-attachment] 复制附件失败:', err)
+      return { success: false, message: '附件保存失败，请重试' }
+    }
+  })
+
+  // 打开附件：用系统默认程序打开（仅允许打开用户数据目录 uploads 内的文件，避免任意路径访问）；需登录
+  ipcMain.handle('sys:open-attachment', async (_evt, payload) => {
+    if (!authService.getCurrentUser()) {
+      return { success: false, message: '未登录，请重新登录' }
+    }
+    const filePath = payload && payload.path
+    if (!filePath || typeof filePath !== 'string') {
+      return { success: false, message: '缺少附件路径' }
+    }
+    const uploadsDir = path.join(app.getPath('userData'), 'uploads')
+    const resolved = path.resolve(filePath)
+    if (!resolved.startsWith(uploadsDir)) {
+      return { success: false, message: '附件路径不合法' }
+    }
+    if (!fs.existsSync(resolved)) {
+      return { success: false, message: '附件文件不存在（可能已被移动或删除）' }
+    }
+    try {
+      const errorMessage = await shell.openPath(resolved)
+      if (errorMessage) {
+        return { success: false, message: `打开失败：${errorMessage}` }
+      }
+      return { success: true, message: '已打开附件' }
+    } catch (err) {
+      console.error('[sys:open-attachment] 未预期异常:', err)
+      return { success: false, message: '打开失败，请重试' }
+    }
+  })
+
   // 当前生效数据库信息 + 实时连接状态（SELECT 1 探活）；不要求登录，供登录页「系统设置」展示
   ipcMain.handle('sys:db-info', async () => {
     const cfg = connectionService.getActiveConfig()

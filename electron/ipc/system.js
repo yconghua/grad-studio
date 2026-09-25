@@ -23,6 +23,10 @@ function register(ipcMain) {
   handle(ipcMain, 'system:message-unread', () => systemService.unreadCount())
   handle(ipcMain, 'system:message-read', (p) => systemService.markRead(p && p.id))
   handle(ipcMain, 'system:message-read-all', () => systemService.markAllRead())
+
+  // 通知偏好
+  handle(ipcMain, 'system:notification-pref-get', () => systemService.getNotificationPref())
+  handle(ipcMain, 'system:notification-pref-save', (p) => systemService.saveNotificationPref(p && p.prefs))
 }
 
 module.exports = { register }

@@ -1,5 +1,5 @@
 <template>
-  <StatPage title="考勤统计" :fetch="studio.attendance.list" group-field="status" :options="ATTENDANCE_STATUS_OPTIONS" />
+  <StatPage title="考勤统计" :fetch="studio.attendance.list" group-field="status" :options="ATTENDANCE_STATUS_OPTIONS" time-field="created_at" />
 </template>
 
 <script setup>

@@ -13,7 +13,7 @@
           <tr>
             <th>标题</th>
             <th>类型</th>
-            <th>作者ID</th>
+            <th>作者</th>
             <th>浏览</th>
             <th>回复</th>
             <th>时间</th>
@@ -26,7 +26,7 @@
           <tr v-for="row in list" :key="row.id" v-else>
             <td class="title-cell" @click="openDetail(row)">{{ row.title }}</td>
             <td>{{ typeLabel(row.type) }}</td>
-            <td>{{ row.author_id }}</td>
+            <td>{{ memberName(row.author_id) }}</td>
             <td>{{ row.view_count }}</td>
             <td>{{ row.reply_count }}</td>
             <td>{{ fmt(row.created_at) }}</td>
@@ -78,13 +78,13 @@
           <button class="modal-close" @click="detailVisible = false">×</button>
         </div>
         <div class="modal-body">
-          <p class="post-meta">作者ID：{{ currentPost.author_id }} · {{ fmt(currentPost.created_at) }}</p>
+          <p class="post-meta">作者：{{ memberName(currentPost.author_id) }} · {{ fmt(currentPost.created_at) }}</p>
           <p class="post-content">{{ currentPost.content || '（无正文）' }}</p>
           <div class="divider"></div>
           <p class="reply-title">回复（{{ replies.length }}）</p>
           <div v-if="!replies.length" class="empty-tip">暂无回复</div>
           <div v-for="r in replies" :key="r.id" class="reply-item">
-            <span class="reply-author">{{ r.author_id }}</span>
+            <span class="reply-author">{{ memberName(r.author_id) }}</span>
             <span class="reply-time">{{ fmt(r.created_at) }}</span>
             <p class="reply-content">{{ r.content }}</p>
           </div>
@@ -100,7 +100,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { collab } from '../../api'
+import { collab, listMembers } from '../../api'
 import { FORUM_TYPE_OPTIONS } from '../../config/fieldOptions'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { useSession } from '../../composables/useSession'
@@ -112,6 +112,7 @@ const me = getSessionUser()
 const myId = me ? me.id : null
 
 const list = ref([])
+const members = ref([])
 const loading = ref(false)
 const formVisible = ref(false)
 const form = ref({})
@@ -125,9 +126,23 @@ const replyText = ref('')
 function fmt(v) {
   return v ? String(v).slice(0, 16) : '-'
 }
+function memberName(id) {
+  if (id === null || id === undefined) return '-'
+  const m = members.value.find((x) => Number(x.id) === Number(id))
+  return m ? (m.real_name || m.username || String(id)) : String(id)
+}
 function typeLabel(v) {
   const o = FORUM_TYPE_OPTIONS.find((x) => x.value === v)
   return o ? o.label : (v || '-')
+}
+
+async function loadMembers() {
+  try {
+    const res = await listMembers()
+    members.value = res && res.success ? res.members || [] : []
+  } catch (e) {
+    members.value = []
+  }
 }
 
 async function load() {
@@ -221,7 +236,10 @@ async function removePost(row) {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadMembers()
+})
 </script>
 
 <style scoped>

@@ -41,4 +41,14 @@ async function publishNotice(id) {
   return res
 }
 
+// 公告列表：普通用户（学生）只看「已发布」；已关闭的公告不再显示（记录保留，导师 / 管理员可见全部）
+const _noticeList = noticeService.list
+noticeService.list = async (filters) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isManager()) {
+    return _noticeList({ ...(filters || {}), status: NOTICE_STATUS_PUBLISHED })
+  }
+  return _noticeList(filters)
+}
+
 module.exports = { todo: todoService, schedule: scheduleService, notice: noticeService, completeTodo, publishNotice }

@@ -37,7 +37,7 @@ const config = {
         onClick: async (r) => {
           const ok = await dialogConfirm(`确定关闭公告「${r.title}」吗？关闭后用户将不再看到此公告，但记录保留。`, '关闭公告')
           if (!ok) return
-          const res = await workbench.notice.update(r.id, { status: 'closed' }); console.log('[Notice] 关闭结果=', res)
+          const res = await workbench.notice.update(r.id, { status: 'closed' })
           if (res && res.success) {
             await dialogAlert('公告已关闭')
           } else {
@@ -50,7 +50,7 @@ const config = {
       return {
         label: '开启',
         onClick: async (r) => {
-          const res = await workbench.notice.update(r.id, { status: 'published' }); console.log('[Notice] 开启结果=', res)
+          const res = await workbench.notice.update(r.id, { status: 'published' })
           if (res && res.success) {
             await dialogAlert('公告已重新开启')
           } else {

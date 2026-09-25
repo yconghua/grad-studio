@@ -1,5 +1,5 @@
 <template>
-  <StatPage title="设备使用" :fetch="studio.device.list" group-field="status" :options="DEVICE_STATUS_OPTIONS" />
+  <StatPage title="设备使用" :fetch="studio.device.list" group-field="status" :options="DEVICE_STATUS_OPTIONS" time-field="created_at" />
 </template>
 
 <script setup>

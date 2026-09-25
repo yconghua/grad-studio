@@ -81,7 +81,9 @@ contextBridge.exposeInMainWorld('api', {
     openAppDir: createInvoke('sys:open-app-dir'),
     exportDb: createInvoke('sys:export-db'),
     openDevTools: createInvoke('sys:open-devtools'),
-    checkForUpdates: createInvoke('sys:check-update')
+    checkForUpdates: createInvoke('sys:check-update'),
+    pickAttachment: createInvoke('sys:pick-attachment'),
+    openAttachment: createInvoke('sys:open-attachment')
   },
   // 科研管理（对应 ipc/research.js，通道前缀 research:*）
   research: {
@@ -154,6 +156,9 @@ contextBridge.exposeInMainWorld('api', {
     sendMessage: createInvoke('system:message-send'),
     myMessages: createInvoke('system:message-mine'),
     unreadCount: createInvoke('system:message-unread'),
-    markRead: createInvoke('system:message-read')
+    markRead: createInvoke('system:message-read'),
+    markAllRead: createInvoke('system:message-read-all'),
+    getNotificationPref: createInvoke('system:notification-pref-get'),
+    saveNotificationPref: createInvoke('system:notification-pref-save')
   }
 })

@@ -16,6 +16,7 @@ const {
 const { createCrudService } = require('./crudService')
 const permission = require('./permission')
 const logService = require('./logService')
+const systemService = require('./systemService')
 const {
   BORROW_STATUS_RETURNED,
   JOIN_LEAVE_STATUS_APPROVED,
@@ -87,6 +88,20 @@ const studio = {
         handle_remark: remark || ''
       })
       logService.record('update', 'join_leave', id, { approved })
+      // 审核结果自动通知申请人（站内消息 + 桌面通知按接收人偏好过滤）
+      try {
+        await systemService.notify({
+          receiver_id: exist.user_id,
+          sender_id: permission.currentUserId(),
+          title: approved ? '入组/离组申请已通过' : '入组/离组申请已驳回',
+          content: `你的${exist.type === 'leave' ? '离组' : '入组'}申请「${exist.reason || '（无说明）'}」已${approved ? '通过' : '驳回'}。${remark ? `审核意见：${remark}` : ''}`,
+          type: 'join_leave',
+          biz_type: 'join_leave',
+          biz_id: id
+        })
+      } catch (e) {
+        console.error('[joinLeave.review] 写通知失败:', e)
+      }
       return { success: true, message: approved ? '已通过' : '已驳回' }
     } catch (err) {
       console.error('[joinLeave.review] 数据库异常:', err)
@@ -103,6 +118,92 @@ studio.borrowRecord.list = async (filters = {}) => {
     filters.borrower_id = permission.currentUserId()
   }
   return _borrowList(filters)
+}
+
+// ========== P0 权限收紧：借用 / 入组离组 归属校验（非管理员只能操作自己的） ==========
+
+// 借用记录更新：仅借用人本人 / 登记人本人 / 管理员
+const _borrowUpdate = studio.borrowRecord.update
+studio.borrowRecord.update = async (id, payload) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少借用标识' }
+  try {
+    const row = await borrowRecordRepo.get(id)
+    if (!row) return { success: false, message: '借用记录不存在' }
+    const me = permission.currentUserId()
+    if (!permission.isAdmin() && Number(row.borrower_id) !== Number(me) && Number(row.created_by) !== Number(me)) {
+      return { success: false, message: '无权限：只能修改自己的借用记录' }
+    }
+  } catch (e) {
+    console.error('[borrowRecord.update] 校验失败:', e)
+    return { success: false, message: '更新失败' }
+  }
+  return _borrowUpdate(id, payload)
+}
+
+// 借用记录删除：仅借用人本人 / 登记人本人 / 管理员
+const _borrowRemove = studio.borrowRecord.remove
+studio.borrowRecord.remove = async (id) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少借用标识' }
+  try {
+    const row = await borrowRecordRepo.get(id)
+    if (!row) return { success: false, message: '借用记录不存在' }
+    const me = permission.currentUserId()
+    if (!permission.isAdmin() && Number(row.borrower_id) !== Number(me) && Number(row.created_by) !== Number(me)) {
+      return { success: false, message: '无权限：只能删除自己的借用记录' }
+    }
+  } catch (e) {
+    console.error('[borrowRecord.remove] 校验失败:', e)
+    return { success: false, message: '删除失败' }
+  }
+  return _borrowRemove(id)
+}
+
+// 入组离组列表：学生只看自己的申请；导师 / 管理员看全部（导师要审核）
+const _joinLeaveList = studio.joinLeave.list
+studio.joinLeave.list = async (filters = {}) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isManager()) {
+    filters.user_id = permission.currentUserId()
+  }
+  return _joinLeaveList(filters)
+}
+
+// 入组离组更新：仅申请人本人或管理员
+const _joinLeaveUpdate = studio.joinLeave.update
+studio.joinLeave.update = async (id, payload) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少申请标识' }
+  try {
+    const row = await joinLeaveRepo.get(id)
+    if (!row) return { success: false, message: '申请不存在' }
+    if (!permission.isAdmin() && Number(row.user_id) !== Number(permission.currentUserId())) {
+      return { success: false, message: '无权限：只能修改自己的申请' }
+    }
+  } catch (e) {
+    console.error('[joinLeave.update] 校验失败:', e)
+    return { success: false, message: '更新失败' }
+  }
+  return _joinLeaveUpdate(id, payload)
+}
+
+// 入组离组撤销（删除）：仅申请人本人或管理员（导师审核走 reviewJoinLeave）
+const _joinLeaveRemove = studio.joinLeave.remove
+studio.joinLeave.remove = async (id) => {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (id === null || id === undefined) return { success: false, message: '缺少申请标识' }
+  try {
+    const row = await joinLeaveRepo.get(id)
+    if (!row) return { success: false, message: '申请不存在' }
+    if (!permission.isAdmin() && Number(row.user_id) !== Number(permission.currentUserId())) {
+      return { success: false, message: '无权限：只能撤销自己的申请' }
+    }
+  } catch (e) {
+    console.error('[joinLeave.remove] 校验失败:', e)
+    return { success: false, message: '删除失败' }
+  }
+  return _joinLeaveRemove(id)
 }
 
 module.exports = studio

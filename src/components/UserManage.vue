@@ -363,6 +363,7 @@ function openEdit(row) {
     college: row.college || '',
     major: row.major || '',
     degree_type: row.degree_type || '',
+    advisor_id: row.advisor_id || null,
     status: row.status || ACCOUNT_STATUS_ACTIVE
   }
   formError.value = ''

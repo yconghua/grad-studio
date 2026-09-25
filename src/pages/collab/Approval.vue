@@ -13,10 +13,10 @@
           <tr>
             <th>标题</th>
             <th>类型</th>
-            <th>申请人ID</th>
+            <th>申请人</th>
             <th>状态</th>
             <th>申请时间</th>
-            <th>审批人ID</th>
+            <th>审批人</th>
             <th class="col-ops">操作</th>
           </tr>
         </thead>
@@ -26,16 +26,16 @@
           <tr v-for="row in list" :key="row.id" v-else>
             <td>{{ row.title }}</td>
             <td>{{ row.type || '-' }}</td>
-            <td>{{ row.applicant_id }}</td>
+            <td>{{ memberName(row.applicant_id) }}</td>
             <td>{{ statusLabel(row.status) }}</td>
             <td>{{ fmt(row.apply_time || row.created_at) }}</td>
-            <td>{{ row.approver_id || '-' }}</td>
+            <td>{{ memberName(row.approver_id) }}</td>
             <td class="col-ops">
               <template v-if="isManager && row.status === 'pending'">
                 <button class="btn-link" @click="review(row, true)">通过</button>
                 <button class="btn-link danger" @click="review(row, false)">驳回</button>
               </template>
-              <button v-if="row.status === 'pending'" class="btn-link danger" @click="removeApproval(row)">撤销</button>
+              <button v-if="row.status === 'pending' && (isAdmin || Number(row.applicant_id) === Number(myId))" class="btn-link danger" @click="removeApproval(row)">撤销</button>
               <span v-else-if="row.status !== 'pending'">已处理</span>
               <span v-else>-</span>
             </td>
@@ -77,13 +77,18 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { collab } from '../../api'
+import { collab, listMembers } from '../../api'
 import { APPROVAL_STATUS_OPTIONS } from '../../config/fieldOptions'
 import { useRole } from '../../composables/useRole'
+import { useSession } from '../../composables/useSession'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 
-const { isManager } = useRole()
+const { isManager, isAdmin } = useRole()
+const { getSessionUser } = useSession()
+const me = getSessionUser()
+const myId = me ? me.id : null
 const list = ref([])
+const members = ref([])
 const loading = ref(false)
 const formVisible = ref(false)
 const form = ref({})
@@ -93,9 +98,23 @@ const saving = ref(false)
 function fmt(v) {
   return v ? String(v).slice(0, 16) : '-'
 }
+function memberName(id) {
+  if (id === null || id === undefined) return '-'
+  const m = members.value.find((x) => Number(x.id) === Number(id))
+  return m ? (m.real_name || m.username || String(id)) : String(id)
+}
 function statusLabel(v) {
   const o = APPROVAL_STATUS_OPTIONS.find((x) => x.value === v)
   return o ? o.label : (v || '-')
+}
+
+async function loadMembers() {
+  try {
+    const res = await listMembers()
+    members.value = res && res.success ? res.members || [] : []
+  } catch (e) {
+    members.value = []
+  }
 }
 
 async function load() {
@@ -168,7 +187,10 @@ async function removeApproval(row) {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadMembers()
+})
 </script>
 
 <style scoped>
