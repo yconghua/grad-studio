@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS `task` (
   `progress`    TINYINT UNSIGNED NOT NULL DEFAULT 0  COMMENT '进度（0-100）',
   `due_date`    DATE         NULL DEFAULT NULL       COMMENT '截止日期',
   `tags`        VARCHAR(100) NULL DEFAULT NULL       COMMENT '标签（逗号分隔，如 紧急,导师安排）',
+  `source_type` VARCHAR(30)  NULL DEFAULT NULL       COMMENT '任务来源：weekly_report 周报 / meeting 组会 / paper 论文 / other 其他',
+  `source_id`   INT UNSIGNED NULL DEFAULT NULL       COMMENT '来源记录 id（软关联周报/组会/论文）',
   `created_by`  INT UNSIGNED NULL DEFAULT NULL       COMMENT '创建人用户 id',
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -18,5 +20,6 @@ CREATE TABLE IF NOT EXISTS `task` (
   KEY `idx_project_id` (`project_id`),
   KEY `idx_assignee_id` (`assignee_id`),
   KEY `idx_status` (`status`),
-  KEY `idx_priority` (`priority`)
+  KEY `idx_priority` (`priority`),
+  KEY `idx_source_type` (`source_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务协作表';

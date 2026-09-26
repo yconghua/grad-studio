@@ -5,7 +5,7 @@
  * 不写 SQL、不做业务；标准 CRUD 用 crudRouter.registerCrud 一行注册。
  */
 const researchService = require('../services/researchService')
-const { registerCrud } = require('./crudRouter')
+const { registerCrud, handle } = require('./crudRouter')
 
 function register(ipcMain) {
   registerCrud(ipcMain, 'research:project', researchService.project)
@@ -15,6 +15,9 @@ function register(ipcMain) {
   registerCrud(ipcMain, 'research:achievement', researchService.achievement)
   registerCrud(ipcMain, 'research:fund', researchService.fundRecord)
   registerCrud(ipcMain, 'research:milestone', researchService.graduationMilestone)
+
+  // 毕业进度总览（仪表盘数据源）
+  handle(ipcMain, 'research:milestone-overview', () => researchService.graduationOverview())
 }
 
 module.exports = { register }

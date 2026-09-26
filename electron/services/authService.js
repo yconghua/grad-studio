@@ -337,7 +337,21 @@ async function getMyProfile() {
     if (!user) return { success: false, message: '用户不存在' }
     // 去掉 password，仅返回安全列
     const { password, ...profile } = user
-    return { success: true, profile }
+    // 附带指导导师信息（仅用于前端只读展示；无导师时为 null）
+    let advisor_real_name = null
+    let advisor_username = null
+    if (user.advisor_id) {
+      try {
+        const advisor = await userRepository.findById(user.advisor_id)
+        if (advisor) {
+          advisor_real_name = advisor.real_name || null
+          advisor_username = advisor.username || null
+        }
+      } catch (e) {
+        console.error('[authService.getMyProfile] 查询导师信息失败:', e)
+      }
+    }
+    return { success: true, profile: { ...profile, advisor_real_name, advisor_username } }
   } catch (err) {
     console.error('[authService.getMyProfile] 数据库异常:', err)
     return { success: false, message: '读取档案失败，请稍后重试' }

@@ -12,6 +12,9 @@ function register(ipcMain) {
   // 完成待办 / 发布公告
   handle(ipcMain, 'workbench:todo-complete', (p) => workbenchService.completeTodo(p && p.id))
   handle(ipcMain, 'workbench:notice-publish', (p) => workbenchService.publishNotice(p && p.id))
+
+  // 工作台角色化总览（仪表盘数据源）
+  handle(ipcMain, 'workbench:overview', () => workbenchService.overview())
 }
 
 module.exports = { register }

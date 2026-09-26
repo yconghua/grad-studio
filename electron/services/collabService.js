@@ -302,6 +302,8 @@ const collab = {
         priority: 'medium',
         status: 'todo',
         due_date: dueDate || null,
+        source_type: 'weekly_report',
+        source_id: reportId,
         created_by: permission.currentUserId()
       }
       const id = await taskRepo.create(payload)

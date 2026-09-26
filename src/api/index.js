@@ -159,7 +159,8 @@ export const research = {
   log: makeCrud('research', 'log'),
   achievement: makeCrud('research', 'achievement'),
   fund: makeCrud('research', 'fund'),
-  milestone: makeCrud('research', 'milestone')
+  milestone: makeCrud('research', 'milestone'),
+  milestoneOverview: () => window.api.research.milestoneOverview()
 }
 
 // 工作室事务：工位 / 设备 / 借用 / 考勤 / 排班 / 制度 / 入组离组
@@ -215,7 +216,13 @@ export const workbench = {
   schedule: makeCrud('workbench', 'schedule'),
   notice: makeCrud('workbench', 'notice'),
   completeTodo: (id) => window.api.workbench.completeTodo({ id }),
-  publishNotice: (id) => window.api.workbench.publishNotice({ id })
+  publishNotice: (id) => window.api.workbench.publishNotice({ id }),
+  overview: () => window.api.workbench.overview()
+}
+
+// 全局搜索：成员 / 论文 / 任务 / 公告
+export const search = {
+  globalSearch: (keyword) => window.api.search.globalSearch({ keyword })
 }
 
 // 系统 / 个人：参数 / 操作日志 / 消息中心

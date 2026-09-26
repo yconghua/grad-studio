@@ -10,8 +10,14 @@
       </div>
     </div>
 
-    <!-- 表格 -->
-    <div class="table-wrap">
+    <!-- 视图切换：列表 / 月历 -->
+    <div class="view-tabs">
+      <button class="tab-btn" :class="{ active: viewMode === 'list' }" @click="switchView('list')">列表</button>
+      <button class="tab-btn" :class="{ active: viewMode === 'calendar' }" @click="switchView('calendar')">月历</button>
+    </div>
+
+    <!-- 表格（列表视图） -->
+    <div v-show="viewMode === 'list'" class="table-wrap">
       <table class="data-table">
         <thead>
           <tr>
@@ -44,6 +50,60 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- 月历视图：组会 / 里程碑 / 日程 / 任务截止 -->
+    <div v-show="viewMode === 'calendar'" class="calendar-wrap">
+      <div class="cal-head">
+        <div class="cal-nav">
+          <button class="btn" @click="prevMonth">‹</button>
+          <span class="cal-title">{{ calTitle }}</span>
+          <button class="btn" @click="nextMonth">›</button>
+          <button class="btn" @click="goToday">今天</button>
+        </div>
+        <span v-if="calLoading" class="cal-loading">加载中…</span>
+      </div>
+      <div class="cal-grid">
+        <div v-for="w in ['一', '二', '三', '四', '五', '六', '日']" :key="w" class="cal-week">周{{ w }}</div>
+        <div
+          v-for="(cell, i) in calGrid"
+          :key="i"
+          class="cal-cell"
+          :class="{ dim: !cell.inMonth, today: isToday(cell.date), clickable: cell.events.length }"
+          @click="openDay(cell)"
+        >
+          <span class="cal-day">{{ cell.day }}</span>
+          <div class="cal-events">
+            <span v-for="ev in cell.events.slice(0, 3)" :key="ev.bizType + ev.bizId" class="cal-ev" :class="evTypeCls(ev.type)">
+              {{ ev.title }}
+            </span>
+            <span v-if="cell.events.length > 3" class="cal-more">+{{ cell.events.length - 3 }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-legend">
+        <span v-for="(st, k) in CAL_TYPE_STYLE" :key="k" class="legend-item">
+          <i class="cal-ev-dot" :class="st.cls"></i>{{ st.label }}
+        </span>
+      </div>
+    </div>
+
+    <!-- 当日事件弹窗 -->
+    <div v-if="dayEventsVisible" class="modal-mask" @click.self="dayEventsVisible = false">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h4>{{ dayTitle }} 事件</h4>
+          <button class="modal-close" @click="dayEventsVisible = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div v-for="ev in dayEvents" :key="ev.bizType + '-' + ev.bizId" class="day-event" @click="goEvent(ev)">
+            <i class="day-ev-dot" :class="evTypeCls(ev.type)"></i>
+            <span class="day-ev-title">{{ ev.title }}</span>
+            <span v-if="ev.extra && ev.extra.time" class="day-ev-time">{{ String(ev.extra.time).slice(11, 16) }}</span>
+          </div>
+          <p v-if="!dayEvents.length" class="state-cell">当日暂无事件</p>
+        </div>
+      </div>
     </div>
 
     <!-- 新增 / 编辑弹窗 -->
@@ -213,11 +273,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { collab, listMembers } from '../../api'
 import { MEETING_STATUS_OPTIONS } from '../../config/fieldOptions'
 import { useRole } from '../../composables/useRole'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 
+const router = useRouter()
 const { isManager } = useRole()
 
 const list = ref([])
@@ -249,6 +311,119 @@ const readRows = ref([])
 const readTotal = ref(0)
 const readCount = ref(0)
 const reminding = ref(false)
+
+// ===== 月历视图 =====
+const viewMode = ref('list')
+const calYm = ref({ y: new Date().getFullYear(), m: new Date().getMonth() + 1 })
+const calEvents = ref([])
+const calLoading = ref(false)
+const dayEventsVisible = ref(false)
+const dayEvents = ref([])
+const dayTitle = ref('')
+
+const CAL_TYPE_STYLE = {
+  meeting: { label: '组会', cls: 'ev-meeting' },
+  milestone: { label: '里程碑', cls: 'ev-milestone' },
+  schedule: { label: '日程', cls: 'ev-schedule' },
+  task: { label: '任务', cls: 'ev-task' }
+}
+
+function switchView(v) {
+  viewMode.value = v
+  if (v === 'calendar') loadCalendar()
+}
+
+const calTitle = computed(() => `${calYm.value.y}年${calYm.value.m}月`)
+
+function calMonthRange() {
+  const { y, m } = calYm.value
+  const first = `${y}-${String(m).padStart(2, '0')}-01`
+  const lastDay = new Date(y, m, 0).getDate()
+  const last = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  return { first, last }
+}
+
+async function loadCalendar() {
+  calLoading.value = true
+  try {
+    const { first, last } = calMonthRange()
+    const res = await collab.calendarEvents(first, last)
+    calEvents.value = res && res.success ? res.list || [] : []
+  } catch (e) {
+    calEvents.value = []
+    console.error('[meeting.calendar] 异常:', e)
+  } finally {
+    calLoading.value = false
+  }
+}
+
+function prevMonth() {
+  calYm.value = { y: calYm.value.m === 1 ? calYm.value.y - 1 : calYm.value.y, m: calYm.value.m === 1 ? 12 : calYm.value.m - 1 }
+  loadCalendar()
+}
+function nextMonth() {
+  calYm.value = { y: calYm.value.m === 12 ? calYm.value.y + 1 : calYm.value.y, m: calYm.value.m === 12 ? 1 : calYm.value.m + 1 }
+  loadCalendar()
+}
+function goToday() {
+  const d = new Date()
+  calYm.value = { y: d.getFullYear(), m: d.getMonth() + 1 }
+  loadCalendar()
+}
+
+// 当月日历格子：42 格（6 行 × 7 列），从周一(1)开始
+const calGrid = computed(() => {
+  const { y, m } = calYm.value
+  const firstDay = new Date(y, m - 1, 1)
+  const startWeekday = firstDay.getDay() === 0 ? 7 : firstDay.getDay() // 周一=1
+  const daysInMonth = new Date(y, m, 0).getDate()
+  const cells = []
+  const padStart = startWeekday - 1
+  const prevDays = new Date(y, m - 1, 0).getDate()
+  for (let i = padStart - 1; i >= 0; i--) {
+    const d = new Date(y, m - 2, prevDays - i)
+    cells.push({ date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, day: d.getDate(), inMonth: false, events: [] })
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    cells.push({ date, day: d, inMonth: true, events: [] })
+  }
+  const nextCount = 42 - cells.length
+  for (let i = 1; i <= nextCount; i++) {
+    const d = new Date(y, m, i)
+    cells.push({ date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, day: d.getDate(), inMonth: false, events: [] })
+  }
+  for (const ev of calEvents.value) {
+    const cell = cells.find((c) => c.date === ev.date)
+    if (cell) cell.events.push(ev)
+  }
+  return cells
+})
+
+function isToday(date) {
+  const d = new Date()
+  const t = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return date === t
+}
+
+function openDay(cell) {
+  if (!cell.events.length) return
+  dayTitle.value = cell.date
+  dayEvents.value = cell.events
+  dayEventsVisible.value = true
+}
+
+function evTypeCls(t) {
+  return (CAL_TYPE_STYLE[t] || {}).cls || 'ev-meeting'
+}
+
+function goEvent(ev) {
+  dayEventsVisible.value = false
+  if (ev.type === 'meeting') router.push('/collaboration/meeting')
+  else if (ev.type === 'milestone') router.push('/research/graduation')
+  else if (ev.type === 'schedule') router.push('/workbench/schedule')
+  else if (ev.type === 'task') router.push('/collaboration/task')
+}
 
 // ===== 成员 / 展示工具 =====
 function memberLabel(m) {
@@ -924,5 +1099,164 @@ onMounted(() => {
   margin: 10px 0 0;
   font-size: 12px;
   color: #0d80e0;
+}
+
+/* ===== 月历视图 ===== */
+.view-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.tab-btn {
+  height: 32px;
+  padding: 0 18px;
+  font-size: 13px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  background: #fff;
+  color: #4e5969;
+  cursor: pointer;
+}
+.tab-btn.active {
+  background: #0d80e0;
+  border-color: #0d80e0;
+  color: #fff;
+  font-weight: 600;
+}
+.calendar-wrap {
+  margin-top: 4px;
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2329;
+  min-width: 96px;
+  text-align: center;
+}
+.cal-loading {
+  font-size: 12px;
+  color: #8a9099;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.cal-week {
+  text-align: center;
+  font-size: 12px;
+  color: #8a9099;
+  padding: 4px 0;
+}
+.cal-cell {
+  min-height: 84px;
+  border: 1px solid #eceff3;
+  border-radius: 8px;
+  padding: 6px;
+  background: #fff;
+  cursor: default;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.cal-cell.dim {
+  background: #fafbfc;
+  opacity: 0.7;
+}
+.cal-cell.today {
+  border-color: #0d80e0;
+  box-shadow: inset 0 0 0 1px #0d80e0;
+}
+.cal-cell.clickable {
+  cursor: pointer;
+}
+.cal-cell.clickable:hover {
+  background: #f5f8ff;
+}
+.cal-day {
+  font-size: 13px;
+  color: #1f2329;
+  font-weight: 600;
+}
+.cal-events {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cal-ev {
+  display: block;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+}
+.ev-meeting { background: #1890ff; }
+.ev-milestone { background: #fa8c16; }
+.ev-schedule { background: #19a558; }
+.ev-task { background: #ea4335; }
+.cal-more {
+  font-size: 11px;
+  color: #8a9099;
+}
+.cal-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #4e5969;
+}
+.cal-ev-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.day-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-bottom: 1px solid #f2f3f5;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.day-event:hover {
+  background: #f5f8ff;
+}
+.day-ev-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.day-ev-title {
+  flex: 1;
+  font-size: 13px;
+  color: #1f2329;
+}
+.day-ev-time {
+  font-size: 12px;
+  color: #8a9099;
 }
 </style>

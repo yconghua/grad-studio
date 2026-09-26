@@ -93,7 +93,8 @@ contextBridge.exposeInMainWorld('api', {
     log: crudApi('research:log'),
     achievement: crudApi('research:achievement'),
     fund: crudApi('research:fund'),
-    milestone: crudApi('research:milestone')
+    milestone: crudApi('research:milestone'),
+    milestoneOverview: createInvoke('research:milestone-overview')
   },
   // 工作室事务（对应 ipc/studio.js，通道前缀 studio:*）
   studio: {
@@ -145,7 +146,12 @@ contextBridge.exposeInMainWorld('api', {
     schedule: crudApi('workbench:schedule'),
     notice: crudApi('workbench:notice'),
     completeTodo: createInvoke('workbench:todo-complete'),
-    publishNotice: createInvoke('workbench:notice-publish')
+    publishNotice: createInvoke('workbench:notice-publish'),
+    overview: createInvoke('workbench:overview')
+  },
+  // 全局搜索（对应 ipc/search.js，通道前缀 search:*）
+  search: {
+    globalSearch: createInvoke('search:global')
   },
   // 系统 / 个人（对应 ipc/system.js，通道前缀 system:*）
   system: {

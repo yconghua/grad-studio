@@ -18,53 +18,114 @@
           </select>
         </div>
       </div>
-      <div class="row">
-        <div class="field">
-          <label class="label">学号/工号</label>
-          <input v-model="form.student_no" class="input" />
+      <template v-if="showAdvisor">
+        <div class="row">
+          <div class="field">
+            <label class="label">学号/工号</label>
+            <input v-model="form.student_no" class="input" />
+          </div>
+          <div class="field">
+            <label class="label">指导导师</label>
+            <div class="input advisor-readonly">
+              <template v-if="form.advisor_real_name">{{ form.advisor_real_name }}（{{ form.advisor_username }}）</template>
+              <template v-else-if="form.advisor_username">{{ form.advisor_username }}</template>
+              <template v-else><span class="no-advisor">暂无导师</span></template>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label class="label">手机号</label>
+            <input v-model="form.phone" class="input" />
+          </div>
+          <div class="field">
+            <label class="label">邮箱</label>
+            <input v-model="form.email" class="input" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label class="label">学院</label>
+            <input v-model="form.college" class="input" />
+          </div>
+          <div class="field">
+            <label class="label">院系/教研室</label>
+            <input v-model="form.department" class="input" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label class="label">专业</label>
+            <input v-model="form.major" class="input" />
+          </div>
+          <div class="field">
+            <label class="label">年级</label>
+            <input v-model="form.grade" class="input" placeholder="如 2024级" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label class="label">学位类型</label>
+            <select v-model="form.degree_type" class="input">
+              <option value="">请选择</option>
+              <option v-for="o in DEGREE_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="label">个人简介</label>
+            <textarea v-model="form.bio" class="input" rows="3"></textarea>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="row">
+          <div class="field">
+            <label class="label">学号/工号</label>
+            <input v-model="form.student_no" class="input" />
+          </div>
+          <div class="field">
+            <label class="label">邮箱</label>
+            <input v-model="form.email" class="input" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label class="label">手机号</label>
+            <input v-model="form.phone" class="input" />
+          </div>
+          <div class="field">
+            <label class="label">学院</label>
+            <input v-model="form.college" class="input" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label class="label">院系/教研室</label>
+            <input v-model="form.department" class="input" />
+          </div>
+          <div class="field">
+            <label class="label">专业</label>
+            <input v-model="form.major" class="input" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label class="label">年级</label>
+            <input v-model="form.grade" class="input" placeholder="如 2024级" />
+          </div>
+          <div class="field">
+            <label class="label">学位类型</label>
+            <select v-model="form.degree_type" class="input">
+              <option value="">请选择</option>
+              <option v-for="o in DEGREE_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
         </div>
         <div class="field">
-          <label class="label">邮箱</label>
-          <input v-model="form.email" class="input" />
+          <label class="label">个人简介</label>
+          <textarea v-model="form.bio" class="input" rows="3"></textarea>
         </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label class="label">手机号</label>
-          <input v-model="form.phone" class="input" />
-        </div>
-        <div class="field">
-          <label class="label">学院</label>
-          <input v-model="form.college" class="input" />
-        </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label class="label">院系/教研室</label>
-          <input v-model="form.department" class="input" />
-        </div>
-        <div class="field">
-          <label class="label">专业</label>
-          <input v-model="form.major" class="input" />
-        </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label class="label">年级</label>
-          <input v-model="form.grade" class="input" placeholder="如 2024级" />
-        </div>
-        <div class="field">
-          <label class="label">学位类型</label>
-          <select v-model="form.degree_type" class="input">
-            <option value="">请选择</option>
-            <option v-for="o in DEGREE_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="field">
-        <label class="label">个人简介</label>
-        <textarea v-model="form.bio" class="input" rows="3"></textarea>
-      </div>
+      </template>
 
       <p v-if="error" class="error">{{ error }}</p>
       <button class="btn btn-primary" @click="save" :disabled="saving">{{ saving ? '保存中…' : '保存' }}</button>
@@ -73,10 +134,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getMyProfile, updateMyProfile } from '../../api'
 import { GENDER_OPTIONS, DEGREE_TYPE_OPTIONS } from '../../config/fieldOptions'
+import { useRole } from '../../composables/useRole'
+import { ROLE_STUDENT } from '../../config/constants'
 import { dialogAlert } from '../../composables/useDialog'
+
+const { role } = useRole()
+// 只有学生显示「指导导师」栏（导师 / 管理员不需要）
+const showAdvisor = computed(() => role === ROLE_STUDENT)
 
 const loading = ref(true)
 const saving = ref(false)
@@ -189,6 +256,20 @@ textarea.input {
 }
 .input:focus {
   border-color: #0d80e0;
+}
+.advisor-readonly {
+  display: flex;
+  align-items: center;
+  background: #f7f8fa;
+  color: #4e5969;
+  cursor: default;
+  border-color: #eceff3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.advisor-readonly .no-advisor {
+  color: #a0a6b0;
 }
 .error {
   margin: 8px 0;

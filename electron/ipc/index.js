@@ -20,6 +20,7 @@ const resourceRoutes = require('./resource')
 const collabRoutes = require('./collab')
 const workbenchRoutes = require('./workbench')
 const systemRoutes = require('./system')
+const searchRoutes = require('./search')
 
 // 敏感字段脱敏：递归替换密码类字段，避免日志泄露明文密码
 function sanitize(value) {
@@ -70,6 +71,7 @@ function registerAll(ipcMain) {
   collabRoutes.register(logger) // 协同办公（collab:* 前缀）
   workbenchRoutes.register(logger) // 工作台（workbench:* 前缀）
   systemRoutes.register(logger) // 系统 / 个人（system:* 前缀）
+  searchRoutes.register(logger) // 全局搜索（search:* 前缀）
 }
 
 module.exports = { registerAll }

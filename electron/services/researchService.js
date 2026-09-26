@@ -94,4 +94,84 @@ wrapRecordVisibleList(researchService.researchLog, 'author_id')
 wrapRecordVisibleList(researchService.achievement, 'created_by')
 wrapProjectVisibleList(researchService.project)
 
+/**
+ * 毕业进度总览（仪表盘数据源）：
+ * 管理员看全部学生；导师看名下学生；学生只看自己。
+ * 返回每个学生的里程碑统计：完成/进行/待办/延期、最近截止、剩余天数、预警。
+ */
+async function graduationOverview() {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  const me = permission.currentUserId()
+  try {
+    // 1. 确定目标学生
+    let studentRows = []
+    if (permission.isAdmin()) {
+      studentRows = await userRepository.list({ role: 'student' })
+    } else if (permission.isManager()) {
+      studentRows = await userRepository.list({ advisor_id: me, role: 'student' })
+    } else {
+      const self = await userRepository.findById(me)
+      if (self) studentRows = [self]
+    }
+    const ids = new Set((studentRows || []).map((s) => Number(s.id)))
+
+    // 2. 拉全部里程碑本地聚合
+    const milestones = await graduationMilestoneRepo.list({}, 'deadline ASC')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const dayMs = 24 * 60 * 60 * 1000
+    const group = new Map()
+    for (const ms of milestones || []) {
+      if (!ids.has(Number(ms.user_id))) continue
+      if (!group.has(Number(ms.user_id))) group.set(Number(ms.user_id), [])
+      group.get(Number(ms.user_id)).push(ms)
+    }
+
+    // 3. 逐学生统计
+    const students = []
+    for (const s of studentRows || []) {
+      const rows = group.get(Number(s.id)) || []
+      const byStatus = { done: 0, in_progress: 0, pending: 0, delayed: 0 }
+      let next = null
+      const alerts = []
+      for (const r of rows) {
+        byStatus[r.status] = (byStatus[r.status] || 0) + 1
+        if (!r.deadline) continue
+        const due = new Date(`${String(r.deadline).slice(0, 10)}T00:00:00`)
+        const diff = Math.floor((due - today) / dayMs)
+        if (r.status !== 'done') {
+          if (diff < 0) alerts.push({ level: 'danger', text: `「${r.type}」已逾期 ${-diff} 天` })
+          else if (diff <= 3) alerts.push({ level: 'warn', text: `「${r.type}」${diff === 0 ? '今天到期' : diff + ' 天后到期'}` })
+          if (!next || diff < next.days_left) {
+            next = { type: r.type, deadline: String(r.deadline).slice(0, 10), days_left: diff }
+          }
+        }
+      }
+      students.push({
+        user_id: s.id,
+        real_name: s.real_name || '',
+        username: s.username,
+        total: rows.length,
+        done: byStatus.done || 0,
+        in_progress: byStatus.in_progress || 0,
+        pending: byStatus.pending || 0,
+        delayed: byStatus.delayed || 0,
+        next,
+        alerts
+      })
+    }
+    // 有最近截止（未完成）的排前，按剩余天数升序；无里程碑的放后
+    students.sort((a, b) => {
+      const an = a.next ? a.next.days_left : 999999
+      const bn = b.next ? b.next.days_left : 999999
+      return an - bn
+    })
+    return { success: true, students }
+  } catch (err) {
+    console.error('[research.graduationOverview] 数据库异常:', err)
+    return { success: false, message: '毕业进度统计失败' }
+  }
+}
+
 module.exports = researchService
+module.exports.graduationOverview = graduationOverview

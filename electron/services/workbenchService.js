@@ -7,6 +7,10 @@
 const { todoRepo, scheduleRepo, noticeRepo } = require('../db/repositories/workbenchRepository')
 const { createCrudService } = require('./crudService')
 const permission = require('./permission')
+const userRepository = require('../db/repositories/userRepository')
+const { taskRepo, approvalRepo, weeklyReportRepo } = require('../db/repositories/collabRepository')
+const { joinLeaveRepo } = require('../db/repositories/studioRepository')
+const { paperRepo, graduationMilestoneRepo } = require('../db/repositories/researchRepository')
 const { TODO_STATUS_DONE, NOTICE_STATUS_PUBLISHED } = require('../../shared/constants')
 
 const todoService = createCrudService(todoRepo, {
@@ -71,4 +75,83 @@ noticeService.list = async (filters) => {
   return _noticeList(filters)
 }
 
-module.exports = { todo: todoService, schedule: scheduleService, notice: noticeService, completeTodo, publishNotice }
+// 本周一日期（YYYY-MM-DD）：判断学生是否已交本周周报
+function thisMondayStr() {
+  const now = new Date()
+  const day = now.getDay() || 7
+  const m = new Date(now)
+  m.setDate(now.getDate() - day + 1)
+  return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(m.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * 工作台角色化总览（Dashboard 数据源，不落库）：
+ * - 管理员：全系统统计（成员/学生/导师/待办/任务/待审批/公告）；
+ * - 导师：名下学生数、待审批（审批+入组离组）、本周未交周报学生、名下任务；
+ * - 学生：我的待办、我的任务、我的论文、毕业进度。
+ */
+async function overview() {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  const me = permission.currentUserId()
+  const out = { role: 'user' }
+  try {
+    if (permission.isAdmin()) {
+      const users = await userRepository.list()
+      const todos = await todoRepo.list()
+      const tasks = await taskRepo.list()
+      const approvals = await approvalRepo.list({ status: 'pending' })
+      const notices = await noticeRepo.list()
+      out.role = 'admin'
+      out.memberTotal = (users || []).length
+      out.studentTotal = (users || []).filter((u) => u.role === 'student').length
+      out.mentorTotal = (users || []).filter((u) => u.role === 'mentor').length
+      out.todoTotal = (todos || []).length
+      out.taskTotal = (tasks || []).length
+      out.pendingApproval = (approvals || []).length
+      out.noticeCount = (notices || []).length
+    } else if (permission.isManager()) {
+      const students = await userRepository.list({ advisor_id: me, role: 'student' })
+      const studentIds = (students || []).map((s) => Number(s.id))
+      const approvals = await approvalRepo.list({ status: 'pending' })
+      const joinLeaves = await joinLeaveRepo.list({ status: 'pending' })
+      const tasks = await taskRepo.list()
+      // 本周未交周报：名下学生 - 本周已提交周报的学生
+      const monday = thisMondayStr()
+      let submittedIds = new Set()
+      if (studentIds.length) {
+        const reports = await weeklyReportRepo.list({ week_start: monday, student_id: { op: 'IN', value: studentIds } })
+        submittedIds = new Set((reports || []).map((r) => Number(r.student_id)))
+      }
+      const missing = (students || []).filter((s) => !submittedIds.has(Number(s.id)))
+      const idSet = new Set(studentIds)
+      const myTasks = (tasks || []).filter(
+        (t) => Number(t.created_by) === Number(me) || (t.assignee_id && idSet.has(Number(t.assignee_id)))
+      )
+      out.role = 'mentor'
+      out.myStudentCount = (students || []).length
+      out.pendingApproval = (approvals || []).length
+      out.pendingJoinLeave = (joinLeaves || []).length
+      out.missingWeeklyCount = missing.length
+      out.missingWeeklyStudents = missing.slice(0, 5).map((s) => ({ id: s.id, real_name: s.real_name || s.username }))
+      out.myTaskCount = myTasks.length
+    } else {
+      const todos = await todoRepo.list({ user_id: me })
+      const tasks = await taskRepo.list({ assignee_id: me })
+      const papers = await paperRepo.list({ created_by: me })
+      const milestones = await graduationMilestoneRepo.list({ user_id: me })
+      const doneMs = (milestones || []).filter((m) => m.status === 'done').length
+      out.role = 'student'
+      out.todoTotal = (todos || []).length
+      out.taskTotal = (tasks || []).length
+      out.paperTotal = (papers || []).length
+      out.msTotal = (milestones || []).length
+      out.msDone = doneMs
+    }
+    return { success: true, ...out }
+  } catch (err) {
+    console.error('[workbench.overview] 数据库异常:', err)
+    return { success: false, message: '工作台总览加载失败' }
+  }
+}
+
+module.exports = { todo: todoService, schedule: scheduleService, notice: noticeService, completeTodo, publishNotice, overview }

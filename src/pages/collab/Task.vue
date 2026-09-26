@@ -38,6 +38,7 @@
             <div class="card-title">{{ t.title }}</div>
             <div class="card-meta">
               <span v-if="t.assignee_id" class="assignee">👤 {{ memberName(t.assignee_id) }}</span>
+              <span v-if="t.source_type" class="src-chip" :class="'src-' + t.source_type">{{ srcLabel(t.source_type) }}</span>
             </div>
             <div class="card-tags">
               <span class="prio" :class="prioClass(t.priority)">{{ prioLabel(t.priority) }}</span>
@@ -108,6 +109,29 @@
               <input v-model.number="form.project_id" type="number" class="form-input" />
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-item">
+              <label class="form-label">来源类型</label>
+              <select v-model="form.source_type" class="form-input">
+                <option :value="null">无来源</option>
+                <option value="weekly_report">周报</option>
+                <option value="meeting">组会</option>
+                <option value="paper">论文</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label class="form-label">来源记录</label>
+              <select v-if="form.source_type && form.source_type !== 'other'" v-model="form.source_id" class="form-input">
+                <option :value="null">请选择</option>
+                <option v-if="form.source_type === 'weekly_report'" v-for="s in weeklyReports" :key="s.id" :value="s.id">周报 {{ s.week_start }}（学生 {{ s.student_id }}）</option>
+                <option v-if="form.source_type === 'meeting'" v-for="s in meetings" :key="s.id" :value="s.id">{{ s.title }}</option>
+                <option v-if="form.source_type === 'paper'" v-for="s in papers" :key="s.id" :value="s.id">{{ s.title }}</option>
+              </select>
+              <input v-else-if="form.source_type === 'other'" v-model.number="form.source_id" type="number" class="form-input" placeholder="来源记录 ID（可选）" />
+              <input v-else class="form-input" placeholder="先选择来源类型" disabled />
+            </div>
+          </div>
           <div class="form-item">
             <label class="form-label">标签</label>
             <input v-model="form.tags" class="form-input" placeholder="逗号分隔，如：紧急,导师安排" />
@@ -135,6 +159,7 @@
           <div class="detail-item"><div class="detail-label">状态</div><div class="detail-value">{{ statusLabel(current.status) }}</div></div>
           <div class="detail-item"><div class="detail-label">进度</div><div class="detail-value">{{ current.progress != null ? current.progress + '%' : '-' }}</div></div>
           <div class="detail-item"><div class="detail-label">截止日期</div><div class="detail-value">{{ current.due_date || '-' }}</div></div>
+          <div class="detail-item"><div class="detail-label">来源</div><div class="detail-value">{{ srcLabel(current.source_type) || '-' }}{{ current.source_type ? ' #' + (current.source_id != null ? current.source_id : '?') : '' }}</div></div>
           <div class="detail-item"><div class="detail-label">标签</div><div class="detail-value">{{ current.tags || '-' }}</div></div>
         </div>
         <div class="modal-foot">
@@ -157,9 +182,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import TaskComment from '../../components/TaskComment.vue'
-import { collab, listMembers } from '../../api'
+import { collab, research, listMembers } from '../../api'
 import { TASK_STATUS_OPTIONS, PRIORITY_OPTIONS } from '../../config/fieldOptions'
 import { useSession } from '../../composables/useSession'
 import { useRole } from '../../composables/useRole'
@@ -189,6 +214,43 @@ const currentTask = ref(null)
 
 const dragTaskId = ref(null)
 const dragOver = ref(null)
+
+// ===== 任务来源（周报 / 组会 / 论文 关联）=====
+const weeklyReports = ref([])
+const meetings = ref([])
+const papers = ref([])
+const SRC_LABELS = {
+  weekly_report: '周报',
+  meeting: '组会',
+  paper: '论文',
+  other: '其他'
+}
+
+function srcLabel(v) {
+  return SRC_LABELS[v] || ''
+}
+
+async function loadSourceOptions(type) {
+  if (type === 'weekly_report') {
+    const res = await collab.weeklyReport.list({}).catch(() => null)
+    weeklyReports.value = res && res.success ? res.list || [] : []
+  } else if (type === 'meeting') {
+    const res = await collab.meeting.list({}).catch(() => null)
+    meetings.value = res && res.success ? res.list || [] : []
+  } else if (type === 'paper') {
+    const res = await research.paper.list({}).catch(() => null)
+    papers.value = res && res.success ? res.list || [] : []
+  }
+}
+
+// 切换来源类型：清空已选来源，按需加载来源列表
+watch(
+  () => form.value.source_type,
+  (v, old) => {
+    if (v !== old) form.value.source_id = null
+    if (v && v !== 'other') loadSourceOptions(v)
+  }
+)
 
 const columns = [
   { key: 'todo', label: '待办', color: '#0d80e0' },
@@ -227,11 +289,11 @@ function todayStr() {
 }
 function canEdit(row) {
   // 管理员全部；导师/学生只能编辑自己创建或被分配的任务
-  return isAdmin.value || Number(row.created_by) === Number(myId) || Number(row.assignee_id) === Number(myId)
+  return isAdmin || Number(row.created_by) === Number(myId) || Number(row.assignee_id) === Number(myId)
 }
 function canDelete(row) {
   // 管理员全部；导师/学生只能删除自己创建的任务
-  return isAdmin.value || Number(row.created_by) === Number(myId)
+  return isAdmin || Number(row.created_by) === Number(myId)
 }
 
 // 按列归类：延期列 = status=delayed 或 已逾期未完成
@@ -260,7 +322,7 @@ function openCreate() {
   formMode.value = 'create'
   editingId.value = null
   formError.value = ''
-  form.value = { priority: 'medium', status: 'todo', progress: 0 }
+  form.value = { priority: 'medium', status: 'todo', progress: 0, source_type: null, source_id: null }
   formVisible.value = true
 }
 
@@ -277,8 +339,11 @@ function openEdit(row) {
     status: row.status || 'todo',
     progress: row.progress != null ? row.progress : 0,
     due_date: row.due_date || '',
-    tags: row.tags || ''
+    tags: row.tags || '',
+    source_type: row.source_type || null,
+    source_id: row.source_id != null ? row.source_id : null
   }
+  if (row.source_type && row.source_type !== 'other') loadSourceOptions(row.source_type)
   detailVisible.value = false
   formVisible.value = true
 }
@@ -309,7 +374,9 @@ async function submit() {
       status: form.value.status || 'todo',
       progress: form.value.progress != null ? Number(form.value.progress) : 0,
       due_date: clean(form.value.due_date),
-      tags: clean(form.value.tags)
+      tags: clean(form.value.tags),
+      source_type: form.value.source_type || null,
+      source_id: form.value.source_id != null ? Number(form.value.source_id) : null
     }
     const res = formMode.value === 'create'
       ? await collab.task.create(payload)
@@ -532,7 +599,19 @@ onMounted(() => {
   font-size: 12px;
   color: #8a9099;
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
+.src-chip {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 8px;
+}
+.src-weekly_report { background: #e6f7ec; color: #19a558; }
+.src-meeting { background: #e8f3ff; color: #0d80e0; }
+.src-paper { background: #fff3e0; color: #fa8c16; }
+.src-other { background: #f2f3f5; color: #8a9099; }
 .card-tags {
   display: flex;
   flex-wrap: wrap;
