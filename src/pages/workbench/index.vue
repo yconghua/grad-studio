@@ -71,7 +71,7 @@
     <template v-else-if="isMentor">
       <div class="stat-grid">
         <div class="stat-card grad-blue"><div class="stat-icon">🎓</div><div class="stat-num">{{ mentorStats.students }}</div><div class="stat-label">名下学生</div></div>
-        <div class="stat-card grad-orange"><div class="stat-icon">📝</div><div class="stat-num">{{ mentorStats.pendingWeekly }}</div><div class="stat-label">待审周报</div></div>
+        <div class="stat-card grad-orange stat-link" @click="go('/weekly-review')"><div class="stat-icon">📝</div><div class="stat-num">{{ mentorStats.pendingWeekly }}</div><div class="stat-label">待审周报 →</div></div>
         <div class="stat-card grad-green"><div class="stat-icon">🏆</div><div class="stat-num">{{ mentorStats.pendingAch }}</div><div class="stat-label">待审成果</div></div>
       </div>
       <div v-if="!currentGroupId" class="card"><div class="state">请先在页头输入本组课题组ID 以查看公告</div></div>
@@ -294,6 +294,8 @@ onMounted(() => {
 .stat-icon { font-size: 22px; }
 .stat-num { font-size: 30px; font-weight: 700; line-height: 1.3; }
 .stat-label { font-size: 13px; opacity: 0.92; }
+.stat-link { cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+.stat-link:hover { transform: translateY(-1px); opacity: 0.92; }
 
 .state { padding: 30px 0; text-align: center; color: #8a9099; font-size: 13px; }
 .feed { list-style: none; margin: 0; padding: 0; }

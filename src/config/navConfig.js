@@ -11,7 +11,7 @@
 //   - 超级管理员为平台运维角色，仅展示平台级管控菜单，不参与课题组内业务。
 //
 // 图标说明：icon 字段为 Ant Design Vue 图标名（字符串），渲染层按名解析为图标组件；
-//   依赖 @ant-design/icons-vue 安装后自动生效，未安装时布局组件回退显示占位符。
+//   依赖 @ant-design/icons-vue（已安装），未知图标名回退显示 emoji 占位符。
 
 import {
   ROLE_SUPER_ADMIN,
@@ -25,8 +25,8 @@ import {
  * roles：该项对哪些角色可见；null / 缺省 = 全部四类角色可见。
  * 各角色过滤后的菜单顺序与角色描述完全一致：
  *   - 超级管理员：工作台 / 用户管理 / 课题组管理 / 系统配置 / 系统操作日志 / 帮助文档
- *   - 课题组管理员：工作台 / 课题组公告 / 成员管理 / 学位节点管理 / 组会管理 / 课题管理 / 任务管理 / 科研成果 / 课题组知识库 / 课题组设置
- *   - 导师：工作台 / 课题组公告 / 我的学生 / 学位节点管理 / 组会管理 / 课题管理 / 任务管理 / 科研成果 / 课题组知识库
+ *   - 课题组管理员：工作台 / 课题组公告 / 成员管理 / 学位节点管理 / 组会管理 / 课题管理 / 任务管理 / 周报批阅 / 科研成果 / 课题组知识库 / 课题组设置
+ *   - 导师：工作台 / 课题组公告 / 我的学生 / 学位节点管理 / 组会管理 / 课题管理 / 任务管理 / 周报批阅 / 科研成果 / 课题组知识库
  *   - 学生：工作台 / 课题组公告 / 组会管理 / 科研记录 / 课题与任务 / 科研成果 / 文献与笔记 / 科研档案 / 课题组知识库 / AI科研助手
  */
 export const navItems = [
@@ -47,6 +47,7 @@ export const navItems = [
   { key: 'degree', title: '学位节点管理', icon: 'ScheduleOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
   { key: 'subject', title: '课题管理', icon: 'ExperimentOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
   { key: 'task', title: '任务管理', icon: 'CheckSquareOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
+  { key: 'weekly-review', title: '周报批阅', icon: 'FileTextOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
 
   // ===== 学生专属 =====
   { key: 'research-record', title: '科研记录', icon: 'EditOutlined', roles: [ROLE_STUDENT] },

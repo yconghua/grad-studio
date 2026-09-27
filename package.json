@@ -1,6 +1,6 @@
 {
   "name": "grad-studio",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "releaseDate": "2026-09-27",
   "description": "grad studio - Vue3 + Electron + MySQL",
   "main": "electron/main.js",
@@ -17,6 +17,7 @@
     "pack": "npm run build && electron-builder"
   },
   "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "mysql2": "^3.11.0",
     "vue": "^3.4.27",

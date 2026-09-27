@@ -114,7 +114,10 @@
           :class="{ 'router-link-active': isActive(item) }"
           :title="item.title"
         >
-          <span class="nav-icon">{{ menuIcon(item) }}</span>
+          <span class="nav-icon">
+            <component :is="menuIcon(item)" v-if="menuIcon(item)" />
+            <span v-else>{{ menuIconFallback(item) }}</span>
+          </span>
           <span v-if="!collapsed" class="nav-item-title">{{ item.title }}</span>
           <span v-if="!collapsed && menuBadge(item)" class="nav-badge">{{ menuBadge(item) }}</span>
         </RouterLink>
@@ -141,8 +144,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, markRaw, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import {
+  DashboardOutlined, NotificationOutlined, TeamOutlined, SettingOutlined,
+  UserSwitchOutlined, ScheduleOutlined, ExperimentOutlined, CheckSquareOutlined,
+  FileTextOutlined, EditOutlined, ProjectOutlined, ReadOutlined, FolderOpenOutlined,
+  RobotOutlined, CalendarOutlined, TrophyOutlined, BookOutlined, UserOutlined,
+  ApartmentOutlined, DatabaseOutlined, ControlOutlined, FileSearchOutlined,
+  QuestionCircleOutlined
+} from '@ant-design/icons-vue'
 import {
   logout,
   getMessageUnreadCount,
@@ -190,8 +201,7 @@ function isActive(item) {
   return route.path === p || route.path.startsWith(p + '/')
 }
 
-// 菜单角标（未读红点等）：当前仅课题组公告预留。
-// 接入方式：后续公告接口就绪后，通过公告未读接口刷新，
+// 菜单角标（未读红点等）：课题组公告未读数由公告未读接口驱动，
 // 返回值 > 0 时显示数字角标，未读数归零后自动隐藏。
 function menuBadge(item) {
   if (item.key === 'notice') {
@@ -200,20 +210,33 @@ function menuBadge(item) {
   return null
 }
 
-// 公告未读数（预留，默认 0；后续由公告未读接口驱动）
+// 公告未读数（公告未读接口驱动，登录后与组切换时刷新）
 const noticeUnread = ref(0)
 
-// ===== 菜单图标：Ant Design Vue 图标名（navConfig.icon）→ 当前占位渲染 =====
-// 说明：icon 字段已按 @ant-design/icons-vue 的图标名配置；
-// 安装依赖后，将下方 emoji 映射替换为图标组件解析（如 <component :is="AntdIcons[name]" />）。
+// ===== 菜单图标：按 navConfig.icon 的 Ant Design Vue 图标名解析组件 =====
+// 说明：icon 字段为 @ant-design/icons-vue 的组件名，渲染层按名解析为图标组件；
+// 显式导入当前菜单用到的图标（避免全量打包），新增菜单图标时在此补充导入与映射；
+// 未知图标名回退到 emoji 占位（MENU_ICON_FALLBACK），保证菜单不因图标缺失而异常。
+const MENU_ICONS = {
+  DashboardOutlined, NotificationOutlined, TeamOutlined, SettingOutlined,
+  UserSwitchOutlined, ScheduleOutlined, ExperimentOutlined, CheckSquareOutlined,
+  FileTextOutlined, EditOutlined, ProjectOutlined, ReadOutlined, FolderOpenOutlined,
+  RobotOutlined, CalendarOutlined, TrophyOutlined, BookOutlined, UserOutlined,
+  ApartmentOutlined, DatabaseOutlined, ControlOutlined, FileSearchOutlined,
+  QuestionCircleOutlined
+}
 const MENU_ICON_FALLBACK = {
   workbench: '🏠', notice: '📢', member: '👥', students: '🎓', degree: '🗓️',
   meeting: '📅', subject: '🔬', task: '✅', 'research-record': '📝', 'my-work': '📋',
   achievement: '🏆', literature: '📚', archive: '📂', knowledge: '📖', 'ai-assistant': '🤖',
-  settings: '⚙️', 'platform-users': '👤', 'platform-groups': '🏢',
+  settings: '⚙️', 'weekly-review': '📄', 'platform-users': '👤', 'platform-groups': '🏢',
   'platform-config': '🔧', 'platform-logs': '🕐', 'platform-help': '❓'
 }
 function menuIcon(item) {
+  const C = item.icon && MENU_ICONS[item.icon]
+  return C ? markRaw(C) : null
+}
+function menuIconFallback(item) {
   return MENU_ICON_FALLBACK[item.key] || '📄'
 }
 
@@ -279,7 +302,7 @@ async function onMarkAllRead() {
   } catch (e) {}
 }
 
-const REF_ROUTE_MAP = { notice: '/notice', task: '/task', achievement: '/achievement' }
+const REF_ROUTE_MAP = { notice: '/notice', task: '/task', achievement: '/achievement', weekly: '/research-record' }
 
 async function onMsgItemClick(m) {
   if (m.status === 'unread') {

@@ -10,14 +10,12 @@
 //       c) /help 使用帮助。
 //   - 404 兜底
 //
-// 页面组件：当前为骨架阶段，业务页面统一指向 pages/<key>/index.vue 的占位实现
-// （内部引用 PagePlaceholder 组件），后续按模块逐个替换为真实页面。
+// 页面组件：业务页面统一懒加载 pages/<key>/index.vue（platform- 前缀为 pages/platform/<子页>/index.vue）。
 
 import { createRouter, createWebHashHistory } from 'vue-router'
 import LoginView from '../pages/auth/LoginView.vue'
 import ForcePasswordView from '../pages/auth/ForcePassword.vue'
 import HomeLayout from '../layouts/HomeLayout.vue'
-import PlaceholderView from '../pages/placeholder/index.vue'
 import NotFoundView from '../pages/notfound/index.vue'
 import ProfileView from '../pages/profile/index.vue'
 import ProfilePasswordView from '../pages/profile/password.vue'

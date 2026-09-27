@@ -73,17 +73,35 @@ class WeeklyReportRepository extends BaseRepository {
   }
 
   /**
-   * 列出全部学生周报（供 group_admin / mentor 批阅侧），可按 student_id 过滤
-   * @param {{ studentId?: number }} filters
+   * 列出全部学生周报（供 group_admin / mentor 批阅侧），可按 studentIds 集合或单个 student_id 过滤
+   * 联 user / user_profile 返回学生账号姓名，联 reviewed_by 返回批阅人账号姓名。
+   * 注意：本查询多表 JOIN，WHERE 条件必须带 `wr` 前缀，避免 is_deleted / student_id 列歧义。
+   * @param {{ studentIds?: number[], studentId?: number }} filters
    * @returns {Object[]}
    */
   async listAll(filters = {}) {
-    const conditions = [{ field: 'is_deleted', op: '=', value: 0 }]
-    if (filters.studentId) {
-      conditions.push({ field: 'student_id', op: '=', value: filters.studentId })
+    const conditions = ['`wr`.`is_deleted` = ?']
+    const values = [0]
+    if (filters.studentIds && filters.studentIds.length) {
+      conditions.push(`\`wr\`.\`student_id\` IN (${filters.studentIds.map(() => '?').join(', ')})`)
+      values.push(...filters.studentIds)
+    } else if (filters.studentId) {
+      conditions.push('`wr`.`student_id` = ?')
+      values.push(filters.studentId)
     }
-    const { clause, values } = buildWhereClause(conditions)
-    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`weekly_report\` ${clause} ORDER BY week_start DESC, id DESC`
+    const where = 'WHERE ' + conditions.join(' AND ')
+    const selectCols = SAFE_COLUMNS.map((c) => `\`wr\`.\`${c}\``).join(', ')
+    const sql = `SELECT ${selectCols},
+        \`u\`.\`username\` AS \`student_username\`,
+        \`up\`.\`real_name\` AS \`student_real_name\`,
+        \`ru\`.\`username\` AS \`reviewer_username\`,
+        \`rp\`.\`real_name\` AS \`reviewer_real_name\`
+      FROM \`weekly_report\` AS \`wr\`
+      LEFT JOIN \`user\` AS \`u\` ON \`u\`.\`id\` = \`wr\`.\`student_id\` AND \`u\`.\`is_deleted\` = 0
+      LEFT JOIN \`user_profile\` AS \`up\` ON \`up\`.\`user_id\` = \`wr\`.\`student_id\` AND \`up\`.\`is_deleted\` = 0
+      LEFT JOIN \`user\` AS \`ru\` ON \`ru\`.\`id\` = \`wr\`.\`reviewed_by\` AND \`ru\`.\`is_deleted\` = 0
+      LEFT JOIN \`user_profile\` AS \`rp\` ON \`rp\`.\`user_id\` = \`wr\`.\`reviewed_by\` AND \`rp\`.\`is_deleted\` = 0
+      ${where} ORDER BY \`wr\`.\`week_start\` DESC, \`wr\`.\`id\` DESC`
     const [rows] = await this._execute(sql, values, 'listAll')
     return rows
   }

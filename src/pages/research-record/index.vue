@@ -86,7 +86,8 @@
         </label>
         <label class="form-item">
           <span class="form-label">日志内容 <i>*</i></span>
-          <textarea rows="5" v-model="logModal.form.content" placeholder="记录今日研究进展 / 问题 / 思考"></textarea>
+          <textarea rows="5" maxlength="16000" v-model="logModal.form.content" placeholder="记录今日研究进展 / 问题 / 思考"></textarea>
+          <span class="char-count">{{ logModal.form.content.length }}/16000</span>
         </label>
         <p v-if="logModal.error" class="form-error">{{ logModal.error }}</p>
         <div class="modal-actions">
@@ -114,15 +115,18 @@
         </div>
         <label class="form-item">
           <span class="form-label">本周完成工作</span>
-          <textarea rows="4" v-model="weeklyModal.form.work_content"></textarea>
+          <textarea rows="4" maxlength="16000" v-model="weeklyModal.form.work_content"></textarea>
+          <span class="char-count">{{ weeklyModal.form.work_content.length }}/16000</span>
         </label>
         <label class="form-item">
           <span class="form-label">下周计划</span>
-          <textarea rows="3" v-model="weeklyModal.form.plan_content"></textarea>
+          <textarea rows="3" maxlength="16000" v-model="weeklyModal.form.plan_content"></textarea>
+          <span class="char-count">{{ weeklyModal.form.plan_content.length }}/16000</span>
         </label>
         <label class="form-item">
           <span class="form-label">遇到的问题 / 求助</span>
-          <textarea rows="2" v-model="weeklyModal.form.problem_content"></textarea>
+          <textarea rows="2" maxlength="16000" v-model="weeklyModal.form.problem_content"></textarea>
+          <span class="char-count">{{ weeklyModal.form.problem_content.length }}/16000</span>
         </label>
         <p v-if="weeklyModal.error" class="form-error">{{ weeklyModal.error }}</p>
         <div class="modal-actions">
@@ -392,6 +396,7 @@ loadWeekly()
   font-size: 13px; outline: none; font-family: inherit; resize: vertical;
 }
 .form-item input:focus, .form-item textarea:focus { border-color: #0d80e0; }
+.char-count { align-self: flex-end; font-size: 12px; color: #8a9099; }
 .form-error { color: #ea4335; font-size: 12px; margin: 0 0 10px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 </style>

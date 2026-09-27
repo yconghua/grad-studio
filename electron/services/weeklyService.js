@@ -3,11 +3,32 @@
  *
  * 学生侧：列表 / 新建 / 编辑草稿 / 提交；
  * 教师侧（group_admin / mentor）：批阅 / 全组列表。
+ *
+ * 可见范围约束（批阅侧）：
+ *   - group_admin：本人管理课题组内的学生（user_group.role_in_group = student）；
+ *   - mentor：本人名下学生（mentor_student 表）；
+ *   - 两者取并集，防止跨组 / 跨导师越权查看或批阅他人学生周报。
  */
 const permission = require('./permission')
 const weeklyReportRepository = require('../db/repositories/weeklyReportRepository')
+const userGroupRepository = require('../db/repositories/userGroupRepository')
+const mentorStudentRepository = require('../db/repositories/mentorStudentRepository')
 const operationLogService = require('./operationLogService')
 const messageService = require('./messageService')
+
+// 计算当前批阅者可见的学生 id 集合：组管=管理组内学生，导师=名下学生，取并集
+async function getVisibleStudentIds(userId) {
+  const ids = new Set()
+  const groups = await userGroupRepository.listGroupsByUser(userId)
+  const adminGroupIds = groups.filter((g) => g.role_in_group === 'group_admin').map((g) => g.id)
+  for (const gid of adminGroupIds) {
+    const members = await userGroupRepository.listByGroup({ group_id: gid, role_in_group: 'student', status: 'active' })
+    members.forEach((m) => ids.add(m.user_id))
+  }
+  const students = await mentorStudentRepository.listByMentor(userId, 'active')
+  students.forEach((s) => ids.add(s.student_id))
+  return [...ids]
+}
 
 // 列出我的周报
 async function listMine() {
@@ -82,7 +103,7 @@ async function submit(payload = {}) {
   }
 }
 
-// 教师批阅周报（仅 group_admin / mentor）
+// 教师批阅周报（仅 group_admin / mentor；可见范围校验：仅可批阅名下 / 管理组内学生）
 async function review(payload = {}) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isManager()) return { success: false, message: '无批阅权限' }
@@ -93,6 +114,10 @@ async function review(payload = {}) {
     if (!record) return { success: false, message: '周报不存在' }
     if (record.status !== 'submitted') {
       return { success: false, message: '仅待批阅状态的周报可批阅' }
+    }
+    const visibleStudentIds = await getVisibleStudentIds(permission.currentUserId())
+    if (!visibleStudentIds.includes(record.student_id)) {
+      return { success: false, message: '无权批阅该学生的周报' }
     }
     const affected = await weeklyReportRepository.review(id, {
       reviewedBy: permission.currentUserId(),
@@ -122,12 +147,17 @@ async function review(payload = {}) {
   }
 }
 
-// 列出全组周报（仅 group_admin / mentor，可按 student_id 过滤）
+// 列出可见范围周报（仅 group_admin / mentor，可按 student_id 过滤）
 async function listAll(payload = {}) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isManager()) return { success: false, message: '无查看权限' }
   try {
-    const data = await weeklyReportRepository.listAll({ studentId: payload.student_id })
+    const visibleStudentIds = await getVisibleStudentIds(permission.currentUserId())
+    if (!visibleStudentIds.length) return { success: true, data: [] }
+    const data = await weeklyReportRepository.listAll({
+      studentIds: visibleStudentIds,
+      studentId: payload.student_id
+    })
     return { success: true, data }
   } catch (err) {
     console.error('[weeklyService.listAll] 数据库异常:', err)
