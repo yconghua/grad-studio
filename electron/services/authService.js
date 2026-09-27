@@ -15,6 +15,8 @@ const bcrypt = require('bcryptjs')
 const userRepository = require('../db/repositories/userRepository')
 // 事务上下文：createUser 用它保证「查重 + 插入」在同一连接上原子执行
 const { runTransaction } = require('../db/connection')
+// 操作日志：账号增删改等管理操作落审计
+const operationLogService = require('./operationLogService')
 // 前后端共享常量（角色 / 密码长度 / bcrypt 成本等），单一事实来源，避免硬编码散落
 const {
   ROLE_SUPER_ADMIN,
@@ -143,8 +145,7 @@ async function changePassword({ username, oldPassword, newPassword }) {
   }
 }
 
-// 用户列表：超级管理员 / 课题组管理员可查看（超管全平台，组管本组——课题组维度过滤待 group 字段设计后补充）；
-// 导师可查看全部用户（名下学生过滤待 advisor 关联字段重新设计后补充）
+// 用户列表：超级管理员 / 课题组管理员 / 导师可查看（供管理端成员选择使用）
 async function listUsers() {
   if (!currentUser) return { success: false, message: '未登录，请重新登录' }
   if (!isAdmin() && !isGroupAdmin() && currentUser.role !== ROLE_MENTOR) {
@@ -197,6 +198,14 @@ async function createUser(payload) {
       createdId = await userRepository.createUser({ username: username.trim(), passwordHash: hash, role: roleVal, ...profile })
       return { success: true, id: createdId, message: '用户创建成功', plainPassword: plain }
     })
+    if (result && result.success) {
+      operationLogService.writeLog({
+        action: 'createUser',
+        targetType: 'user',
+        targetId: result.id,
+        detail: `创建账号 ${username.trim()}（角色 ${roleVal}）`
+      })
+    }
     return result
   } catch (err) {
     console.error('[authService.createUser] 数据库异常:', err)
@@ -269,13 +278,20 @@ async function batchCreateUsers(payload) {
         createdCount += 1
       }
     })
-    return {
+    const result = {
       success: true,
       message: `成功导入 ${createdCount} 条${failedRows.length ? `，失败 ${failedRows.length} 条` : ''}`,
       createdCount,
       failedRows,
       plainPasswords
     }
+    operationLogService.writeLog({
+      action: 'batchCreateUsers',
+      targetType: 'user',
+      targetId: 0,
+      detail: `批量导入用户：成功 ${createdCount} 条，失败 ${failedRows.length} 条`
+    })
+    return result
   } catch (err) {
     console.error('[authService.batchCreateUsers] 数据库异常:', err)
     return { success: false, message: '批量导入失败：' + (err && err.message ? err.message : '请稍后重试') }
@@ -311,6 +327,13 @@ async function updateUser(payload) {
     if (Object.keys(data).length) {
       await userRepository.updateById(id, data)
     }
+    const changed = ['role', 'status', 'password', 'must_change_password'].filter((k) => data[k] !== undefined)
+    operationLogService.writeLog({
+      action: 'updateUser',
+      targetType: 'user',
+      targetId: id,
+      detail: `编辑账号 ${exist.username}（变更字段：${changed.join(', ') || '无'}${resetPassword ? '，并重置密码' : ''}）`
+    })
     return { success: true, message: '保存成功', plainPassword }
   } catch (err) {
     console.error('[authService.updateUser] 数据库异常:', err)
@@ -329,6 +352,12 @@ async function deleteUser({ id }) {
     const exist = await userRepository.findById(id)
     if (!exist) return { success: false, message: '用户不存在' }
     await userRepository.delete(id)
+    operationLogService.writeLog({
+      action: 'deleteUser',
+      targetType: 'user',
+      targetId: id,
+      detail: `删除账号 ${exist.username}`
+    })
     return { success: true, message: '已删除' }
   } catch (err) {
     console.error('[authService.deleteUser] 数据库异常:', err)

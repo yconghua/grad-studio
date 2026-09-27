@@ -1,13 +1,34 @@
 /**
  * 预加载脚本
  *
- * 在主进程与渲染层之间架桥：通过 contextBridge 把「认证 / 系统」的 API
+ * 在主进程与渲染层之间架桥：通过 contextBridge 把全部业务模块的 API
  * 暴露到 window.api，渲染层拿不到 ipcRenderer 本体，安全性更高。
  *
- * 仅暴露平台基础设施通道：
- *   auth    认证与用户管理（auth:*）
- *   sys     系统与数据库连接（sys:*）
- * 新业务模块的 IPC 通道待数据库与接口设计后按模块补充。
+ * 已暴露模块：
+ *   auth           认证与用户管理
+ *   sys            系统与数据库连接
+ *   profile        用户档案
+ *   group          课题组管理
+ *   member         组成员管理
+ *   students       导师学生关系
+ *   notice         课题组公告
+ *   degree         学位节点与记录
+ *   meeting        组会
+ *   meetingReport  组会汇报
+ *   subject        课题与成员
+ *   task           任务与进展
+ *   researchLog    科研日志
+ *   weekly         周报
+ *   achievement    科研成果
+ *   paper          论文投稿跟踪
+ *   literature     文献库
+ *   literatureNote 文献笔记
+ *   archive        科研档案
+ *   knowledge      知识库
+ *   groupSetting   课题组配置
+ *   systemParam    系统参数
+ *   operationLog   操作日志
+ *   message        站内消息
  *
  * 调用统一由 createInvoke 工厂封装，消除每个方法重复的箭头函数样板：
  *   - 约定：每个方法至多向主进程发送「一个 payload 对象」（无参方法发送 undefined）。
@@ -75,5 +96,166 @@ contextBridge.exposeInMainWorld('api', {
     checkForUpdates: createInvoke('sys:check-update'),
     pickAttachment: createInvoke('sys:pick-attachment'),
     openAttachment: createInvoke('sys:open-attachment')
+  },
+  // 用户档案（profile:*）
+  profile: {
+    get: createInvoke('profile:get'),
+    update: createInvoke('profile:update')
+  },
+  // 课题组管理（group:*）
+  group: {
+    list: createInvoke('group:list'),
+    listMine: createInvoke('group:listMine'),
+    create: createInvoke('group:create'),
+    update: createInvoke('group:update'),
+    remove: createInvoke('group:remove')
+  },
+  // 组成员管理（member:*）
+  member: {
+    list: createInvoke('member:list'),
+    add: createInvoke('member:add'),
+    update: createInvoke('member:update'),
+    remove: createInvoke('member:remove')
+  },
+  // 导师学生关系（students:*）
+  students: {
+    list: createInvoke('students:list'),
+    bind: createInvoke('students:bind'),
+    unbind: createInvoke('students:unbind')
+  },
+  // 课题组公告（notice:*）
+  notice: {
+    list: createInvoke('notice:list'),
+    unreadCount: createInvoke('notice:unread-count'),
+    markRead: createInvoke('notice:mark-read'),
+    create: createInvoke('notice:create'),
+    update: createInvoke('notice:update'),
+    remove: createInvoke('notice:remove')
+  },
+  // 学位节点与记录（degree:*）
+  degree: {
+    listNodes: createInvoke('degree:list-nodes'),
+    saveNode: createInvoke('degree:save-node'),
+    removeNode: createInvoke('degree:remove-node'),
+    listRecords: createInvoke('degree:list-records'),
+    saveRecord: createInvoke('degree:save-record')
+  },
+  // 组会（meeting:*）
+  meeting: {
+    list: createInvoke('meeting:list'),
+    create: createInvoke('meeting:create'),
+    update: createInvoke('meeting:update'),
+    remove: createInvoke('meeting:remove')
+  },
+  // 组会汇报（meeting-report:*）
+  meetingReport: {
+    list: createInvoke('meeting-report:list'),
+    submit: createInvoke('meeting-report:submit'),
+    review: createInvoke('meeting-report:review')
+  },
+  // 课题与成员（subject:*）
+  subject: {
+    list: createInvoke('subject:list'),
+    create: createInvoke('subject:create'),
+    update: createInvoke('subject:update'),
+    remove: createInvoke('subject:remove'),
+    listMembers: createInvoke('subject:list-members'),
+    addMember: createInvoke('subject:add-member'),
+    removeMember: createInvoke('subject:remove-member')
+  },
+  // 任务与进展（task:*）
+  task: {
+    list: createInvoke('task:list'),
+    create: createInvoke('task:create'),
+    update: createInvoke('task:update'),
+    remove: createInvoke('task:remove'),
+    listMine: createInvoke('task:list-mine'),
+    progressSubmit: createInvoke('task:progress-submit'),
+    listProgress: createInvoke('task:list-progress')
+  },
+  // 科研日志（research-log:*）
+  researchLog: {
+    listMine: createInvoke('research-log:list-mine'),
+    create: createInvoke('research-log:create'),
+    update: createInvoke('research-log:update'),
+    remove: createInvoke('research-log:remove')
+  },
+  // 周报（weekly:*）
+  weekly: {
+    listMine: createInvoke('weekly:list-mine'),
+    create: createInvoke('weekly:create'),
+    update: createInvoke('weekly:update'),
+    submit: createInvoke('weekly:submit'),
+    review: createInvoke('weekly:review'),
+    listAll: createInvoke('weekly:list-all')
+  },
+  // 科研成果（achievement:*）
+  achievement: {
+    listMine: createInvoke('achievement:list-mine'),
+    create: createInvoke('achievement:create'),
+    update: createInvoke('achievement:update'),
+    remove: createInvoke('achievement:remove'),
+    review: createInvoke('achievement:review'),
+    listAll: createInvoke('achievement:list-all')
+  },
+  // 论文投稿跟踪（paper:*）
+  paper: {
+    list: createInvoke('paper:list'),
+    create: createInvoke('paper:create'),
+    update: createInvoke('paper:update'),
+    remove: createInvoke('paper:remove')
+  },
+  // 文献库（literature:*）
+  literature: {
+    listMine: createInvoke('literature:list-mine'),
+    create: createInvoke('literature:create'),
+    update: createInvoke('literature:update'),
+    remove: createInvoke('literature:remove')
+  },
+  // 文献笔记（literature-note:*）
+  literatureNote: {
+    list: createInvoke('literature-note:list'),
+    create: createInvoke('literature-note:create'),
+    update: createInvoke('literature-note:update'),
+    remove: createInvoke('literature-note:remove')
+  },
+  // 科研档案（archive:*）
+  archive: {
+    list: createInvoke('archive:list'),
+    create: createInvoke('archive:create'),
+    remove: createInvoke('archive:remove'),
+    export: createInvoke('archive:export')
+  },
+  // 知识库（knowledge:*）
+  knowledge: {
+    list: createInvoke('knowledge:list'),
+    create: createInvoke('knowledge:create'),
+    update: createInvoke('knowledge:update'),
+    remove: createInvoke('knowledge:remove'),
+    listFiles: createInvoke('knowledge:list-files'),
+    uploadFile: createInvoke('knowledge:upload-file'),
+    removeFile: createInvoke('knowledge:remove-file')
+  },
+  // 课题组配置（group-setting:*）
+  groupSetting: {
+    get: createInvoke('group-setting:get'),
+    update: createInvoke('group-setting:update')
+  },
+  // 系统参数（system-param:*）
+  systemParam: {
+    list: createInvoke('system-param:list'),
+    save: createInvoke('system-param:save'),
+    remove: createInvoke('system-param:remove')
+  },
+  // 操作日志（operation-log:*）
+  operationLog: {
+    list: createInvoke('operation-log:list')
+  },
+  // 站内消息（message:*）
+  message: {
+    listMine: createInvoke('message:list-mine'),
+    unreadCount: createInvoke('message:unread-count'),
+    markRead: createInvoke('message:mark-read'),
+    markAllRead: createInvoke('message:mark-all-read')
   }
 })

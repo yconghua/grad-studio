@@ -33,11 +33,16 @@ function keyToPath(key) {
   return '/' + key.replace(/^platform-/, 'platform/')
 }
 
-// 菜单 key → 页面组件（懒加载；骨架阶段均为占位实现）
+// 菜单 key → 页面组件（懒加载）
+// platform- 前缀的 key 对应 pages/platform/<子页>/index.vue，其余对应 pages/<key>/index.vue。
+// 动态导入路径中变量只保留一层目录名（vite dev 限制：变量仅代表单层文件名），
+// 因此 platform 子页拆成「固定前缀 + 单层变量」的形式，避免两层变量解析失败。
 function keyToPage(key) {
-  const modulePath =
-    key.indexOf('platform-') === 0 ? `platform/${key.replace('platform-', '')}` : key
-  return () => import(`../pages/${modulePath}/index.vue`)
+  if (key.indexOf('platform-') === 0) {
+    const sub = key.replace('platform-', '')
+    return () => import(`../pages/platform/${sub}/index.vue`)
+  }
+  return () => import(`../pages/${key}/index.vue`)
 }
 
 // 业务菜单路由（从 navItems 驱动，meta.roles 供守卫做角色校验）

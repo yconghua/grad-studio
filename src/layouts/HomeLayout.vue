@@ -25,8 +25,34 @@
           </div>
         </div>
 
-        <!-- 站内消息通知铃铛（UI 占位：消息中心尚未实现，后续接入未读数） -->
-        <span class="bell" @click="goMessages" title="站内消息">🔔</span>
+        <!-- 站内消息通知铃铛：未读角标 + 点击展开消息面板 -->
+        <div class="bell-wrap" ref="bellWrapRef" @click.stop="toggleMsgPanel">
+          <span class="bell" title="站内消息">🔔</span>
+          <span v-if="msgUnread > 0" class="bell-badge">{{ msgUnread > 99 ? '99+' : msgUnread }}</span>
+          <transition name="menu-fade">
+            <div v-if="msgPanelOpen" class="msg-panel" @click.stop>
+              <div class="msg-panel-header">
+                <span class="msg-panel-title">站内消息</span>
+                <button class="msg-read-all" @click="onMarkAllRead">全部已读</button>
+              </div>
+              <div class="msg-list">
+                <div v-if="msgLoading" class="msg-empty">加载中…</div>
+                <div v-else-if="!msgList.length" class="msg-empty">暂无消息</div>
+                <div
+                  v-for="m in msgList"
+                  :key="m.id"
+                  class="msg-item"
+                  :class="{ unread: m.status === 'unread' }"
+                  @click="onMsgItemClick(m)"
+                >
+                  <div class="msg-item-title">{{ m.title || '系统消息' }}</div>
+                  <div class="msg-item-content">{{ m.content || '' }}</div>
+                  <div class="msg-item-time">{{ formatTime(m.created_at) }}</div>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
 
         <!-- 头像下拉菜单：个人资料 / 修改密码 / 使用帮助 / 退出登录 -->
         <div class="user-menu" ref="userMenuRef" @click="userMenuOpen = !userMenuOpen">
@@ -85,14 +111,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { logout } from '../api'
+import {
+  logout,
+  getMessageUnreadCount,
+  listMyMessages,
+  markMessageRead,
+  markAllMessagesRead,
+  getNoticeUnreadCount
+} from '../api'
 import { visibleNavItems } from '../config/navConfig'
 import { useSession } from '../composables/useSession'
+import { useGroupContext } from '../composables/useGroupContext'
 import logoUrl from '../assets/logo.ico'
 
 const { clearSession, getSessionUser } = useSession()
+const { currentGroupId } = useGroupContext()
+
 const currentUser = getSessionUser()
 const router = useRouter()
 const route = useRoute()
@@ -155,18 +191,79 @@ const avatarText = computed(() => {
   return name.charAt(0).toUpperCase()
 })
 
-// 点击页面其他区域关闭下拉
+// 点击页面其他区域关闭下拉与消息面板
 function onDocClick(e) {
   if (userMenuRef.value && !userMenuRef.value.contains(e.target)) {
     userMenuOpen.value = false
   }
+  if (bellWrapRef.value && !bellWrapRef.value.contains(e.target)) {
+    msgPanelOpen.value = false
+  }
 }
 
 // ===== 顶部：消息铃铛 =====
-// 消息中心尚未实现；铃铛暂为 UI 占位，
-// 后续在此接入未读数查询与消息中心路由跳转。
-function goMessages() {
-  // 消息中心页面待建：当前无跳转目标
+const bellWrapRef = ref(null)
+const msgPanelOpen = ref(false)
+const msgUnread = ref(0)
+const msgList = ref([])
+const msgLoading = ref(false)
+let msgTimer = null
+
+async function fetchMsgUnread() {
+  try {
+    const res = await getMessageUnreadCount()
+    if (res && res.success) msgUnread.value = (res.data && res.data.total) || 0
+  } catch (e) {}
+}
+
+async function fetchNoticeUnread() {
+  if (!currentGroupId.value) { noticeUnread.value = 0; return }
+  try {
+    const res = await getNoticeUnreadCount(currentGroupId.value)
+    noticeUnread.value = (res && res.success && res.count) || 0
+  } catch (e) { noticeUnread.value = 0 }
+}
+
+async function fetchMessages() {
+  msgLoading.value = true
+  try {
+    const res = await listMyMessages({})
+    msgList.value = (res && res.success && res.data) || []
+  } catch (e) { msgList.value = [] } finally { msgLoading.value = false }
+}
+
+function toggleMsgPanel() {
+  msgPanelOpen.value = !msgPanelOpen.value
+  if (msgPanelOpen.value) fetchMessages()
+}
+
+async function onMarkAllRead() {
+  try {
+    await markAllMessagesRead()
+    msgList.value = msgList.value.map((m) => ({ ...m, status: 'read' }))
+    msgUnread.value = 0
+  } catch (e) {}
+}
+
+const REF_ROUTE_MAP = { notice: '/notice', task: '/task', achievement: '/achievement' }
+
+async function onMsgItemClick(m) {
+  if (m.status === 'unread') {
+    try { await markMessageRead(m.id) } catch (e) {}
+    m.status = 'read'
+    msgUnread.value = Math.max(0, msgUnread.value - 1)
+  }
+  msgPanelOpen.value = false
+  const target = REF_ROUTE_MAP[m.ref_type]
+  if (target) router.push(target)
+}
+
+function formatTime(t) {
+  if (!t) return ''
+  const d = new Date(t)
+  if (isNaN(d.getTime())) return String(t)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 // ===== 顶部：全局搜索（骨架） =====
@@ -196,11 +293,20 @@ async function confirmLogout() {
   router.push('/login')
 }
 
+watch(currentGroupId, () => { fetchNoticeUnread() })
+
 onMounted(() => {
   document.addEventListener('click', onDocClick)
+  fetchMsgUnread()
+  fetchNoticeUnread()
+  msgTimer = setInterval(() => {
+    fetchMsgUnread()
+    fetchNoticeUnread()
+  }, 60000)
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
+  if (msgTimer) clearInterval(msgTimer)
 })
 </script>
 
@@ -240,7 +346,49 @@ onUnmounted(() => {
 .search-state { text-align: center; font-size: 12px; color: #b8bec4; line-height: 1.7; padding: 8px 0; }
 
 /* 消息铃铛 */
-.bell { position: relative; cursor: pointer; font-size: 18px; user-select: none; }
+.bell-wrap { position: relative; cursor: pointer; display: inline-flex; align-items: center; }
+.bell { font-size: 18px; user-select: none; }
+.bell-badge {
+  position: absolute; top: -6px; right: -10px; min-width: 16px; height: 16px;
+  line-height: 16px; padding: 0 4px; border-radius: 999px;
+  background: #ea4335; color: #fff; font-size: 10px; text-align: center;
+  box-sizing: content-box;
+}
+.msg-panel {
+  position: absolute; top: 40px; right: 0; width: 320px;
+  background: #fff; border: 1px solid #eceff3; border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14); z-index: 400;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.msg-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid #eceff3;
+}
+.msg-panel-title { font-size: 13px; font-weight: 600; color: #1f2329; }
+.msg-read-all {
+  border: none; background: transparent; color: #0d80e0;
+  font-size: 12px; cursor: pointer; padding: 0;
+}
+.msg-read-all:hover { text-decoration: underline; }
+.msg-list { max-height: 400px; overflow-y: auto; }
+.msg-empty { padding: 28px 0; text-align: center; font-size: 12px; color: #b8bec4; }
+.msg-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f2f4f7; }
+.msg-item:last-child { border-bottom: none; }
+.msg-item:hover { background: #f7f9fc; }
+.msg-item.unread { background: #eef6ff; }
+.msg-item.unread:hover { background: #e3f0ff; }
+.msg-item-title { font-size: 13px; color: #1f2329; font-weight: 500; margin-bottom: 3px; }
+.msg-item.unread .msg-item-title::before {
+  content: ''; display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: #ea4335; margin-right: 6px;
+  vertical-align: middle;
+}
+.msg-item-content {
+  font-size: 12px; color: #4e5969; line-height: 1.5;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 4px;
+}
+.msg-item-time { font-size: 11px; color: #8a9099; }
 
 /* 头像下拉菜单 */
 .user-menu {

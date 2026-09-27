@@ -63,8 +63,11 @@ function register(ipcMain) {
   })
 
   // 清理本地缓存：HTTP 会话缓存 + 磁盘缓存目录（Cache / GPUCache / Code Cache 等）。
-  // 不清理 localStorage（属渲染层数据），由前端按需处理。
+  // 不清理 localStorage（属渲染层数据），由前端按需处理。需登录。
   ipcMain.handle('sys:clear-cache', async () => {
+    if (!authService.getCurrentUser()) {
+      return { success: false, message: '未登录，请重新登录' }
+    }
     try {
       await session.defaultSession.clearCache()
       const userData = app.getPath('userData')
@@ -211,10 +214,13 @@ function register(ipcMain) {
     }
   })
 
-  // 导出数据库备份：先弹「保存」对话框让用户选位置，再导出当前库为 SQL 文件；需登录
+  // 导出数据库备份：先弹「保存」对话框让用户选位置，再导出当前库为 SQL 文件；仅超级管理员
   ipcMain.handle('sys:export-db', async (event) => {
     if (!authService.getCurrentUser()) {
       return { success: false, message: '未登录，请重新登录' }
+    }
+    if (!authService.isAdmin()) {
+      return { success: false, message: '无权限：仅超级管理员可导出数据库备份' }
     }
     const meta = connectionService.getActiveMeta()
     if (!meta.database) {
@@ -336,8 +342,11 @@ function register(ipcMain) {
     return { success: true, ...meta, status: 'disconnected', error: test.message }
   })
 
-  // 查看数据表：当前库所有表 + 每张表字段与行数
+  // 查看数据表：当前库所有表 + 每张表字段与行数。仅登录页（未登录）配置数据库时可用。
   ipcMain.handle('sys:tables-info', async () => {
+    if (authService.getCurrentUser()) {
+      return { success: false, message: '已登录状态下不可查看数据库配置，请退出登录后在登录页操作' }
+    }
     try {
       return await connectionService.getTablesInfo()
     } catch (err) {
@@ -346,13 +355,19 @@ function register(ipcMain) {
     }
   })
 
-  // 连接清单（脱敏，不含密码）
+  // 连接清单（脱敏，不含密码）。仅登录页（未登录）配置数据库时可用。
   ipcMain.handle('sys:db-connections', async () => {
+    if (authService.getCurrentUser()) {
+      return { success: false, message: '已登录状态下不可查看数据库连接，请退出登录后在登录页操作' }
+    }
     return { success: true, ...connectionService.list() }
   })
 
-  // 切换当前生效连接
+  // 切换当前生效连接。仅登录页（未登录）配置数据库时可用。
   ipcMain.handle('sys:switch-db', async (_evt, { id }) => {
+    if (authService.getCurrentUser()) {
+      return { success: false, message: '已登录状态下不可切换数据库连接，请退出登录后在登录页操作' }
+    }
     try {
       return await connectionService.switchConnection(id)
     } catch (err) {
@@ -361,8 +376,11 @@ function register(ipcMain) {
     }
   })
 
-  // 新增连接
+  // 新增连接。仅登录页（未登录）配置数据库时可用。
   ipcMain.handle('sys:add-db', async (_evt, payload) => {
+    if (authService.getCurrentUser()) {
+      return { success: false, message: '已登录状态下不可新增数据库连接，请退出登录后在登录页操作' }
+    }
     try {
       return await connectionService.add(payload)
     } catch (err) {
@@ -371,8 +389,11 @@ function register(ipcMain) {
     }
   })
 
-  // 删除连接
+  // 删除连接。仅登录页（未登录）配置数据库时可用。
   ipcMain.handle('sys:delete-db', async (_evt, { id }) => {
+    if (authService.getCurrentUser()) {
+      return { success: false, message: '已登录状态下不可删除数据库连接，请退出登录后在登录页操作' }
+    }
     try {
       return await connectionService.remove(id)
     } catch (err) {

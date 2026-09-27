@@ -59,23 +59,24 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * 按用户名查询（登录 / 改密 / 重名校验共用）
+   * 按用户名查询（登录 / 改密 / 重名校验共用；自动排除已软删除账号）
    * @param {string} username
    * @returns {Object|null} 含安全列 + password（password 仅供服务层比对哈希，不向上透传）
    */
   async findByUsername(username) {
-    const sql = `SELECT ${cols([...SAFE_COLUMNS, 'password'])} FROM \`user\` WHERE username = ?`
+    const sql = `SELECT ${cols([...SAFE_COLUMNS, 'password'])} FROM \`user\` WHERE username = ? AND is_deleted = 0`
     const [rows] = await this._execute(sql, [username], 'findByUsername')
     return rows[0] || null
   }
 
   /**
-   * 用户列表，支持按角色 / 状态 / 关键字过滤
+   * 用户列表（自动排除已软删除账号），支持按角色 / 状态 / 关键字过滤
    * @param {{ role?: string, status?: string, keyword?: string }} filters
    * @returns {Object[]} 仅返回安全列（不含 password）
    */
   async list(filters = {}) {
     const conditions = []
+    conditions.push({ field: 'is_deleted', op: '=', value: 0 })
     if (filters.role) {
       conditions.push({ field: 'role', op: '=', value: filters.role })
     }
@@ -106,12 +107,12 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * 按用户名重置密码
+   * 按用户名重置密码（不作用于已软删除账号）
    * @param {string} username
    * @param {string} passwordHash bcrypt 哈希后的密码
    */
   async updatePassword(username, passwordHash) {
-    const sql = 'UPDATE `user` SET password = ? WHERE username = ?'
+    const sql = 'UPDATE `user` SET password = ? WHERE username = ? AND is_deleted = 0'
     await this._execute(sql, [passwordHash, username], 'updatePassword')
   }
 

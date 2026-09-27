@@ -65,6 +65,27 @@ function createWindow() {
     return { action: 'deny' }
   })
 
+  // 渲染进程 console 转发到主进程终端（开发诊断用，无需 DevTools）：
+  // 兼容 Electron 新旧两代事件签名（旧：level/message/line/sourceId 分参数；新：details 对象）
+  const CONSOLE_LEVELS = ['verbose', 'info', 'warning', 'error', 'debug']
+  win.webContents.on('console-message', (_evt, ...args) => {
+    const d = args[0] && typeof args[0] === 'object' ? args[0] : null
+    const rawLevel = d ? d.level : args[1]
+    const message = d ? d.message : args[2]
+    const line = d ? d.lineNumber : args[3]
+    const source = d ? d.sourceId : args[4]
+    const level = typeof rawLevel === 'number' ? CONSOLE_LEVELS[rawLevel] || rawLevel : rawLevel
+    console.log(`[renderer:${level}] ${message} (${source}:${line})`)
+  })
+
+  // 渲染进程异常退出 / 无响应也输出到终端
+  win.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[renderer-gone]', details && details.reason)
+  })
+  win.webContents.on('unresponsive', () => {
+    console.error('[renderer] 页面无响应')
+  })
+
   win.on('closed', () => {
     // 仅单窗口应用，关闭即清空引用
   })

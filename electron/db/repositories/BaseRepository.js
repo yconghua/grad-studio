@@ -4,6 +4,12 @@
  * 干掉重复的增删改查样板：子类只需在构造时传入 tableName，
  * 即可直接复用 findById / findAll / create / update / delete。
  *
+ * 软删除约定（所有表统一）：
+ *   每张表都有 is_deleted 列（0 正常 / 1 已删除）；
+ *   - findById / findAll 自动排除已删除记录（is_deleted = 0）；
+ *   - delete 为软删除（UPDATE is_deleted = 1），不物理删除。
+ * 子类自定义 SQL（如 userRepository）需自行带上 is_deleted = 0 过滤。
+ *
  * 连接获取统一走 connection.acquireConn()：
  *   - 事务上下文内自动复用同一连接；
  *   - 否则从连接池取，执行完在 finally 中归还。
@@ -72,24 +78,24 @@ class BaseRepository {
   }
 
   /**
-   * 按主键查询单条
+   * 按主键查询单条（自动排除已软删除记录）
    * @param {number|string} id 主键值
    * @param {string[]} columns 返回列，默认全部
    * @returns {Object|null}
    */
   async findById(id, columns = ['*']) {
-    const sql = `SELECT ${columns.map((c) => (c === '*' ? '*' : `\`${c}\``)).join(', ')} FROM \`${this.tableName}\` WHERE id = ?`
+    const sql = `SELECT ${columns.map((c) => (c === '*' ? '*' : `\`${c}\``)).join(', ')} FROM \`${this.tableName}\` WHERE id = ? AND is_deleted = 0`
     const [rows] = await this._execute(sql, [id], 'findById')
     return rows[0] || null
   }
 
   /**
-   * 查询全部（可按列筛选，默认升序无过滤）
+   * 查询全部（自动排除已软删除记录，可按列筛选，默认升序无过滤）
    * @param {string[]} columns 返回列，默认全部
    * @returns {Object[]}
    */
   async findAll(columns = ['*']) {
-    const sql = `SELECT ${columns.map((c) => (c === '*' ? '*' : `\`${c}\``)).join(', ')} FROM \`${this.tableName}\``
+    const sql = `SELECT ${columns.map((c) => (c === '*' ? '*' : `\`${c}\``)).join(', ')} FROM \`${this.tableName}\` WHERE is_deleted = 0`
     const [rows] = await this._execute(sql, [], 'findAll')
     return rows
   }
@@ -110,7 +116,7 @@ class BaseRepository {
   }
 
   /**
-   * 按主键增量更新（只更新 data 中非 undefined 的字段）
+   * 按主键增量更新（只更新 data 中非 undefined 的字段；不作用于已软删除记录）
    * @param {number|string} id 主键值
    * @param {Object} data 需要更新的字段->值 映射
    * @returns {number} 受影响行数
@@ -120,18 +126,18 @@ class BaseRepository {
     const clean = sanitizeForWrite(data)
     const { clause, values } = buildUpdateSet(clean)
     if (!clause) return 0
-    const sql = `UPDATE \`${this.tableName}\` SET ${clause} WHERE id = ?`
+    const sql = `UPDATE \`${this.tableName}\` SET ${clause} WHERE id = ? AND is_deleted = 0`
     const [result] = await this._execute(sql, [...values, id], 'update')
     return result.affectedRows
   }
 
   /**
-   * 按主键删除
+   * 按主键软删除（is_deleted = 1，不物理删除）
    * @param {number|string} id 主键值
    * @returns {number} 受影响行数
    */
   async delete(id) {
-    const sql = `DELETE FROM \`${this.tableName}\` WHERE id = ?`
+    const sql = `UPDATE \`${this.tableName}\` SET is_deleted = 1 WHERE id = ? AND is_deleted = 0`
     const [result] = await this._execute(sql, [id], 'delete')
     return result.affectedRows
   }
