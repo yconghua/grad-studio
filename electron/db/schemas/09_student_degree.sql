@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `student_degree` (
   `status`        VARCHAR(20)  NOT NULL DEFAULT 'not_started' COMMENT '状态：not_started 未开始 / in_progress 进行中 / completed 已完成 / failed 未通过',
   `complete_date` DATE                                 COMMENT '完成日期',
   `score`         DECIMAL(5,2)                         COMMENT '考核成绩 / 评分',
-  `remark`        VARCHAR(500) NOT NULL DEFAULT ''     COMMENT '备注',
+  `remark`        VARCHAR(500) DEFAULT NULL     COMMENT '备注',
   `updated_by`    INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '最后维护人 user.id',
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

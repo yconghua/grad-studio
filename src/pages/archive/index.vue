@@ -103,6 +103,7 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref } from 'vue'
 import {
   listArchiveRecords, createArchiveRecord, removeArchiveRecord,
@@ -174,15 +175,15 @@ async function onSave() {
 }
 
 async function onRemove(r) {
-  if (!window.confirm('确定删除该档案条目吗？')) return
+  if (!await dialogConfirm('确定删除该档案条目吗？')) return
   const res = await removeArchiveRecord(r.id)
   if (res && res.success) await load()
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 async function onOpenFile(path) {
   const res = await openAttachment(path)
-  if (!res || !res.success) alert((res && res.message) || '打开失败')
+  if (!res || !res.success) dialogAlert((res && res.message) || '打开失败')
 }
 
 async function onExport() {
@@ -200,10 +201,10 @@ async function onExport() {
       }
       exportResult.value.show = true
     } else {
-      alert((res && res.message) || '导出失败')
+      dialogAlert((res && res.message) || '导出失败')
     }
   } catch (e) {
-    alert('导出失败，请重试')
+    dialogAlert('导出失败，请重试')
   } finally {
     exporting.value = false
   }

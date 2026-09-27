@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS `meeting` (
   `group_id`      INT UNSIGNED NOT NULL                COMMENT '所属课题组 group.id',
   `title`         VARCHAR(200) NOT NULL                COMMENT '组会主题',
   `meeting_type`  VARCHAR(20)  NOT NULL DEFAULT 'regular' COMMENT '类型：regular 常规组会 / seminar 专题研讨 / thesis 开题答辩 / other 其他',
-  `location`      VARCHAR(200) NOT NULL DEFAULT ''     COMMENT '地点（线下地址或线上会议链接）',
+  `location`      VARCHAR(200) DEFAULT NULL     COMMENT '地点（线下地址或线上会议链接）',
   `start_time`    DATETIME                             COMMENT '开始时间',
   `end_time`      DATETIME                             COMMENT '结束时间',
   `host_id`       INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '主持人 user.id（组管或导师，0 未指定）',

@@ -1,10 +1,9 @@
-﻿<template>
+<template>
   <div class="page">
     <div class="page-header">
       <h2 class="page-title">📢 课题组公告</h2>
       <div class="ph-right">
         <span v-if="loaded && unreadCount > 0" class="unread-badge">未读 {{ unreadCount }}</span>
-        <GroupSelector />
         <button v-if="isGroupAdmin" class="btn btn-primary" @click="openCreate">＋ 发布公告</button>
       </div>
     </div>
@@ -111,6 +110,7 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref, computed, watch, onMounted } from 'vue'
 import {
   listNotices, createNotice, updateNotice, removeNotice,
@@ -118,7 +118,6 @@ import {
 } from '../../api'
 import { useGroupContext } from '../../composables/useGroupContext'
 import { useRole } from '../../composables/useRole'
-import GroupSelector from '../../components/GroupSelector.vue'
 
 const { currentGroupId, loadGroups } = useGroupContext()
 const { isGroupAdmin } = useRole()
@@ -193,6 +192,11 @@ async function loadUnread() {
   } catch (e) { /* 忽略 */ }
 }
 
+// 通知布局导航栏：公告未读数已变化，请重新拉取
+function notifyUnreadChanged() {
+  window.dispatchEvent(new CustomEvent('notice-unread-changed'))
+}
+
 function openDetail(n) {
   detail.value = n
   detailVisible.value = true
@@ -201,6 +205,7 @@ function openDetail(n) {
       if (res && res.success) {
         n.is_read = 1
         loadUnread()
+        notifyUnreadChanged()
       }
     }).catch(() => {})
   }
@@ -235,6 +240,7 @@ async function onSave() {
     if (res && res.success) {
       formVisible.value = false
       loadNotices()
+      notifyUnreadChanged()
     } else {
       formError.value = (res && res.message) || '保存失败'
     }
@@ -256,11 +262,12 @@ async function onRemove() {
     if (res && res.success) {
       removeTarget.value = null
       loadNotices()
+      notifyUnreadChanged()
     } else {
-      alert((res && res.message) || '删除失败')
+      dialogAlert((res && res.message) || '删除失败')
     }
   } catch (e) {
-    alert('网络错误，删除失败')
+    dialogAlert('网络错误，删除失败')
   } finally {
     removing.value = false
   }

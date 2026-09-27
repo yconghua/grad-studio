@@ -157,6 +157,7 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref } from 'vue'
 import {
   listMyLiterature, createLiterature, updateLiterature, removeLiterature,
@@ -246,7 +247,7 @@ async function onSaveLit() {
   litModal.value.saving = true
   litModal.value.error = ''
   try {
-    const res = f.id ? await updateLiterature(f) : await createLiterature(f)
+    const res = f.id ? await updateLiterature({ ...f }) : await createLiterature({ ...f })
     if (res && res.success) {
       litModal.value.show = false
       await loadLiterature()
@@ -261,14 +262,14 @@ async function onSaveLit() {
 }
 
 async function onRemoveLit(l) {
-  if (!window.confirm('确定删除该文献及其笔记吗？')) return
+  if (!await dialogConfirm('确定删除该文献及其笔记吗？')) return
   const res = await removeLiterature(l.id)
   if (res && res.success) {
     selectedId.value = null
     selected.value = null
     notes.value = []
     await loadLiterature()
-  } else alert((res && res.message) || '删除失败')
+  } else dialogAlert((res && res.message) || '删除失败')
 }
 
 function openNoteModal(n) {
@@ -287,7 +288,7 @@ async function onSaveNote() {
   noteModal.value.saving = true
   noteModal.value.error = ''
   try {
-    const res = f.id ? await updateLiteratureNote(f) : await createLiteratureNote(f)
+    const res = f.id ? await updateLiteratureNote({ ...f }) : await createLiteratureNote({ ...f })
     if (res && res.success) {
       noteModal.value.show = false
       await loadNotes(selectedId.value)
@@ -302,10 +303,10 @@ async function onSaveNote() {
 }
 
 async function onRemoveNote(n) {
-  if (!window.confirm('确定删除该笔记吗？')) return
+  if (!await dialogConfirm('确定删除该笔记吗？')) return
   const res = await removeLiteratureNote(n.id)
   if (res && res.success) await loadNotes(selectedId.value)
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 function typeText(t) {

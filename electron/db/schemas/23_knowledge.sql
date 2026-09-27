@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS `knowledge` (
   `parent_id`     INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '父节点 id（0 为根）',
   `name`          VARCHAR(200) NOT NULL                COMMENT '节点名称（文件夹名 / 文档标题）',
   `node_type`     VARCHAR(20)  NOT NULL DEFAULT 'folder' COMMENT '类型：folder 文件夹 / doc 文档',
-  `description`   VARCHAR(500) NOT NULL DEFAULT ''     COMMENT '说明',
+  `description`   VARCHAR(500) DEFAULT NULL     COMMENT '说明',
   `sort_order`    INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '排序（数值小在前）',
   `created_by`    INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '创建人 user.id',
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

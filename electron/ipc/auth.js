@@ -60,10 +60,10 @@ function register(ipcMain) {
     }
   })
 
-  // 成员列表（轻量，所有登录用户可读，供下拉选人）
-  ipcMain.handle('auth:list-members', async () => {
+  // 成员列表（轻量，所有登录用户可读，供下拉选人；传 group_id 则只返回该组人员）
+  ipcMain.handle('auth:list-members', async (_evt, payload) => {
     try {
-      return await authService.listMembers()
+      return await authService.listMembers(payload)
     } catch (err) {
       console.error('[auth:list-members] 未预期异常:', err)
       return { success: false, message: '读取成员列表失败' }

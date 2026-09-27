@@ -3,13 +3,12 @@
     <div class="header-card">
       <div class="header-left">
         <h2 class="page-title">🏆 科研成果</h2>
-        <GroupSelector />
       </div>
       <div class="header-right">
         <button v-if="tab === 'ach'" class="btn btn-primary" @click="openAchModal()">
           {{ isManager ? '全组成果审核' : '＋ 新增成果' }}
         </button>
-        <button v-if="tab === 'paper'" class="btn btn-primary" @click="openPaperModal()">＋ 新增论文</button>
+        <button v-if="tab === 'paper' && !isManager" class="btn btn-primary" @click="openPaperModal()">＋ 新增论文</button>
       </div>
     </div>
 
@@ -234,8 +233,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import GroupSelector from '../../components/GroupSelector.vue'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { ref, onMounted, watch } from 'vue'
 import { useGroupContext } from '../../composables/useGroupContext'
 import { useRole } from '../../composables/useRole'
 import {
@@ -245,7 +244,7 @@ import {
   listMembers
 } from '../../api'
 
-useGroupContext()
+const { currentGroupId } = useGroupContext()
 const { isManager, isStudent } = useRole()
 const editableMode = !isManager
 
@@ -281,12 +280,18 @@ async function loadMembers() {
 async function loadAchievements() {
   loadingAch.value = true
   try {
-    const res = isManager ? await listAllAchievements({}) : await listMyAchievements()
+    if (isManager && !currentGroupId.value) {
+      achievements.value = []
+      return
+    }
+    const res = isManager
+      ? await listAllAchievements({ group_id: currentGroupId.value })
+      : await listMyAchievements()
     if (res && res.success) {
       achievements.value = res.data || []
     } else {
       achievements.value = []
-      if (res && res.message) alert(res.message)
+      if (res && res.message) dialogAlert(res.message)
     }
   } finally { loadingAch.value = false }
 }
@@ -299,7 +304,7 @@ async function loadPapers() {
       papers.value = res.data || []
     } else {
       papers.value = []
-      if (res && res.message) alert(res.message)
+      if (res && res.message) dialogAlert(res.message)
     }
   } finally { loadingPaper.value = false }
 }
@@ -349,10 +354,10 @@ async function onSaveAch() {
 }
 
 async function onRemoveAch(row) {
-  if (!confirm(`确认删除成果「${row.title}」？`)) return
+  if (!await dialogConfirm(`确认删除成果「${row.title}」？`)) return
   const res = await removeAchievement(row.id)
   if (res && res.success) loadAchievements()
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 // ===== 成果审核弹窗 =====
@@ -367,7 +372,7 @@ async function onReviewAch() {
   reviewModal.value.saving = true
   reviewModal.value.error = ''
   try {
-    const res = await reviewAchievement({ id: f.id, status: f.status, audit_comment: f.audit_comment })
+    const res = await reviewAchievement({ id: f.id, status: f.status, audit_comment: f.audit_comment, group_id: currentGroupId.value })
     if (res && res.success) {
       reviewModal.value.visible = false
       loadAchievements()
@@ -425,11 +430,15 @@ async function onSavePaper() {
 }
 
 async function onRemovePaper(row) {
-  if (!confirm(`确认删除论文「${row.title}」？`)) return
+  if (!await dialogConfirm(`确认删除论文「${row.title}」？`)) return
   const res = await removePaper(row.id)
   if (res && res.success) loadPapers()
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
+
+watch(currentGroupId, () => {
+  if (isManager) loadAchievements()
+})
 
 onMounted(() => {
   loadMembers()

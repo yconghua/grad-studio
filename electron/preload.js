@@ -120,6 +120,8 @@ contextBridge.exposeInMainWorld('api', {
   // 导师学生关系（students:*）
   students: {
     list: createInvoke('students:list'),
+    listGroupStudents: createInvoke('students:list-group-students'),
+    myMentor: createInvoke('students:my-mentor'),
     bind: createInvoke('students:bind'),
     unbind: createInvoke('students:unbind')
   },

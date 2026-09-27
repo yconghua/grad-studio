@@ -49,9 +49,20 @@ export function listUsers() {
   return window.api.auth.listUsers()
 }
 
-// 成员列表（轻量，供下拉选人）
-export function listMembers() {
-  return window.api.auth.listMembers()
+// 成员列表（轻量，供下拉选人；传 { group_id } 只返回该课题组在组人员）
+// 3 秒短缓存（按 group_id 区分）：多个页面并发挂载时避免重复请求；传入 { force: true } 强制刷新
+let membersCache = { at: 0, data: null, groupId: null }
+export function listMembers(options) {
+  const force = options && options.force
+  const groupId = options && options.group_id ? Number(options.group_id) : null
+  const now = Date.now()
+  if (!force && membersCache.data && membersCache.groupId === groupId && now - membersCache.at < 3000) {
+    return Promise.resolve(membersCache.data)
+  }
+  return window.api.auth.listMembers(options || {}).then((res) => {
+    if (res && res.success) membersCache = { at: now, data: res, groupId }
+    return res
+  })
 }
 
 export function createUser(payload) {
@@ -206,6 +217,16 @@ export function removeMember(id) {
 // ===== 导师学生关系 =====
 export function listStudents(payload) {
   return window.api.students.list(payload)
+}
+
+// 学生名单（导师看自己名下 / 组管与超管看组内学生）——学位记录等选人场景
+export function listGroupStudents(payload) {
+  return window.api.students.listGroupStudents(payload)
+}
+
+// 我的指导老师（学生本人，个人资料页）
+export function listMyMentor() {
+  return window.api.students.myMentor()
 }
 
 export function bindStudent(payload) {

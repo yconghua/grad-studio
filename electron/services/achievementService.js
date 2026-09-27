@@ -7,6 +7,7 @@
 const permission = require('./permission')
 const achievementRepository = require('../db/repositories/achievementRepository')
 const paperRepository = require('../db/repositories/paperRepository')
+const userGroupRepository = require('../db/repositories/userGroupRepository')
 const operationLogService = require('./operationLogService')
 const messageService = require('./messageService')
 
@@ -33,12 +34,15 @@ async function create(payload = {}) {
     return { success: false, message: '请填写成果标题' }
   }
   try {
-    const id = await achievementRepository.createForUser(userId, payload)
+    // 成果所属组按申报人所属课题组自动落（取第一个在组中的课题组；未入组时为 0）
+    const myGroups = await userGroupRepository.listGroupsByUser(userId)
+    const groupId = myGroups.length ? myGroups[0].id : 0
+    const id = await achievementRepository.createForUser(userId, { ...payload, group_id: groupId })
     operationLogService.writeLog({
       action: 'createAchievement',
       targetType: 'achievement',
       targetId: id,
-      detail: `申报成果「${String(payload.title).trim()}」`
+      detail: `申报成果「${String(payload.title).trim()}」（所属课题组 ${groupId}）`
     })
     return { success: true, data: { id }, message: '成果已申报，等待审核' }
   } catch (err) {
@@ -92,14 +96,22 @@ async function remove(payload = {}) {
 async function review(payload = {}) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isManager()) return { success: false, message: '无审核权限' }
-  const { id, status, audit_comment: auditComment } = payload
+  const { id, status, audit_comment: auditComment, group_id: groupId } = payload
   if (!id) return { success: false, message: '缺少成果 id' }
   if (!['approved', 'rejected'].includes(status)) {
     return { success: false, message: '审核结果必须为 approved 或 rejected' }
   }
+  if (!groupId) return { success: false, message: '缺少课题组标识（group_id）' }
   try {
     const record = await achievementRepository.findById(id)
     if (!record) return { success: false, message: '成果不存在' }
+    if (Number(record.group_id) !== Number(groupId)) {
+      return { success: false, message: '该成果不属于当前课题组' }
+    }
+    const ug = await userGroupRepository.findByUserAndGroup(permission.currentUserId(), Number(groupId))
+    if (!ug || ug.status !== 'active' || ug.role_in_group === 'student') {
+      return { success: false, message: '无权审核该组成果' }
+    }
     const affected = await achievementRepository.review(id, {
       status,
       auditComment,
@@ -129,14 +141,21 @@ async function review(payload = {}) {
   }
 }
 
-// 列出全组成果（仅 group_admin / mentor，可按 status / ach_type 过滤）
+// 列出本组成果（仅 group_admin / mentor，可按 status / ach_type 过滤；group_id 必传并校验归属）
 async function listAll(payload = {}) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isManager()) return { success: false, message: '无查看权限' }
+  const groupId = payload && payload.group_id
+  if (!groupId) return { success: false, message: '缺少课题组标识（group_id）' }
   try {
+    const ug = await userGroupRepository.findByUserAndGroup(permission.currentUserId(), Number(groupId))
+    if (!ug || ug.status !== 'active' || ug.role_in_group === 'student') {
+      return { success: false, message: '无权查看该组成果' }
+    }
     const data = await achievementRepository.listAll({
       status: payload.status,
-      achType: payload.ach_type
+      achType: payload.ach_type,
+      groupId
     })
     return { success: true, data }
   } catch (err) {

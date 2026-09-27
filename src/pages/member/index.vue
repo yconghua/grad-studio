@@ -3,7 +3,6 @@
     <div class="page-header">
       <h2 class="page-title">👥 成员管理</h2>
       <div class="ph-right">
-        <GroupSelector />
         <button class="btn btn-primary" @click="openAdd">＋ 添加成员</button>
       </div>
     </div>
@@ -60,14 +59,7 @@
               {{ u.username }}（{{ roleText(u.role) }}）
             </option>
           </select>
-        </div>
-        <div class="form-item">
-          <label class="form-label">组内角色</label>
-          <select v-model="addForm.role_in_group" class="form-input">
-            <option value="student">学生</option>
-            <option value="mentor">导师</option>
-            <option value="group_admin">组管理员</option>
-          </select>
+          <p v-if="selectedUserRole" class="role-hint">该账号将自动归类为：<span class="tag" :class="'tag-' + selectedUserRole">{{ roleInGroupText(selectedUserRole) }}</span></p>
         </div>
         <div class="form-item">
           <label class="form-label">备注</label>
@@ -90,11 +82,7 @@
         <p class="edit-user">{{ editForm.username || ('#' + editForm.user_id) }}</p>
         <div class="form-item">
           <label class="form-label">组内角色</label>
-          <select v-model="editForm.role_in_group" class="form-input">
-            <option value="student">学生</option>
-            <option value="mentor">导师</option>
-            <option value="group_admin">组管理员</option>
-          </select>
+          <p class="role-static"><span class="tag" :class="'tag-' + editForm.role_in_group">{{ roleInGroupText(editForm.role_in_group) }}</span></p>
         </div>
         <div class="form-item">
           <label class="form-label">状态</label>
@@ -134,10 +122,10 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref, computed, watch, onMounted } from 'vue'
 import { listMembersByGroup, addMember, updateMember, removeMember, listMembers } from '../../api'
 import { useGroupContext } from '../../composables/useGroupContext'
-import GroupSelector from '../../components/GroupSelector.vue'
 
 const { currentGroupId, loadGroups } = useGroupContext()
 
@@ -147,7 +135,7 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 const addVisible = ref(false)
-const addForm = ref({ user_id: null, role_in_group: 'student', remark: '' })
+const addForm = ref({ user_id: null, remark: '' })
 const addError = ref('')
 
 const editVisible = ref(false)
@@ -167,10 +155,13 @@ function roleInGroupText(r) { return RIG_TEXT[r] || r || '-' }
 function statusText(s) { return STATUS_TEXT[s] || s || '-' }
 function fmtTime(t) { return t ? String(t).replace('T', ' ').slice(0, 16) : '-' }
 
-// 可添加用户 = 全量用户中尚未在本组的
+// 可添加用户 = 尚未加入任何课题组的导师 / 学生（组内角色按平台角色自动归类，不需手动选择）
 const addableUsers = computed(() => {
-  const existed = new Set(members.value.map((m) => m.user_id))
-  return allUsers.value.filter((u) => !existed.has(u.id))
+  return allUsers.value.filter((u) => !u.in_group && (u.role === 'mentor' || u.role === 'student'))
+})
+const selectedUserRole = computed(() => {
+  const u = addableUsers.value.find((x) => Number(x.id) === Number(addForm.value.user_id))
+  return u ? u.role : ''
 })
 
 async function loadAllUsers() {
@@ -201,20 +192,21 @@ async function loadMembers() {
 }
 
 function openAdd() {
-  addForm.value = { user_id: null, role_in_group: 'student', remark: '' }
+  addForm.value = { user_id: null, remark: '' }
   addError.value = ''
   addVisible.value = true
 }
 
 async function onAdd() {
   if (!addForm.value.user_id) { addError.value = '请选择用户'; return }
+  const picked = addableUsers.value.find((x) => Number(x.id) === Number(addForm.value.user_id))
   saving.value = true
   addError.value = ''
   try {
     const res = await addMember({
       group_id: currentGroupId.value,
       user_id: addForm.value.user_id,
-      role_in_group: addForm.value.role_in_group,
+      role_in_group: picked ? picked.role : 'student',
       remark: addForm.value.remark
     })
     if (res && res.success) {
@@ -245,7 +237,6 @@ async function onEdit() {
   try {
     const res = await updateMember({
       id: editForm.value.id,
-      role_in_group: editForm.value.role_in_group,
       status: editForm.value.status,
       remark: editForm.value.remark
     })
@@ -272,10 +263,10 @@ async function onRemove() {
       removeTarget.value = null
       loadMembers()
     } else {
-      alert((res && res.message) || '移除失败')
+      dialogAlert((res && res.message) || '移除失败')
     }
   } catch (e) {
-    alert('网络错误，移除失败')
+    dialogAlert('网络错误，移除失败')
   } finally {
     removing.value = false
   }
@@ -355,5 +346,7 @@ onMounted(() => {
   padding: 8px 10px; font-size: 13px; outline: none; color: #1f2329; background: #fff; height: 36px;
 }
 .form-input:focus { border-color: #0d80e0; }
+.role-hint { font-size: 13px; color: #4e5969; margin: 8px 0 0; }
+.role-static { font-size: 13px; color: #4e5969; margin: 0; display: flex; align-items: center; gap: 6px; }
 .form-error { color: #ea4335; font-size: 13px; margin: 8px 0 0; }
 </style>

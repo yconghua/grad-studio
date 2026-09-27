@@ -9,6 +9,14 @@
           <span class="role-tag">{{ roleText }}</span>
           <span class="username">账号：{{ user?.username || '—' }}</span>
         </p>
+        <p v-if="myGroups.length" class="profile-groups">
+          <span class="groups-label">{{ isGroupAdmin ? '管理的课题组：' : '所属课题组：' }}</span>
+          <span v-for="g in myGroups" :key="g.id" class="group-tag">{{ g.name }}（{{ g.code }}）</span>
+        </p>
+        <p v-if="isStudent" class="profile-groups">
+          <span class="groups-label">指导老师：</span>
+          <span class="group-tag">{{ mentorText }}</span>
+        </p>
         <dl class="profile-detail">
           <div class="detail-row">
             <dt>账号状态</dt>
@@ -102,7 +110,7 @@
 <script setup>
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useSession } from '../../composables/useSession'
-import { getProfile, updateProfile } from '../../api'
+import { getProfile, updateProfile, listMyGroups, listMyMentor } from '../../api'
 import {
   ROLE_SUPER_ADMIN,
   ROLE_GROUP_ADMIN,
@@ -130,6 +138,8 @@ const STATUS_TEXT = {
 }
 
 const roleText = computed(() => ROLE_TEXT[user?.role] || user?.role || '未知角色')
+const isGroupAdmin = computed(() => user?.role === ROLE_GROUP_ADMIN)
+const isStudent = computed(() => user?.role === ROLE_STUDENT)
 const statusText = computed(() => STATUS_TEXT[user?.status] || user?.status || '未知')
 const avatarText = computed(() => {
   const name = user?.username || '?'
@@ -154,6 +164,33 @@ const EMPTY_FORM = {
 
 const form = reactive({ ...EMPTY_FORM })
 const saving = ref(false)
+
+// 所属课题组列表：listMyGroups 返回当前用户所属组（含 name / code）
+const myGroups = ref([])
+async function loadMyGroups() {
+  try {
+    const res = await listMyGroups()
+    if (res && res.success) myGroups.value = res.groups || []
+  } catch (e) {
+    myGroups.value = []
+  }
+}
+
+// 指导老师（仅学生展示）：姓名（账号），无姓名只显示账号
+const mentor = ref(null)
+const mentorText = computed(() => {
+  const m = mentor.value
+  if (!m) return '未绑定'
+  return m.real_name ? `${m.real_name}（${m.username}）` : m.username
+})
+async function loadMyMentor() {
+  try {
+    const res = await listMyMentor()
+    if (res && res.success) mentor.value = res.mentor || null
+  } catch (e) {
+    mentor.value = null
+  }
+}
 const tip = ref('')
 const tipError = ref(false)
 
@@ -194,7 +231,11 @@ async function onSave() {
   }
 }
 
-onMounted(loadProfile)
+onMounted(() => {
+  loadProfile()
+  loadMyGroups()
+  if (isStudent.value) loadMyMentor()
+})
 </script>
 
 <style scoped>
@@ -218,6 +259,12 @@ onMounted(loadProfile)
   color: #0d80e0; background: #eef6ff;
 }
 .username { font-size: 13px; color: #8a9099; }
+.profile-groups { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -6px 0 14px; }
+.groups-label { font-size: 13px; color: #4e5969; }
+.group-tag {
+  padding: 2px 10px; border-radius: 999px; font-size: 12px;
+  color: #19a558; background: #eef9f1; border: 1px solid #d4efdf;
+}
 .profile-detail { margin: 0; }
 .detail-row { display: flex; padding: 8px 0; border-bottom: 1px dashed #eceff3; }
 .detail-row:last-child { border-bottom: none; }

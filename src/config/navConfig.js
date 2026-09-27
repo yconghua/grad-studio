@@ -32,8 +32,9 @@ import {
 export const navItems = [
   // ===== 全角色通用（高频前置） =====
   { key: 'workbench', title: '工作台', icon: 'DashboardOutlined', roles: null },
-  // 课题组公告：所有角色可见；组管拥有新增/编辑/删除/置顶，导师与学生仅查看（前端按角色控制操作按钮）
-  { key: 'notice', title: '课题组公告', icon: 'NotificationOutlined', roles: null },
+  // 课题组公告：组管 / 导师 / 学生可见（超管为平台运维角色，不参与组内业务）；
+  // 组管拥有新增/编辑/删除/置顶，导师与学生仅查看（前端按角色控制操作按钮）
+  { key: 'notice', title: '课题组公告', icon: 'NotificationOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
 
   // ===== 课题组管理员专属 =====
   { key: 'member', title: '成员管理', icon: 'TeamOutlined', roles: [ROLE_GROUP_ADMIN] },
@@ -54,10 +55,10 @@ export const navItems = [
   { key: 'archive', title: '科研档案', icon: 'FolderOpenOutlined', roles: [ROLE_STUDENT] },
   { key: 'ai-assistant', title: 'AI科研助手', icon: 'RobotOutlined', roles: [ROLE_STUDENT] },
 
-  // ===== 全角色通用（低频靠后） =====
-  { key: 'meeting', title: '组会管理', icon: 'CalendarOutlined', roles: null },
-  { key: 'achievement', title: '科研成果', icon: 'TrophyOutlined', roles: null },
-  { key: 'knowledge', title: '课题组知识库', icon: 'BookOutlined', roles: null },
+  // ===== 组管 / 导师 / 学生（组内业务，超管不参与） =====
+  { key: 'meeting', title: '组会管理', icon: 'CalendarOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
+  { key: 'achievement', title: '科研成果', icon: 'TrophyOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
+  { key: 'knowledge', title: '课题组知识库', icon: 'BookOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
 
   // ===== 超级管理员专属（平台运维，无课题组内业务） =====
   { key: 'platform-users', title: '用户管理', icon: 'UserOutlined', roles: [ROLE_SUPER_ADMIN] },

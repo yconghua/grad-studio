@@ -5,9 +5,9 @@
 CREATE TABLE IF NOT EXISTS `operation_log` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `operator_id`   INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '操作人 user.id',
-  `operator_name` VARCHAR(50)  NOT NULL DEFAULT ''     COMMENT '操作人账号（冗余便于展示）',
+  `operator_name` VARCHAR(50)  DEFAULT NULL     COMMENT '操作人账号（冗余便于展示）',
   `action`        VARCHAR(30)  NOT NULL                COMMENT '动作：login 登录 / logout 退出 / create 新增 / update 修改 / delete 删除 / export 导出 / other 其他',
-  `target_type`   VARCHAR(50)  NOT NULL DEFAULT ''     COMMENT '操作对象类型（如 user / group / notice / meeting）',
+  `target_type`   VARCHAR(50)  DEFAULT NULL     COMMENT '操作对象类型（如 user / group / notice / meeting）',
   `target_id`     INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '操作对象 id',
   `detail`        TEXT                                 COMMENT '操作详情（JSON 或文本）',
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',

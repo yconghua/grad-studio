@@ -84,6 +84,9 @@ class AchievementRepository extends BaseRepository {
     if (filters.achType) {
       conditions.push({ field: 'ach_type', op: '=', value: filters.achType })
     }
+    if (filters.groupId) {
+      conditions.push({ field: 'group_id', op: '=', value: Number(filters.groupId) })
+    }
     const { clause, values } = buildWhereClause(conditions)
     const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`achievement\` ${clause} ORDER BY created_at DESC, id DESC`
     const [rows] = await this._execute(sql, values, 'listAll')
@@ -100,6 +103,8 @@ class AchievementRepository extends BaseRepository {
     const payload = pickWrite(data)
     payload.user_id = userId
     payload.status = 'pending'
+    // 成果所属课题组由 service 按申报人所属组自动落（0 表示未分组）
+    if (data && data.group_id) payload.group_id = Number(data.group_id)
     return this.create(payload)
   }
 

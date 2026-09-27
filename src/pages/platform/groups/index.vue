@@ -44,11 +44,11 @@
       <div class="modal-box">
         <h3 class="modal-title">{{ editing ? '编辑课题组' : '新增课题组' }}</h3>
         <div class="form-item">
-          <label>名称 *</label>
+          <label>名称 <span class="req">*</span></label>
           <input v-model="form.name" class="input" placeholder="课题组名称" />
         </div>
         <div class="form-item">
-          <label>编号 *</label>
+          <label>编号 <span class="req">*</span></label>
           <input v-model="form.code" class="input" placeholder="唯一编号，如 ML-2026" />
         </div>
         <div class="form-item">
@@ -60,6 +60,13 @@
           <select v-model="form.status" class="input">
             <option value="active">正常</option>
             <option value="disabled">已停用</option>
+          </select>
+        </div>
+        <div v-if="!editing" class="form-item">
+          <label>课题组管理员 <span class="req">*</span></label>
+          <select v-model="form.admin_user_id" class="input">
+            <option :value="null" disabled>请选择课题组管理员</option>
+            <option v-for="u in userOptions" :key="u.id" :value="u.id">{{ u.username }}（{{ roleText(u.role) }}）</option>
           </select>
         </div>
         <p v-if="formError" class="form-error">{{ formError }}</p>
@@ -84,8 +91,9 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../../composables/useDialog'
 import { ref, computed, onMounted } from 'vue'
-import { listGroups, createGroup, updateGroup, removeGroup } from '../../../api'
+import { listGroups, createGroup, updateGroup, removeGroup, listUsers } from '../../../api'
 
 const rows = ref([])
 const loading = ref(false)
@@ -123,12 +131,30 @@ const showForm = ref(false)
 const editing = ref(null)
 const submitting = ref(false)
 const formError = ref('')
-const form = ref({ name: '', code: '', description: '', status: 'active' })
+const form = ref({ name: '', code: '', description: '', status: 'active', admin_user_id: null })
+
+// 管理员候选：仅课题组管理员角色
+const userOptions = ref([])
+const ROLE_TEXT = { super_admin: '超级管理员', group_admin: '课题组管理员', mentor: '导师', student: '学生' }
+function roleText(r) {
+  return ROLE_TEXT[r] || r
+}
+async function loadUserOptions() {
+  try {
+    const res = await listUsers()
+    if (res && res.success) {
+      userOptions.value = (res.users || []).filter((u) => u.role === 'group_admin')
+    }
+  } catch (e) {
+    userOptions.value = []
+  }
+}
 
 function openCreate() {
   editing.value = null
-  form.value = { name: '', code: '', description: '', status: 'active' }
+  form.value = { name: '', code: '', description: '', status: 'active', admin_user_id: null }
   formError.value = ''
+  loadUserOptions()
   showForm.value = true
 }
 function openEdit(g) {
@@ -142,6 +168,7 @@ async function submitForm() {
   formError.value = ''
   if (!form.value.name.trim()) { formError.value = '名称不能为空'; return }
   if (!form.value.code.trim()) { formError.value = '编号不能为空'; return }
+  if (!editing.value && !form.value.admin_user_id) { formError.value = '请选择课题组管理员'; return }
   submitting.value = true
   try {
     const payload = {
@@ -150,6 +177,7 @@ async function submitForm() {
       description: form.value.description,
       status: form.value.status
     }
+    if (!editing.value) payload.admin_user_id = form.value.admin_user_id
     const res = editing.value ? await updateGroup({ id: editing.value.id, ...payload }) : await createGroup(payload)
     if (res && res.success) {
       showForm.value = false
@@ -173,10 +201,10 @@ async function confirmDelete() {
       deleting.value = null
       await loadList()
     } else {
-      alert((res && res.message) || '删除失败')
+      dialogAlert((res && res.message) || '删除失败')
     }
   } catch (e) {
-    alert('网络异常')
+    dialogAlert('网络异常')
   }
 }
 
@@ -221,6 +249,7 @@ onMounted(loadList)
 .modal-actions .btn { flex: 0 0 auto; }
 .form-item { margin-bottom: 14px; }
 .form-item label { display: block; font-size: 13px; color: #4e5969; margin-bottom: 6px; }
+.req { color: #ea4335; }
 .form-item .input { width: 100%; box-sizing: border-box; }
 .form-error { color: #ea4335; font-size: 12px; margin: 6px 0 0; }
 </style>

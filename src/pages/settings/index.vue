@@ -3,7 +3,6 @@
     <div class="page-header">
       <h2 class="page-title">⚙️ 课题组设置</h2>
       <div class="ph-right">
-        <GroupSelector />
         <button class="btn btn-primary" :disabled="saving" @click="onSave">
           {{ saving ? '保存中…' : '保存全部配置' }}
         </button>
@@ -64,7 +63,6 @@
 import { ref, watch, onMounted } from 'vue'
 import { getGroupSetting, updateGroupSetting } from '../../api'
 import { useGroupContext } from '../../composables/useGroupContext'
-import GroupSelector from '../../components/GroupSelector.vue'
 
 const { currentGroupId, loadGroups } = useGroupContext()
 

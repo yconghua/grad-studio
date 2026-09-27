@@ -137,6 +137,7 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref } from 'vue'
 import {
   listMyResearchLogs, createResearchLog, updateResearchLog, removeResearchLog,
@@ -186,7 +187,7 @@ async function onSaveLog() {
   logModal.value.saving = true
   logModal.value.error = ''
   try {
-    const res = f.id ? await updateResearchLog(f) : await createResearchLog(f)
+    const res = f.id ? await updateResearchLog({ ...f }) : await createResearchLog({ ...f })
     if (res && res.success) {
       logModal.value.show = false
       await loadLogs()
@@ -201,10 +202,10 @@ async function onSaveLog() {
 }
 
 async function onRemoveLog(item) {
-  if (!window.confirm(`确定删除 ${item.log_date} 的科研日志吗？`)) return
+  if (!await dialogConfirm(`确定删除 ${item.log_date} 的科研日志吗？`)) return
   const res = await removeResearchLog(item.id)
   if (res && res.success) await loadLogs()
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 // ===== 周报 =====
@@ -259,7 +260,7 @@ async function onSaveWeekly() {
   weeklyModal.value.saving = true
   weeklyModal.value.error = ''
   try {
-    const res = f.id ? await updateWeeklyReport(f) : await createWeeklyReport(f)
+    const res = f.id ? await updateWeeklyReport({ ...f }) : await createWeeklyReport({ ...f })
     if (res && res.success) {
       weeklyModal.value.show = false
       await loadWeekly()
@@ -274,10 +275,10 @@ async function onSaveWeekly() {
 }
 
 async function onSubmitWeekly(item) {
-  if (!window.confirm('提交后周报将不可再编辑，确定提交吗？')) return
+  if (!await dialogConfirm('提交后周报将不可再编辑，确定提交吗？')) return
   const res = await submitWeeklyReport(item.id)
   if (res && res.success) await loadWeekly()
-  else alert((res && res.message) || '提交失败')
+  else dialogAlert((res && res.message) || '提交失败')
 }
 
 function switchTab(t) {

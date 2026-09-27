@@ -6,6 +6,7 @@
 const permission = require('./permission')
 const subjectRepository = require('../db/repositories/subjectRepository')
 const subjectMemberRepository = require('../db/repositories/subjectMemberRepository')
+const userGroupRepository = require('../db/repositories/userGroupRepository')
 const operationLogService = require('./operationLogService')
 
 // subject:list —— 全员登录，按 group_id 过滤
@@ -109,6 +110,13 @@ async function addMember(payload) {
     return { success: false, message: '缺少课题标识（subject_id）或成员标识（user_id）' }
   }
   try {
+    // 校验被添加用户属于课题所属课题组（在组且状态 active），避免跨组加人
+    const subject = await subjectRepository.findById(body.subject_id)
+    if (!subject) return { success: false, message: '课题不存在或已删除' }
+    const ug = await userGroupRepository.findByUserAndGroup(body.user_id, subject.group_id)
+    if (!ug || ug.status !== 'active') {
+      return { success: false, message: '该成员不在课题所属课题组，无法添加' }
+    }
     const exist = await subjectMemberRepository.findBySubjectUser(body.subject_id, body.user_id)
     if (exist) return { success: false, message: '该成员已在本课题中' }
     const id = await subjectMemberRepository.create(body)

@@ -8,6 +8,7 @@
 const permission = require('./permission')
 const taskRepository = require('../db/repositories/taskRepository')
 const taskProgressRepository = require('../db/repositories/taskProgressRepository')
+const userGroupRepository = require('../db/repositories/userGroupRepository')
 const operationLogService = require('./operationLogService')
 const messageService = require('./messageService')
 const { ROLE_STUDENT } = require('../../shared/constants')
@@ -49,6 +50,11 @@ async function create(payload) {
   if (!body.title || !String(body.title).trim()) return { success: false, message: '任务标题不能为空' }
   if (!body.assignee_id) return { success: false, message: '缺少执行人（assignee_id）' }
   try {
+    // 校验执行人确属该课题组（在组且状态 active），避免把任务派给非本组成员
+    const assignee = await userGroupRepository.findByUserAndGroup(body.assignee_id, body.group_id)
+    if (!assignee || assignee.status !== 'active') {
+      return { success: false, message: '执行人不在该课题组，无法指派' }
+    }
     body.assigner_id = permission.currentUserId()
     const id = await taskRepository.create(body)
     operationLogService.writeLog({
@@ -80,6 +86,14 @@ async function update(payload) {
   const id = payload && payload.id
   if (!id) return { success: false, message: '缺少任务标识（id）' }
   try {
+    if (payload && payload.assignee_id) {
+      const task = await taskRepository.findById(id)
+      if (!task) return { success: false, message: '任务不存在或已删除' }
+      const assignee = await userGroupRepository.findByUserAndGroup(payload.assignee_id, task.group_id)
+      if (!assignee || assignee.status !== 'active') {
+        return { success: false, message: '执行人不在该课题组，无法指派' }
+      }
+    }
     await taskRepository.update(id, payload || {})
     operationLogService.writeLog({
       action: 'updateTask',

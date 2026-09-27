@@ -3,7 +3,6 @@
     <div class="page-header">
       <h2 class="page-title">🗓️ 学位节点管理</h2>
       <div class="ph-right">
-        <GroupSelector />
       </div>
     </div>
 
@@ -64,6 +63,7 @@
                 {{ s.student_username || ('#' + s.student_id) }}
               </option>
             </select>
+            <span v-if="!myStudents.length" class="filter-empty">当前课题组暂无学生成员</span>
           </div>
           <button class="btn btn-primary" @click="openRecordForm()">＋ 保存记录</button>
         </div>
@@ -154,6 +154,7 @@
           <label class="form-label">学生 <span class="req">*</span></label>
           <select v-model="recordForm.student_id" class="form-input">
             <option :value="null" disabled>请选择学生</option>
+            <option v-if="!myStudents.length" :value="null" disabled>当前课题组暂无学生成员</option>
             <option v-for="s in myStudents" :key="s.student_id" :value="s.student_id">
               {{ s.student_username || ('#' + s.student_id) }}
             </option>
@@ -200,13 +201,13 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref, watch, onMounted } from 'vue'
 import {
   listDegreeNodes, saveDegreeNode, removeDegreeNode,
-  listDegreeRecords, saveDegreeRecord, listStudents
+  listDegreeRecords, saveDegreeRecord, listGroupStudents
 } from '../../api'
 import { useGroupContext } from '../../composables/useGroupContext'
-import GroupSelector from '../../components/GroupSelector.vue'
 
 const { currentGroupId, loadGroups } = useGroupContext()
 
@@ -310,10 +311,10 @@ async function onRemoveNode() {
       removeNodeTarget.value = null
       loadNodes()
     } else {
-      alert((res && res.message) || '删除失败')
+      dialogAlert((res && res.message) || '删除失败')
     }
   } catch (e) {
-    alert('网络错误，删除失败')
+    dialogAlert('网络错误，删除失败')
   } finally {
     removing.value = false
   }
@@ -321,7 +322,7 @@ async function onRemoveNode() {
 
 async function loadStudents() {
   try {
-    const res = await listStudents({ group_id: currentGroupId.value })
+    const res = await listGroupStudents({ group_id: currentGroupId.value })
     if (res && res.success) myStudents.value = res.students || []
   } catch (e) { /* 不阻断 */ }
 }
@@ -432,6 +433,7 @@ onMounted(() => {
 .card-desc { font-size: 13px; color: #8a9099; }
 .filter-row { display: flex; align-items: center; gap: 8px; }
 .filter-label { font-size: 13px; color: #4e5969; }
+.filter-empty { font-size: 12px; color: #8a9099; }
 .empty-block { padding: 48px 20px; text-align: center; color: #8a9099; font-size: 14px; }
 .error-block { padding: 24px; text-align: center; color: #ea4335; font-size: 14px; }
 

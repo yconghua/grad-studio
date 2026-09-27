@@ -186,7 +186,7 @@ async function loadGroup() {
       listMembersByGroup(gid),
       listMeetings(gid),
       listTasks({ group_id: gid }),
-      listAllAchievements({ status: 'pending' }),
+      listAllAchievements({ status: 'pending', group_id: gid }),
       listNotices(gid)
     ])
     stats.value = {
@@ -208,7 +208,12 @@ const loadingMentor = ref(false)
 async function loadMentor() {
   loadingMentor.value = true
   try {
-    const [s, w, a] = await Promise.all([listStudents(), listAllWeeklyReports({}), listAllAchievements({ status: 'pending' })])
+    const gid = currentGroupId.value
+    const [s, w, a] = await Promise.all([
+      listStudents(),
+      listAllWeeklyReports({}),
+      gid ? listAllAchievements({ status: 'pending', group_id: gid }) : Promise.resolve({ success: false, data: [] })
+    ])
     const allWeekly = (w && w.success ? w.data : [])
     mentorStats.value = {
       students: (s && s.success ? s.students : []).length,

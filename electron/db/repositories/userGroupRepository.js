@@ -58,9 +58,10 @@ class UserGroupRepository extends BaseRepository {
       .map((c) => `${c.field} ${c.op} ?`)
       .join(' AND ')
     const values = conditions.map((c) => c.value)
-    const sql = `SELECT ${cols(SAFE_COLUMNS)}, \`u\`.\`username\`, \`u\`.\`role\` AS \`user_role\`
+    const sql = `SELECT ${cols(SAFE_COLUMNS)}, \`u\`.\`username\`, \`u\`.\`role\` AS \`user_role\`, \`up\`.\`real_name\`
       FROM \`user_group\` AS \`ug\`
       LEFT JOIN \`user\` AS \`u\` ON \`u\`.\`id\` = \`ug\`.\`user_id\` AND \`u\`.\`is_deleted\` = 0
+      LEFT JOIN \`user_profile\` AS \`up\` ON \`up\`.\`user_id\` = \`ug\`.\`user_id\` AND \`up\`.\`is_deleted\` = 0
       WHERE ${where}
       ORDER BY \`ug\`.\`id\` ASC`
     const [rows] = await this._execute(sql, values, 'listByGroup')
@@ -95,6 +96,36 @@ class UserGroupRepository extends BaseRepository {
       ORDER BY \`g\`.\`id\` ASC`
     const [rows] = await this._execute(sql, [userId], 'listGroupsByUser')
     return rows
+  }
+
+  /**
+   * 查该用户在其他组是否仍有在组记录（用于「学生 / 导师仅可属于一个课题组」校验）。
+   * 联 group 表取组名，便于接口返回友好提示。
+   * @param {number} userId
+   * @param {number} exceptGroupId 排除的组（当前操作组）
+   * @returns {Object|null}
+   */
+  async findActiveInOtherGroup(userId, exceptGroupId) {
+    const sql = `SELECT \`ug\`.\`id\`, \`ug\`.\`group_id\`, \`g\`.\`name\` AS \`group_name\`
+      FROM \`user_group\` AS \`ug\`
+      LEFT JOIN \`group\` AS \`g\` ON \`g\`.\`id\` = \`ug\`.\`group_id\` AND \`g\`.\`is_deleted\` = 0
+      WHERE \`ug\`.\`user_id\` = ? AND \`ug\`.\`status\` = 'active'
+        AND \`ug\`.\`group_id\` <> ? AND \`ug\`.\`is_deleted\` = 0
+      LIMIT 1`
+    const [rows] = await this._execute(sql, [userId, exceptGroupId], 'findActiveInOtherGroup')
+    return rows[0] || null
+  }
+
+  /**
+   * 列出所有「在组中」的用户 id（去重）：供成员添加下拉过滤已入组用户。
+   * 仅统计 status = active（已离组 / 已禁用不算在组，可再次添加）。
+   * @returns {number[]}
+   */
+  async listActiveUserIds() {
+    const sql = `SELECT DISTINCT \`user_id\` FROM \`user_group\`
+      WHERE \`status\` = 'active' AND \`is_deleted\` = 0`
+    const [rows] = await this._execute(sql, [], 'listActiveUserIds')
+    return rows.map((r) => r.user_id)
   }
 
   // 白名单提取可写入字段

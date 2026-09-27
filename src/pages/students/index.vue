@@ -3,7 +3,6 @@
     <div class="page-header">
       <h2 class="page-title">🎓 我的学生</h2>
       <div class="ph-right">
-        <GroupSelector />
         <button class="btn btn-primary" @click="openBind">＋ 绑定学生</button>
       </div>
     </div>
@@ -86,10 +85,10 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref, computed, watch, onMounted } from 'vue'
 import { listStudents, bindStudent, unbindStudent, listMembers } from '../../api'
 import { useGroupContext } from '../../composables/useGroupContext'
-import GroupSelector from '../../components/GroupSelector.vue'
 
 const { currentGroupId, loadGroups } = useGroupContext()
 
@@ -109,8 +108,12 @@ const unbinding = ref(false)
 const STATUS_TEXT = { active: '指导中', quit: '已离师' }
 function statusText(s) { return STATUS_TEXT[s] || s || '-' }
 
-// 仅列出全局角色为 student 的用户供绑定
-const studentUsers = computed(() => allUsers.value.filter((u) => u.role === 'student'))
+// 已绑定学生的 id 集合，用于候选下拉排除
+const boundIds = computed(() => new Set(students.value.map((s) => s.student_id)))
+// 仅列出全局角色为 student 且尚未被绑定的用户供绑定
+const studentUsers = computed(() =>
+  allUsers.value.filter((u) => u.role === 'student' && !boundIds.value.has(u.id))
+)
 
 async function loadAllUsers() {
   try {
@@ -178,10 +181,10 @@ async function onUnbind() {
       unbindTarget.value = null
       loadStudents()
     } else {
-      alert((res && res.message) || '解除失败')
+      dialogAlert((res && res.message) || '解除失败')
     }
   } catch (e) {
-    alert('网络错误，解除失败')
+    dialogAlert('网络错误，解除失败')
   } finally {
     unbinding.value = false
   }

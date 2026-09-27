@@ -5,8 +5,9 @@
  * 绑定 / 解绑：组管理员可操作任意师生关系；导师只能操作自己名下（mentor_id = currentUserId）。
  */
 const permission = require('./permission')
-const { ROLE_MENTOR } = require('../../shared/constants')
+const { ROLE_MENTOR, ROLE_STUDENT } = require('../../shared/constants')
 const mentorStudentRepository = require('../db/repositories/mentorStudentRepository')
+const userGroupRepository = require('../db/repositories/userGroupRepository')
 const operationLogService = require('./operationLogService')
 
 // 学生列表：导师仅看自己名下（active）；组管理员需传 group_id 看全组
@@ -28,6 +29,50 @@ async function list(payload) {
     return { success: true, students: rows }
   } catch (err) {
     console.error('[studentsService.list] 数据库异常:', err)
+    return { success: false, message: '读取失败，请稍后重试' }
+  }
+}
+
+// 我的指导老师：学生本人查询自己当前绑定的导师（个人资料页展示）
+async function myMentor() {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (permission.currentRole() !== ROLE_STUDENT) return { success: false, message: '无权限' }
+  try {
+    const row = await mentorStudentRepository.findByStudent(permission.currentUserId())
+    if (!row) return { success: true, mentor: null }
+    return {
+      success: true,
+      mentor: {
+        id: row.mentor_id,
+        username: row.mentor_username,
+        real_name: row.mentor_real_name || ''
+      }
+    }
+  } catch (err) {
+    console.error('[studentsService.myMentor] 数据库异常:', err)
+    return { success: false, message: '读取失败，请稍后重试' }
+  }
+}
+
+// 学生名单：供学位记录等场景选人。导师看自己名下（active）；
+// 组管理员 / 超管看所选课题组内全局角色为 student 的成员（user_group.role_in_group = student）
+async function listGroupStudents(payload) {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  const { group_id } = payload || {}
+  if (!group_id) return { success: false, message: '缺少课题组标识' }
+  const role = permission.currentRole()
+  if (role === ROLE_STUDENT) return { success: false, message: '无权限：仅导师或课题组管理员可查看学生名单' }
+  try {
+    let rows
+    if (role === ROLE_MENTOR) {
+      rows = await mentorStudentRepository.listByMentor(permission.currentUserId(), 'active')
+    } else {
+      const members = await userGroupRepository.listByGroup({ group_id, role_in_group: 'student' })
+      rows = members.map((m) => ({ student_id: m.user_id, student_username: m.username }))
+    }
+    return { success: true, students: rows }
+  } catch (err) {
+    console.error('[studentsService.listGroupStudents] 数据库异常:', err)
     return { success: false, message: '读取失败，请稍后重试' }
   }
 }
@@ -92,4 +137,4 @@ async function unbind(payload) {
   }
 }
 
-module.exports = { list, bind, unbind }
+module.exports = { list, listGroupStudents, myMentor, bind, unbind }

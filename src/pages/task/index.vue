@@ -3,7 +3,6 @@
     <div class="header-card">
       <div class="header-left">
         <h2 class="page-title">📋 任务管理</h2>
-        <GroupSelector />
       </div>
       <div class="header-right">
         <button class="btn btn-primary" @click="openTaskModal()">＋ 新增任务</button>
@@ -85,7 +84,7 @@
             <span class="form-label">执行人</span>
             <select v-model="taskModal.form.assignee_id">
               <option :value="0" disabled>请选择执行人</option>
-              <option v-for="m in members" :key="m.id" :value="m.id">{{ m.username }}</option>
+              <option v-for="m in assigneeOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
             </select>
           </label>
           <label class="form-item">
@@ -142,8 +141,8 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import GroupSelector from '../../components/GroupSelector.vue'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useGroupContext } from '../../composables/useGroupContext'
 import {
   listTasks, createTask, updateTask, removeTask,
@@ -169,9 +168,15 @@ function fmtDT(v) {
 }
 function priorityText(p) { return PRIORITY_TEXT[p] || p || '—' }
 function statusText(s) { return STATUS_TEXT[s] || s || '—' }
+// 显示名：有真实姓名显示「姓名（账号）」，无姓名显示账号
+function memberLabel(m) {
+  return m.real_name ? m.real_name + '（' + m.username + '）' : m.username
+}
+// 执行人候选：仅当前课题组的导师 / 学生（课题组管理员不可作为任务执行人）
+const assigneeOptions = computed(() => members.value.filter((m) => m.role !== 'group_admin'))
 function nameOf(id) {
   const m = members.value.find((x) => x.id === Number(id))
-  return m ? m.username : (id ? ('#' + id) : '—')
+  return m ? memberLabel(m) : (id ? ('#' + id) : '—')
 }
 function progressOf(taskId) {
   return progressMap.value[taskId] || []
@@ -179,7 +184,7 @@ function progressOf(taskId) {
 
 async function loadOptions() {
   try {
-    const [memRes, subRes] = await Promise.all([listMembers(), listSubjects(currentGroupId.value)])
+    const [memRes, subRes] = await Promise.all([listMembers({ group_id: currentGroupId.value }), listSubjects(currentGroupId.value)])
     if (memRes && memRes.success) members.value = memRes.members || []
     if (subRes && subRes.success) subjects.value = subRes.data || []
   } catch (e) { /* 忽略 */ }
@@ -194,7 +199,7 @@ async function loadTasks() {
       tasks.value = res.data || []
     } else {
       tasks.value = []
-      if (res && res.message) alert(res.message)
+      if (res && res.message) dialogAlert(res.message)
     }
   } finally { loading.value = false }
 }
@@ -270,10 +275,10 @@ async function onSaveTask() {
 }
 
 async function onRemoveTask(row) {
-  if (!confirm(`确认删除任务「${row.title}」？`)) return
+  if (!await dialogConfirm(`确认删除任务「${row.title}」？`)) return
   const res = await removeTask(row.id)
   if (res && res.success) loadTasks()
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 onMounted(() => {

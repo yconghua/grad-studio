@@ -3,14 +3,52 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">🔧 系统配置</h2>
-        <p class="page-desc">维护全局系统参数（键值对，仅超级管理员可见）</p>
-      </div>
-      <div class="head-actions">
-        <button class="btn btn-primary" @click="openCreate">＋ 新增参数</button>
       </div>
     </div>
 
+    <!-- 系统信息 -->
     <div class="card">
+      <div class="card-head">
+        <h3 class="card-title">🖥️ 系统信息</h3>
+        <button class="btn btn-primary" @click="onOpenConsole">打开控制台</button>
+      </div>
+      <div v-if="sysLoading" class="state">加载中…</div>
+      <div v-else class="info-grid">
+        <div class="info-item"><span class="info-label">系统名称</span><span class="info-value">{{ sysInfo.name || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">版本</span><span class="info-value">{{ sysInfo.version ? 'v' + sysInfo.version : '—' }}</span></div>
+        <div class="info-item"><span class="info-label">发布日期</span><span class="info-value">{{ sysInfo.releaseDate || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">启动时间</span><span class="info-value">{{ formatTime(sysInfo.startedAt) }}</span></div>
+        <div class="info-item"><span class="info-label">操作系统</span><span class="info-value">{{ sysInfo.platform || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">Node 版本</span><span class="info-value">{{ sysInfo.nodeVersion || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">Electron 版本</span><span class="info-value">{{ sysInfo.electronVersion || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">用户数据目录</span><span class="info-value path">{{ userDataPath || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">程序目录</span><span class="info-value path">{{ appPath || '—' }}</span></div>
+      </div>
+    </div>
+
+    <!-- 数据库连接配置 -->
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title">🗄️ 数据库连接配置</h3>
+        <span class="badge" :class="dbInfo.status === 'connected' ? 'badge-ok' : 'badge-err'">{{ dbInfo.status === 'connected' ? '已连接' : '未连接' }}</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-item"><span class="info-label">主机</span><span class="info-value">{{ dbInfo.host || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">端口</span><span class="info-value">{{ dbInfo.port || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">数据库</span><span class="info-value">{{ dbInfo.database || '—' }}</span></div>
+        <div class="info-item"><span class="info-label">用户名</span><span class="info-value">{{ dbInfo.user || '—' }}</span></div>
+      </div>
+      <p v-if="dbInfo.error" class="db-error">⚠️ {{ dbInfo.error }}</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-head-left">
+          <h3 class="card-title">⚙️ 系统参数</h3>
+          <p class="card-desc">维护全局系统参数（键值对，仅超级管理员可见）</p>
+        </div>
+        <button class="btn btn-primary" @click="openCreate">＋ 新增参数</button>
+      </div>
       <div v-if="loading" class="state">加载中…</div>
       <div v-else-if="errorMsg" class="state error">⚠️ {{ errorMsg }}</div>
       <div v-else-if="!rows.length" class="state">🗂️ 暂无系统参数</div>
@@ -39,7 +77,7 @@
       <div class="modal-box">
         <h3 class="modal-title">{{ editing ? '编辑参数' : '新增参数' }}</h3>
         <div class="form-item">
-          <label>参数键 *</label>
+          <label>参数键 <span class="req">*</span></label>
           <input v-model="form.param_key" class="input" :disabled="!!editing" placeholder="如 app.title" />
         </div>
         <div class="form-item">
@@ -72,12 +110,52 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../../composables/useDialog'
 import { ref, onMounted } from 'vue'
-import { listSystemParams, saveSystemParam, removeSystemParam } from '../../../api'
+import { listSystemParams, saveSystemParam, removeSystemParam, getSysInfo, getDbInfo, getUserDataPath, getAppPath, openDevTools } from '../../../api'
 
 const rows = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
+
+// 系统信息 / 数据库连接 / 路径
+const sysInfo = ref({})
+const dbInfo = ref({})
+const userDataPath = ref('')
+const appPath = ref('')
+const sysLoading = ref(false)
+
+function formatTime(ts) {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+async function loadSysInfo() {
+  sysLoading.value = true
+  try {
+    const [info, db, udPath, apPath] = await Promise.all([getSysInfo(), getDbInfo(), getUserDataPath(), getAppPath()])
+    if (info && info.success) sysInfo.value = info
+    if (db && db.success) dbInfo.value = db
+    if (udPath && udPath.success) userDataPath.value = udPath.path
+    if (apPath && apPath.success) appPath.value = apPath.path
+  } catch (e) {
+    // 任一接口失败保持空值，不阻塞页面
+  } finally {
+    sysLoading.value = false
+  }
+}
+
+async function onOpenConsole() {
+  try {
+    const res = await openDevTools()
+    if (res && res.success) dialogAlert(res.message || '控制台已打开')
+    else dialogAlert((res && res.message) || '打开失败')
+  } catch (e) {
+    dialogAlert('打开失败，请重试')
+  }
+}
 
 async function loadList() {
   loading.value = true
@@ -149,14 +227,17 @@ async function confirmDelete() {
       deleting.value = null
       await loadList()
     } else {
-      alert((res && res.message) || '删除失败')
+      dialogAlert((res && res.message) || '删除失败')
     }
   } catch (e) {
-    alert('网络异常')
+    dialogAlert('网络异常')
   }
 }
 
-onMounted(loadList)
+onMounted(() => {
+  loadList()
+  loadSysInfo()
+})
 </script>
 
 <style scoped>
@@ -191,8 +272,22 @@ onMounted(loadList)
 .modal-text { font-size: 14px; color: #1f2329; margin: 0 0 20px; line-height: 1.6; }
 .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 18px; }
 .modal-actions .btn { flex: 0 0 auto; }
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.card-title { margin: 0; font-size: 15px; color: #1f2329; }
+.card-desc { margin: 4px 0 0; font-size: 12px; color: #8a9099; }
+.card-head-left { display: flex; flex-direction: column; gap: 2px; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+.info-item { display: flex; gap: 10px; font-size: 13px; line-height: 1.7; }
+.info-label { color: #8a9099; flex: 0 0 auto; min-width: 96px; }
+.info-value { color: #1f2329; word-break: break-all; }
+.info-value.path { font-family: Consolas, Monaco, monospace; font-size: 12px; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; }
+.badge-ok { background: #e8f7ee; color: #19a558; }
+.badge-err { background: #fdecec; color: #ea4335; }
+.db-error { margin: 10px 0 0; color: #ea4335; font-size: 12px; }
 .form-item { margin-bottom: 14px; }
 .form-item label { display: block; font-size: 13px; color: #4e5969; margin-bottom: 6px; }
+.req { color: #ea4335; }
 .form-item .input { width: 100%; box-sizing: border-box; }
 .form-error { color: #ea4335; font-size: 12px; margin: 6px 0 0; }
 </style>

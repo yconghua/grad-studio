@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `group_setting` (
   `group_id`      INT UNSIGNED NOT NULL                COMMENT '所属课题组 group.id',
   `config_key`    VARCHAR(100) NOT NULL                COMMENT '配置键',
   `config_value`  TEXT                                 COMMENT '配置值',
-  `description`   VARCHAR(200) NOT NULL DEFAULT ''     COMMENT '配置说明',
+  `description`   VARCHAR(200) DEFAULT NULL     COMMENT '配置说明',
   `updated_by`    INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '最后修改人 user.id',
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

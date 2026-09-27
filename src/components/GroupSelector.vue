@@ -1,5 +1,5 @@
 <template>
-  <div class="group-selector">
+  <div v-if="show" class="group-selector">
     <span class="gs-label">课题组</span>
     <!-- 组列表可用：下拉选择（超管为全量组，其他角色为所属组） -->
     <select
@@ -28,19 +28,25 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useGroupContext } from '../composables/useGroupContext'
+import { useRole } from '../composables/useRole'
 
 const { currentGroupId, groups, loadGroups, setGroupId } = useGroupContext()
+const { isSuperAdmin, isGroupAdmin } = useRole()
 
-// 组内角色文案（groupMine 返回的 role_in_group）
+// 仅超管（全量组）与组管（所属组）需要手动切换课题组；
+// 导师 / 学生的组由后端归属自动确定（useGroupContext 自动加载），不显示选择器
+const show = computed(() => isSuperAdmin || isGroupAdmin)
+
+// 组内角色文案（listMine / member 返回的 role_in_group）
 const ROLE_TEXT = { group_admin: '管理员', mentor: '导师', student: '学生' }
 function roleText(r) {
   return ROLE_TEXT[r] || r
 }
 
 onMounted(() => {
-  loadGroups()
+  if (show.value) loadGroups()
 })
 
 function onSelect(e) {

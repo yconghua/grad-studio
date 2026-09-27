@@ -3,7 +3,6 @@
     <div class="header-card">
       <div class="header-left">
         <h2 class="page-title">🔬 课题管理</h2>
-        <GroupSelector />
       </div>
       <div class="header-right">
         <button class="btn btn-primary" @click="openSubjectModal()">＋ 新增课题</button>
@@ -52,7 +51,7 @@
                     <div class="member-add">
                       <select v-model="memberPick[s.id]">
                         <option :value="0" disabled>选择成员</option>
-                        <option v-for="m in members" :key="m.id" :value="m.id">{{ m.username }}</option>
+                        <option v-for="m in leaderOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
                       </select>
                       <button class="btn btn-mini btn-primary" @click="onAddMember(s)">添加</button>
                     </div>
@@ -108,7 +107,7 @@
             <span class="form-label">负责人</span>
             <select v-model="subjectModal.form.leader_id">
               <option :value="0">未指定</option>
-              <option v-for="m in members" :key="m.id" :value="m.id">{{ m.username }}</option>
+              <option v-for="m in leaderOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
             </select>
           </label>
           <label class="form-item">
@@ -158,8 +157,8 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import GroupSelector from '../../components/GroupSelector.vue'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useGroupContext } from '../../composables/useGroupContext'
 import {
   listSubjects, createSubject, updateSubject, removeSubject,
@@ -182,9 +181,15 @@ const STATUS_TEXT = { applying: '申报中', ongoing: '进行中', completed: '�
 
 function typeText(t) { return TYPE_TEXT[t] || t || '—' }
 function statusText(s) { return STATUS_TEXT[s] || s || '—' }
+// 显示名：有真实姓名显示「姓名（账号）」，无姓名显示账号
+function memberLabel(m) {
+  return m.real_name ? m.real_name + '（' + m.username + '）' : m.username
+}
+// 负责人候选：仅当前课题组的导师 / 学生（课题组管理员不可作为课题负责人）
+const leaderOptions = computed(() => members.value.filter((m) => m.role !== 'group_admin'))
 function nameOf(id) {
   const m = members.value.find((x) => x.id === Number(id))
-  return m ? m.username : (id ? ('#' + id) : '—')
+  return m ? memberLabel(m) : (id ? ('#' + id) : '—')
 }
 function membersOf(subjectId) {
   return memberMap.value[subjectId] || []
@@ -192,7 +197,7 @@ function membersOf(subjectId) {
 
 async function loadMembers() {
   try {
-    const res = await listMembers()
+    const res = await listMembers({ group_id: currentGroupId.value })
     if (res && res.success) members.value = res.members || []
   } catch (e) { /* 忽略 */ }
 }
@@ -206,7 +211,7 @@ async function loadSubjects() {
       subjects.value = res.data || []
     } else {
       subjects.value = []
-      if (res && res.message) alert(res.message)
+      if (res && res.message) dialogAlert(res.message)
     }
   } finally { loading.value = false }
 }
@@ -229,21 +234,21 @@ async function loadMemberList(subjectId) {
 
 async function onAddMember(subject) {
   const uid = Number(memberPick.value[subject.id])
-  if (!uid) { alert('请先选择成员'); return }
+  if (!uid) { dialogAlert('请先选择成员'); return }
   const res = await addSubjectMember({ subject_id: subject.id, user_id: uid, role_in_subject: 'member' })
   if (res && res.success) {
     memberPick.value[subject.id] = 0
     loadMemberList(subject.id)
   } else {
-    alert((res && res.message) || '添加失败')
+    dialogAlert((res && res.message) || '添加失败')
   }
 }
 
 async function onRemoveMember(mb) {
-  if (!confirm('确认移除该课题成员？')) return
+  if (!await dialogConfirm('确认移除该课题成员？')) return
   const res = await removeSubjectMember(mb.id)
   if (res && res.success) loadMemberList(expandedId.value)
-  else alert((res && res.message) || '移除失败')
+  else dialogAlert((res && res.message) || '移除失败')
 }
 
 // ===== 课题弹窗 =====
@@ -297,17 +302,21 @@ async function onSaveSubject() {
 }
 
 async function onRemoveSubject(row) {
-  if (!confirm(`确认删除课题「${row.name}」？`)) return
+  if (!await dialogConfirm(`确认删除课题「${row.name}」？`)) return
   const res = await removeSubject(row.id)
   if (res && res.success) loadSubjects()
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 onMounted(() => {
   loadGroups()
   loadMembers()
+  loadSubjects()
 })
-watch(currentGroupId, loadSubjects)
+watch(currentGroupId, () => {
+  loadSubjects()
+  loadMembers()
+})
 </script>
 
 <style scoped>

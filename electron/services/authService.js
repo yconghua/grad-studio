@@ -13,6 +13,8 @@
 const bcrypt = require('bcryptjs')
 // 用户仓库：所有 user 表的数据访问集中于此（含裸 SQL）
 const userRepository = require('../db/repositories/userRepository')
+// 成员归属仓库：判断用户是否已在组（供成员添加下拉过滤）
+const userGroupRepository = require('../db/repositories/userGroupRepository')
 // 事务上下文：createUser 用它保证「查重 + 插入」在同一连接上原子执行
 const { runTransaction } = require('../db/connection')
 // 操作日志：账号增删改等管理操作落审计
@@ -161,15 +163,31 @@ async function listUsers() {
 }
 
 // 成员列表（轻量，所有登录用户可读）：供前端「关联字段下拉选人」使用。
-// 仅返回 id / username / role，不含任何敏感字段。
-async function listMembers() {
+// 传 group_id：只返回该课题组在组人员（组管/导师/学生），联真实姓名 real_name；
+// 不传：返回全平台用户 + in_group（是否已在组）。不含任何敏感字段。
+async function listMembers(payload) {
   if (!currentUser) return { success: false, message: '未登录，请重新登录' }
   try {
+    const { group_id } = payload || {}
+    if (group_id) {
+      const rows = await userGroupRepository.listByGroup({ group_id, status: 'active' })
+      const members = rows.map((m) => ({
+        id: m.user_id,
+        user_id: m.user_id,
+        username: m.username,
+        role: m.user_role,
+        real_name: m.real_name || ''
+      }))
+      return { success: true, members }
+    }
     const users = await userRepository.list()
+    const inGroupIds = await userGroupRepository.listActiveUserIds()
+    const inGroupSet = new Set(inGroupIds)
     const members = users.map((u) => ({
       id: u.id,
       username: u.username,
-      role: u.role
+      role: u.role,
+      in_group: inGroupSet.has(u.id)
     }))
     return { success: true, members }
   } catch (err) {

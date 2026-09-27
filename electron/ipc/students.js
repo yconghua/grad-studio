@@ -17,6 +17,26 @@ function register(ipcMain) {
     }
   })
 
+  // 学生名单（导师看自己名下 / 组管与超管看组内学生）——学位记录等选人场景
+  ipcMain.handle('students:list-group-students', async (_evt, payload) => {
+    try {
+      return await studentsService.listGroupStudents(payload)
+    } catch (err) {
+      console.error('[students:list-group-students] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
+
+  // 我的指导老师（学生本人，个人资料页）
+  ipcMain.handle('students:my-mentor', async (_evt, payload) => {
+    try {
+      return await studentsService.myMentor(payload)
+    } catch (err) {
+      console.error('[students:my-mentor] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
+
   // 绑定师生关系
   ipcMain.handle('students:bind', async (_evt, payload) => {
     try {

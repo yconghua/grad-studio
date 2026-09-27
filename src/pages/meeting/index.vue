@@ -3,7 +3,6 @@
     <div class="header-card">
       <div class="header-left">
         <h2 class="page-title">📅 组会管理</h2>
-        <GroupSelector />
       </div>
       <div class="header-right">
         <button v-if="isGroupAdmin" class="btn btn-primary" @click="openMeetingModal()">＋ 新增组会</button>
@@ -133,7 +132,7 @@
             <span class="form-label">主持人</span>
             <select v-model="meetingModal.form.host_id">
               <option :value="0">未指定</option>
-              <option v-for="m in members" :key="m.id" :value="m.id">{{ m.username }}</option>
+              <option v-for="m in hostOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
             </select>
           </label>
           <label class="form-item full">
@@ -209,8 +208,8 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import GroupSelector from '../../components/GroupSelector.vue'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useGroupContext } from '../../composables/useGroupContext'
 import { useRole } from '../../composables/useRole'
 import {
@@ -240,9 +239,15 @@ function fmtDT(v) {
 function typeText(t) { return TYPE_TEXT[t] || t || '—' }
 function statusText(s) { return STATUS_TEXT[s] || s || '—' }
 function reportStatusText(s) { return REPORT_STATUS_TEXT[s] || s || '—' }
+// 显示名：有真实姓名显示「姓名（账号）」，无姓名显示账号
+function memberLabel(m) {
+  return m.real_name ? m.real_name + '（' + m.username + '）' : m.username
+}
+// 主持人候选：仅当前课题组的导师 / 学生（课题组管理员不可作为主持人）
+const hostOptions = computed(() => members.value.filter((m) => m.role !== 'group_admin'))
 function nameOf(id) {
   const m = members.value.find((x) => x.id === Number(id))
-  return m ? m.username : (id ? ('#' + id) : '—')
+  return m ? memberLabel(m) : (id ? ('#' + id) : '—')
 }
 function meetingTitleOf(id) {
   const m = meetings.value.find((x) => x.id === Number(id))
@@ -251,7 +256,7 @@ function meetingTitleOf(id) {
 
 async function loadMembers() {
   try {
-    const res = await listMembers()
+    const res = await listMembers({ group_id: currentGroupId.value })
     if (res && res.success) members.value = res.members || []
   } catch (e) { /* 忽略 */ }
 }
@@ -265,7 +270,7 @@ async function loadMeetings() {
       meetings.value = res.data || []
     } else {
       meetings.value = []
-      if (res && res.message) alert(res.message)
+      if (res && res.message) dialogAlert(res.message)
     }
   } finally { loading.value = false }
 }
@@ -279,7 +284,7 @@ async function loadReports() {
       reports.value = res.data || []
     } else {
       reports.value = []
-      if (res && res.message) alert(res.message)
+      if (res && res.message) dialogAlert(res.message)
     }
   } finally { loadingReports.value = false }
 }
@@ -340,10 +345,10 @@ async function onSaveMeeting() {
 }
 
 async function onRemoveMeeting(row) {
-  if (!confirm(`确认删除组会「${row.title}」？`)) return
+  if (!await dialogConfirm(`确认删除组会「${row.title}」？`)) return
   const res = await removeMeeting(row.id)
   if (res && res.success) loadMeetings()
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 // ===== 提交汇报弹窗 =====
@@ -405,6 +410,7 @@ async function onReview() {
 onMounted(() => {
   loadGroups()
   loadMembers()
+  loadMeetings()
 })
 watch(currentGroupId, () => {
   loadMeetings()

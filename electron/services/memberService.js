@@ -6,10 +6,8 @@
  */
 const permission = require('./permission')
 const userGroupRepository = require('../db/repositories/userGroupRepository')
+const userRepository = require('../db/repositories/userRepository')
 const operationLogService = require('./operationLogService')
-
-// 组内合法角色白名单
-const VALID_ROLE_IN_GROUP = ['group_admin', 'mentor', 'student']
 
 // 按课题组列出成员（仅组管理员）
 async function list(payload) {
@@ -26,16 +24,30 @@ async function list(payload) {
   }
 }
 
-// 添加成员到组（仅组管理员）
+// 添加成员到组（仅组管理员）：组内角色按账号全局角色自动归类（导师→导师、学生→学生），不接收前端指定
 async function add(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isGroupAdmin()) return { success: false, message: '无权限：仅课题组管理员可管理成员' }
-  const { user_id, group_id, role_in_group } = payload || {}
+  const { user_id, group_id } = payload || {}
   if (!user_id || !group_id) return { success: false, message: '缺少用户或课题组标识' }
-  const role = VALID_ROLE_IN_GROUP.includes(role_in_group) ? role_in_group : 'student'
   try {
     const dup = await userGroupRepository.findByUserAndGroup(user_id, group_id)
     if (dup) return { success: false, message: '该用户已在本组中' }
+    const targetUser = await userRepository.findById(Number(user_id))
+    if (!targetUser) return { success: false, message: '用户不存在' }
+    // 组内角色自动归类：导师账号→导师、学生账号→学生；组管 / 超管账号不可作为成员添加
+    const AUTO_ROLE = { mentor: 'mentor', student: 'student' }
+    const role = AUTO_ROLE[targetUser.role]
+    if (!role) return { success: false, message: '仅导师/学生账号可添加为成员' }
+    // 学生 / 导师账号仅可属于一个课题组（组管 / 超管可管理多个组）：
+    // 按账号全局角色判断，避免以其他组内角色绕过归属限制
+    if (targetUser.role === 'student' || targetUser.role === 'mentor') {
+      const other = await userGroupRepository.findActiveInOtherGroup(user_id, group_id)
+      if (other) {
+        const who = targetUser.role === 'student' ? '该学生' : '该导师'
+        return { success: false, message: `${who}已属于课题组「${other.group_name || ('#' + other.group_id)}」，${who}不能重复加入` }
+      }
+    }
     const data = userGroupRepository.pick({ user_id, group_id, role_in_group: role, remark: payload && payload.remark })
     data.joined_at = new Date()
     const id = await userGroupRepository.create(data)
@@ -52,19 +64,17 @@ async function add(payload) {
   }
 }
 
-// 修改组内角色 / 状态（仅组管理员）
+// 修改成员状态 / 备注（仅组管理员）。组内角色由账号全局角色自动归类，编辑时不可变更
 async function update(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isGroupAdmin()) return { success: false, message: '无权限：仅课题组管理员可管理成员' }
-  const { id, role_in_group, status, remark } = payload || {}
+  const { id, status, remark } = payload || {}
   if (!id) return { success: false, message: '缺少成员记录标识' }
   try {
     const exist = await userGroupRepository.findById(id)
     if (!exist) return { success: false, message: '成员记录不存在' }
     const data = {}
-    if (role_in_group !== undefined) {
-      data.role_in_group = VALID_ROLE_IN_GROUP.includes(role_in_group) ? role_in_group : exist.role_in_group
-    }
+    // role_in_group 忽略：组内角色只由账号全局角色自动归类（导师→导师、学生→学生），不允许在成员编辑中修改
     if (status !== undefined) {
       data.status = status
       if (status === 'left' && exist.status !== 'left') data.left_at = new Date()
@@ -77,7 +87,7 @@ async function update(payload) {
       action: 'updateMember',
       targetType: 'user_group',
       targetId: id,
-      detail: `更新成员记录（角色 ${data.role_in_group || exist.role_in_group} / 状态 ${data.status || exist.status}）`
+      detail: `更新成员记录（状态 ${data.status || exist.status}${data.remark !== undefined ? '，修改备注' : ''}）`
     })
     return { success: true, message: '保存成功' }
   } catch (err) {

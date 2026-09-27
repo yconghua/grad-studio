@@ -9,11 +9,11 @@
       <div class="privacy-body">
         <p class="privacy-lead">填写目标 MySQL 连接信息，提交后将自动测试连通性并保存。</p>
         <div class="form-row">
-          <label class="field-label">名称 *</label>
+          <label class="field-label">名称 <span class="req">*</span></label>
           <input v-model="addForm.name" class="field-input" type="text" placeholder="如：公司服务器" />
         </div>
         <div class="form-row">
-          <label class="field-label">主机 *</label>
+          <label class="field-label">主机 <span class="req">*</span></label>
           <input v-model="addForm.host" class="field-input" type="text" placeholder="如：rm-xxx.rds.aliyuncs.com 或 localhost" />
         </div>
         <div class="form-row">
@@ -21,7 +21,7 @@
           <input v-model="addForm.port" class="field-input" type="text" placeholder="3306" />
         </div>
         <div class="form-row">
-          <label class="field-label">账号 *</label>
+          <label class="field-label">账号 <span class="req">*</span></label>
           <input v-model="addForm.user" class="field-input" type="text" placeholder="数据库账号" />
         </div>
         <div class="form-row">
@@ -29,7 +29,7 @@
           <input v-model="addForm.password" class="field-input" type="password" placeholder="可为空" />
         </div>
         <div class="form-row">
-          <label class="field-label">数据库名 *</label>
+          <label class="field-label">数据库名 <span class="req">*</span></label>
           <input v-model="addForm.database" class="field-input" type="text" placeholder="如：gra_studio" />
         </div>
         <p v-if="addDbMsg" class="msg" :class="addDbOk ? 'ok' : 'err'">{{ addDbMsg }}</p>
@@ -183,6 +183,7 @@ async function onSubmitAddDb() {
   color: #4e5969;
   margin-bottom: 6px;
 }
+.req { color: #ea4335; }
 .field-input {
   width: 100%;
   height: 40px;

@@ -294,6 +294,7 @@ async function confirmLogout() {
 }
 
 watch(currentGroupId, () => { fetchNoticeUnread() })
+window.addEventListener('notice-unread-changed', fetchNoticeUnread)
 
 onMounted(() => {
   document.addEventListener('click', onDocClick)
@@ -306,6 +307,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
+  window.removeEventListener('notice-unread-changed', fetchNoticeUnread)
   if (msgTimer) clearInterval(msgTimer)
 })
 </script>

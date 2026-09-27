@@ -35,19 +35,21 @@ class MentorStudentRepository extends BaseRepository {
     super('mentor_student')
   }
 
-  // 联表取学生账号 / 姓名的公共字段
+  // 联表取学生账号 / 姓名、导师账号 / 姓名的公共字段
   _joinSelect() {
     return `${cols(SAFE_COLUMNS)},
       \`su\`.\`username\` AS \`student_username\`,
       \`sp\`.\`real_name\` AS \`student_real_name\`,
-      \`mu\`.\`username\` AS \`mentor_username\``
+      \`mu\`.\`username\` AS \`mentor_username\`,
+      \`mp\`.\`real_name\` AS \`mentor_real_name\``
   }
 
   _joinFrom() {
     return `FROM \`mentor_student\` AS \`ms\`
       LEFT JOIN \`user\` AS \`su\` ON \`su\`.\`id\` = \`ms\`.\`student_id\` AND \`su\`.\`is_deleted\` = 0
       LEFT JOIN \`user_profile\` AS \`sp\` ON \`sp\`.\`user_id\` = \`ms\`.\`student_id\` AND \`sp\`.\`is_deleted\` = 0
-      LEFT JOIN \`user\` AS \`mu\` ON \`mu\`.\`id\` = \`ms\`.\`mentor_id\` AND \`mu\`.\`is_deleted\` = 0`
+      LEFT JOIN \`user\` AS \`mu\` ON \`mu\`.\`id\` = \`ms\`.\`mentor_id\` AND \`mu\`.\`is_deleted\` = 0
+      LEFT JOIN \`user_profile\` AS \`mp\` ON \`mp\`.\`user_id\` = \`ms\`.\`mentor_id\` AND \`mp\`.\`is_deleted\` = 0`
   }
 
   /**
@@ -88,6 +90,19 @@ class MentorStudentRepository extends BaseRepository {
       ORDER BY \`ms\`.\`id\` DESC`
     const [rows] = await this._execute(sql, params, 'listByGroup')
     return rows
+  }
+
+  /**
+   * 按学生查导师（学生「我的指导老师」，取最近一条 active）
+   * @param {number} studentId
+   * @returns {Object|null}
+   */
+  async findByStudent(studentId) {
+    const sql = `SELECT ${this._joinSelect()} ${this._joinFrom()}
+      WHERE \`ms\`.\`student_id\` = ? AND \`ms\`.\`is_deleted\` = 0 AND \`ms\`.\`status\` = 'active'
+      ORDER BY \`ms\`.\`id\` DESC LIMIT 1`
+    const [rows] = await this._execute(sql, [studentId], 'findByStudent')
+    return rows[0] || null
   }
 
   /**

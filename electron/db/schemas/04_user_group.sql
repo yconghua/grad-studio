@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS `user_group` (
   `status`        VARCHAR(20)  NOT NULL DEFAULT 'active' COMMENT '状态：active 在组 / left 已离组 / disabled 被禁用',
   `joined_at`     DATETIME                             COMMENT '入组时间',
   `left_at`       DATETIME                             COMMENT '离组时间',
-  `remark`        VARCHAR(255) NOT NULL DEFAULT ''     COMMENT '备注',
+  `remark`        VARCHAR(255) DEFAULT NULL     COMMENT '备注',
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `is_deleted`    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '软删除标记：0 正常 / 1 已删除',

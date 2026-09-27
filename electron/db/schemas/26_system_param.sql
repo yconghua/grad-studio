@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS `system_param` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `param_key`     VARCHAR(100) NOT NULL                COMMENT '参数键（唯一）',
   `param_value`   TEXT                                 COMMENT '参数值',
-  `description`   VARCHAR(200) NOT NULL DEFAULT ''     COMMENT '参数说明',
+  `description`   VARCHAR(200) DEFAULT NULL     COMMENT '参数说明',
   `updated_by`    INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '最后修改人 user.id',
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

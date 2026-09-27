@@ -6,7 +6,6 @@
         <p class="page-desc">组内共享资料目录与文件，学生只读，组管 / 导师可维护。</p>
       </div>
       <div class="head-actions">
-        <GroupSelector />
         <button v-if="isManager" class="btn primary" @click="openNodeModal()">＋ 新建目录</button>
       </div>
     </div>
@@ -104,13 +103,13 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref, watch } from 'vue'
 import {
   listKnowledge, createKnowledge, removeKnowledge,
   listKnowledgeFiles, uploadKnowledgeFile, removeKnowledgeFile,
   pickAttachment, openAttachment
 } from '../../api'
-import GroupSelector from '../../components/GroupSelector.vue'
 import { useGroupContext } from '../../composables/useGroupContext'
 import { useRole } from '../../composables/useRole'
 
@@ -208,16 +207,16 @@ async function onSaveNode() {
 }
 
 async function onRemoveNode(n) {
-  if (!window.confirm(`确定删除目录「${n.name}」及其下文件吗？`)) return
+  if (!await dialogConfirm(`确定删除目录「${n.name}」及其下文件吗？`)) return
   const res = await removeKnowledge(n.id)
   if (res && res.success) await loadTree()
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 async function onUploadFile() {
   const picked = await pickAttachment()
   if (!picked || !picked.success) {
-    if (picked && picked.message) alert(picked.message)
+    if (picked && picked.message) dialogAlert(picked.message)
     return
   }
   const title = window.prompt('文件标题：', picked.name || '')
@@ -231,19 +230,19 @@ async function onUploadFile() {
     file_type: ext
   })
   if (res && res.success) await selectNode(selected.value)
-  else alert((res && res.message) || '上传失败')
+  else dialogAlert((res && res.message) || '上传失败')
 }
 
 async function onRemoveFile(f) {
-  if (!window.confirm('确定删除该文件记录吗？')) return
+  if (!await dialogConfirm('确定删除该文件记录吗？')) return
   const res = await removeKnowledgeFile(f.id)
   if (res && res.success) await selectNode(selected.value)
-  else alert((res && res.message) || '删除失败')
+  else dialogAlert((res && res.message) || '删除失败')
 }
 
 async function onOpenFile(path) {
   const res = await openAttachment(path)
-  if (!res || !res.success) alert((res && res.message) || '打开失败')
+  if (!res || !res.success) dialogAlert((res && res.message) || '打开失败')
 }
 
 function formatSize(b) {

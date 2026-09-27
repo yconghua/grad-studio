@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS `task` (
   `progress_percent` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '当前进度（0-100）',
   `deadline`      DATETIME                             COMMENT '截止时间',
   `completed_at`  DATETIME                             COMMENT '完成时间',
-  `remark`        VARCHAR(500) NOT NULL DEFAULT ''     COMMENT '备注',
+  `remark`        VARCHAR(500) DEFAULT NULL     COMMENT '备注',
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `is_deleted`    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '软删除标记：0 正常 / 1 已删除',

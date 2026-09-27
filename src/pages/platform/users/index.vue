@@ -115,6 +115,7 @@
 </template>
 
 <script setup>
+import { dialogAlert, dialogConfirm } from '../../../composables/useDialog'
 import { ref, computed, onMounted } from 'vue'
 import { listUsers, createUser, updateUser, deleteUser, batchCreateUsers } from '../../../api'
 
@@ -245,10 +246,10 @@ async function confirmDelete() {
       deleting.value = null
       await loadList()
     } else {
-      alert((res && res.message) || '删除失败')
+      dialogAlert((res && res.message) || '删除失败')
     }
   } catch (e) {
-    alert('网络异常')
+    dialogAlert('网络异常')
   }
 }
 
