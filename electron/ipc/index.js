@@ -57,6 +57,8 @@ const groupSettingRoutes = require('./groupSetting')
 const systemParamRoutes = require('./systemParam')
 const operationLogRoutes = require('./operationLog')
 const messageRoutes = require('./message')
+const overviewRoutes = require('./overview')
+const searchRoutes = require('./search')
 
 // 敏感字段脱敏：递归替换密码类字段，避免日志泄露明文密码
 function sanitize(value) {
@@ -121,6 +123,8 @@ function registerAll(ipcMain) {
   systemParamRoutes.register(logger)
   operationLogRoutes.register(logger)
   messageRoutes.register(logger)
+  overviewRoutes.register(logger)
+  searchRoutes.register(logger)
 }
 
 module.exports = { registerAll }

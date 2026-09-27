@@ -94,6 +94,7 @@ contextBridge.exposeInMainWorld('api', {
     exportDb: createInvoke('sys:export-db'),
     openDevTools: createInvoke('sys:open-devtools'),
     checkForUpdates: createInvoke('sys:check-update'),
+    openExternal: createInvoke('sys:open-external'),
     pickAttachment: createInvoke('sys:pick-attachment'),
     openAttachment: createInvoke('sys:open-attachment')
   },
@@ -259,5 +260,16 @@ contextBridge.exposeInMainWorld('api', {
     unreadCount: createInvoke('message:unread-count'),
     markRead: createInvoke('message:mark-read'),
     markAllRead: createInvoke('message:mark-all-read')
+  },
+  // 数据总览（overview:*，仅超级管理员）
+  overview: {
+    groups: createInvoke('overview:groups'),
+    groupDetail: createInvoke('overview:group-detail'),
+    users: createInvoke('overview:users'),
+    userDetail: createInvoke('overview:user-detail')
+  },
+  // 全局搜索（search:*，按角色限定可见范围）
+  search: {
+    global: createInvoke('search:global')
   }
 })

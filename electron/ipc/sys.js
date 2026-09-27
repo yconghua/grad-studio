@@ -214,6 +214,25 @@ function register(ipcMain) {
     }
   })
 
+  // 打开外部链接（仅允许 GitHub 域名）：供「检查更新 → 前往下载页」用系统浏览器打开；需登录。
+  // 白名单校验：只放行 github.com 的 https 链接，避免被用于任意外链跳转。
+  ipcMain.handle('sys:open-external', async (_evt, payload) => {
+    if (!authService.getCurrentUser()) {
+      return { success: false, message: '未登录，请重新登录' }
+    }
+    const url = payload && payload.url
+    if (!url || typeof url !== 'string' || !/^https:\/\/github\.com\//i.test(url)) {
+      return { success: false, message: '链接不合法' }
+    }
+    try {
+      await shell.openExternal(url)
+      return { success: true, message: '已打开' }
+    } catch (err) {
+      console.error('[sys:open-external] 未预期异常:', err)
+      return { success: false, message: '打开链接失败，请重试' }
+    }
+  })
+
   // 导出数据库备份：先弹「保存」对话框让用户选位置，再导出当前库为 SQL 文件；仅超级管理员
   ipcMain.handle('sys:export-db', async (event) => {
     if (!authService.getCurrentUser()) {

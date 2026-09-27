@@ -95,7 +95,13 @@
     <div v-if="showBatch" class="modal-mask" @click.self="showBatch = false">
       <div class="modal-box wide">
         <h3 class="modal-title">批量导入用户</h3>
-        <p class="batch-hint">每行一条：账号,角色（角色可选，缺省 student）；或粘贴 JSON 数组 [{ username, role }]。单次最多 500 条。初始密码按角色默认值生成。</p>
+        <p class="batch-hint">每行一条：账号,角色（角色可选，缺省 student）；或粘贴 JSON 数组 [{ username, role }]；也可直接选择 CSV 文件导入。单次最多 500 条。初始密码按角色默认值生成。</p>
+        <div class="batch-tools">
+          <button class="btn btn-secondary" @click="downloadSampleCsv">📄 下载示例 CSV</button>
+          <button class="btn btn-secondary" @click="pickCsvFile">📂 选择 CSV 文件</button>
+          <span v-if="batchFileName" class="batch-file-name">已选择：{{ batchFileName }}</span>
+        </div>
+        <input ref="csvInput" type="file" accept=".csv,text/csv" class="hidden-file" @change="onPickCsv" />
         <textarea v-model="batchText" class="textarea" rows="8" placeholder="zhangsan,student&#10;lisi,mentor&#10;wangwu,group_admin"></textarea>
         <p v-if="batchError" class="form-error">{{ batchError }}</p>
         <div v-if="batchResult" class="batch-result">
@@ -259,12 +265,87 @@ const batchText = ref('')
 const batchError = ref('')
 const batchSubmitting = ref(false)
 const batchResult = ref(null)
+const csvInput = ref(null)
+const batchFileName = ref('')
 
 function openBatch() {
   batchText.value = ''
   batchError.value = ''
   batchResult.value = null
+  batchFileName.value = ''
   showBatch.value = true
+}
+
+// 下载示例 CSV（带 UTF-8 BOM，Excel 打开中文不乱码）
+function downloadSampleCsv() {
+  const content = '\ufeffusername,role\nzhangsan,student\nlisi,mentor\nwangwu,group_admin\nzhaoliu,student\n'
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = '用户导入示例.csv'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function pickCsvFile() {
+  if (csvInput.value) csvInput.value.click()
+}
+
+// 读取 CSV 文件内容：优先 UTF-8，失败（Excel 导出的 GBK 编码）回退 GBK 解码
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsArrayBuffer(file)
+  }).then((buf) => {
+    const bytes = new Uint8Array(buf)
+    let start = 0
+    if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) start = 3
+    const slice = bytes.slice(start)
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(slice)
+    } catch (e) {
+      return new TextDecoder('gbk').decode(slice)
+    }
+  })
+}
+
+// 解析 CSV 文本为「账号,角色」行数组：支持表头（username/账号），跳过空行与表头
+function parseCsv(text) {
+  const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  let start = 0
+  if (lines.length && /username|账号|用户名/i.test(lines[0])) start = 1
+  const rows = []
+  for (let i = start; i < lines.length; i++) {
+    const parts = lines[i].split(/[,，\t]/).map((x) => x.trim())
+    if (!parts[0]) continue
+    rows.push(`${parts[0]},${parts[1] || 'student'}`)
+  }
+  return rows
+}
+
+async function onPickCsv(e) {
+  const file = e.target.files && e.target.files[0]
+  e.target.value = ''
+  if (!file) return
+  batchError.value = ''
+  batchResult.value = null
+  try {
+    const text = await readFileAsText(file)
+    const rows = parseCsv(text)
+    if (!rows.length) {
+      batchError.value = 'CSV 中没有有效数据（请确保每行格式为：账号,角色）'
+      return
+    }
+    batchText.value = rows.join('\n')
+    batchFileName.value = file.name
+  } catch (err) {
+    batchError.value = '读取 CSV 文件失败，请重试'
+  }
 }
 
 function parseBatch(text) {
@@ -396,6 +477,10 @@ onMounted(loadList)
 .result-pwd { background: #e8f7ee; color: #19a558; font-size: 13px; padding: 8px 12px; border-radius: 8px; margin: 8px 0 0; }
 
 .batch-hint { font-size: 12px; color: #8a9099; margin: 0 0 10px; line-height: 1.6; }
+.batch-tools { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.batch-tools .btn { height: 30px; padding: 0 12px; font-size: 12px; }
+.batch-file-name { font-size: 12px; color: #0d80e0; }
+.hidden-file { display: none; }
 .batch-result { margin-top: 12px; font-size: 13px; }
 .batch-result .ok-line { color: #19a558; margin: 0; }
 .failed-box { margin-top: 8px; background: #fff5f5; border-radius: 8px; padding: 10px 12px; }

@@ -63,6 +63,7 @@ export const navItems = [
   // ===== 超级管理员专属（平台运维，无课题组内业务） =====
   { key: 'platform-users', title: '用户管理', icon: 'UserOutlined', roles: [ROLE_SUPER_ADMIN] },
   { key: 'platform-groups', title: '课题组管理', icon: 'ApartmentOutlined', roles: [ROLE_SUPER_ADMIN] },
+  { key: 'platform-overview', title: '数据总览', icon: 'DatabaseOutlined', roles: [ROLE_SUPER_ADMIN] },
   { key: 'platform-config', title: '系统配置', icon: 'ControlOutlined', roles: [ROLE_SUPER_ADMIN] },
   { key: 'platform-logs', title: '系统操作日志', icon: 'FileSearchOutlined', roles: [ROLE_SUPER_ADMIN] },
   { key: 'platform-help', title: '帮助文档', icon: 'QuestionCircleOutlined', roles: [ROLE_SUPER_ADMIN] }

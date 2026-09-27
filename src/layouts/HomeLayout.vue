@@ -9,7 +9,7 @@
       </div>
 
       <div class="header-right">
-        <!-- 全局搜索框（骨架：搜索接口待接入，当前提示建设中） -->
+        <!-- 全局搜索：输入防抖检索，结果分组展示，点击跳转对应菜单页 -->
         <div class="search-box">
           <input
             v-model="searchKeyword"
@@ -17,11 +17,37 @@
             placeholder="全局搜索"
             @focus="searchVisible = true"
             @blur="onSearchBlur"
+            @keydown.esc="searchVisible = false"
           />
           <div v-if="searchVisible" class="search-panel">
-            <div class="search-state">
-              {{ searchKeyword.trim() ? '全局搜索功能建设中，将在接口接入后启用。' : '输入关键词进行全局搜索。' }}
-            </div>
+            <template v-if="!searchKeyword.trim()">
+              <div class="search-state">输入关键词进行全局搜索，支持课题组、成员、公告、组会、课题、任务等。</div>
+            </template>
+            <template v-else-if="searchLoading">
+              <div class="search-state">搜索中…</div>
+            </template>
+            <template v-else-if="searchError">
+              <div class="search-state">{{ searchError }}</div>
+            </template>
+            <template v-else-if="!searchResultGroups.length">
+              <div class="search-state">未找到与「{{ searchKeyword.trim() }}」相关的内容</div>
+            </template>
+            <template v-else>
+              <div class="search-groups">
+                <div v-for="g in searchResultGroups" :key="g.key" class="search-group">
+                  <div class="search-group-title">{{ g.icon }} {{ g.label }}</div>
+                  <div
+                    v-for="r in searchResults[g.key]"
+                    :key="g.key + '-' + r.id"
+                    class="search-result-item"
+                    @mousedown.prevent="goSearchResult(r)"
+                  >
+                    <span class="search-result-main">{{ resultMain(g.key, r) }}</span>
+                    <span v-if="resultSub(g.key, r)" class="search-result-sub">{{ resultSub(g.key, r) }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -65,6 +91,10 @@
               <RouterLink class="dropdown-item" to="/profile" @click="userMenuOpen = false">个人资料</RouterLink>
               <RouterLink class="dropdown-item" to="/profile/password" @click="userMenuOpen = false">修改密码</RouterLink>
               <RouterLink class="dropdown-item" to="/help" @click="userMenuOpen = false">使用帮助</RouterLink>
+              <div class="dropdown-item update-item" @click="onCheckUpdate">
+                <span>检查更新</span>
+                <span v-if="updateAvailable" class="update-dot" title="发现新版本"></span>
+              </div>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item danger" @click="onLogout">退出登录</button>
             </div>
@@ -119,8 +149,12 @@ import {
   listMyMessages,
   markMessageRead,
   markAllMessagesRead,
-  getNoticeUnreadCount
+  getNoticeUnreadCount,
+  globalSearch,
+  checkForUpdates,
+  openExternal
 } from '../api'
+import { dialogAlert, dialogConfirm } from '../composables/useDialog'
 import { visibleNavItems } from '../config/navConfig'
 import { useSession } from '../composables/useSession'
 import { useGroupContext } from '../composables/useGroupContext'
@@ -266,19 +300,183 @@ function formatTime(t) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-// ===== 顶部：全局搜索（骨架） =====
+// ===== 顶部：全局搜索 =====
 const searchKeyword = ref('')
 const searchVisible = ref(false)
+const searchLoading = ref(false)
+const searchResults = ref({})
+const searchError = ref('')
+let searchTimer = null
+
+// 结果分组展示配置（顺序即面板展示顺序）
+const SEARCH_GROUPS = [
+  { key: 'groups', label: '课题组', icon: '🏢' },
+  { key: 'members', label: '成员', icon: '👥' },
+  { key: 'notices', label: '课题组公告', icon: '📢' },
+  { key: 'meetings', label: '组会', icon: '📅' },
+  { key: 'subjects', label: '课题', icon: '🔬' },
+  { key: 'tasks', label: '任务', icon: '✅' },
+  { key: 'degreeNodes', label: '学位节点', icon: '🗓️' },
+  { key: 'degreeRecords', label: '学生学位记录', icon: '🎓' },
+  { key: 'achievements', label: '科研成果', icon: '🏆' },
+  { key: 'knowledge', label: '课题组知识库', icon: '📖' },
+  { key: 'literatures', label: '文献', icon: '📚' },
+  { key: 'researchLogs', label: '科研日志', icon: '📝' },
+  { key: 'weeklyReports', label: '周报', icon: '📋' },
+  { key: 'archives', label: '科研档案', icon: '📂' }
+]
+
+// 只展示有结果的分组
+const searchResultGroups = computed(() =>
+  SEARCH_GROUPS.filter((g) => searchResults.value[g.key] && searchResults.value[g.key].length)
+)
+
+const ROLE_GROUP_LABEL = { group_admin: '课题组管理员', mentor: '导师', student: '学生' }
+
+function truncate(s, n) {
+  if (!s) return ''
+  s = String(s)
+  return s.length > n ? s.slice(0, n) + '…' : s
+}
+
+function fmtDate(d) {
+  if (!d) return ''
+  return String(d).slice(0, 10)
+}
+
+// 结果主文本（按模块取有意义的标题字段）
+function resultMain(key, r) {
+  switch (key) {
+    case 'groups': return `${r.name}（${r.code}）`
+    case 'members': return r.real_name ? `${r.real_name}（${r.username}）` : r.username
+    case 'notices': return r.title
+    case 'meetings': return r.title
+    case 'subjects': return r.name
+    case 'tasks': return r.title
+    case 'degreeNodes': return r.name
+    case 'degreeRecords': return r.node_name || ''
+    case 'achievements': return r.title
+    case 'knowledge': return r.name
+    case 'literatures': return r.title
+    case 'researchLogs': return truncate(r.content, 40)
+    case 'weeklyReports': return truncate(r.work_content, 40)
+    case 'archives': return r.title || truncate(r.record_type, 20)
+    default: return ''
+  }
+}
+
+// 结果副文本（模块归属 / 人名 / 时间）
+function resultSub(key, r) {
+  switch (key) {
+    case 'groups': return r.status === 'active' ? '正常' : '停用'
+    case 'members': return [r.group_name, ROLE_GROUP_LABEL[r.role_in_group] || r.role_in_group].filter(Boolean).join(' · ')
+    case 'notices': return r.group_name || ''
+    case 'meetings': return r.group_name || ''
+    case 'subjects': return [r.group_name, r.status].filter(Boolean).join(' · ')
+    case 'tasks': return [r.group_name, r.status].filter(Boolean).join(' · ')
+    case 'degreeNodes': return r.group_name || ''
+    case 'degreeRecords': return [r.group_name, r.student_real_name || r.student_username].filter(Boolean).join(' · ')
+    case 'achievements': return [r.group_name, r.real_name || r.username].filter(Boolean).join(' · ')
+    case 'knowledge': return r.group_name || ''
+    case 'literatures': return r.authors || r.real_name || r.username || ''
+    case 'researchLogs': return [r.real_name || r.username, fmtDate(r.log_date)].filter(Boolean).join(' · ')
+    case 'weeklyReports': return [r.real_name || r.username, fmtDate(r.week_start)].filter(Boolean).join(' · ')
+    case 'archives': return [r.real_name || r.username, fmtDate(r.record_date)].filter(Boolean).join(' · ')
+    default: return ''
+  }
+}
+
+// 点击结果：跳转到对应菜单页并关闭面板
+function goSearchResult(r) {
+  searchVisible.value = false
+  if (r.route) router.push(r.route)
+}
+
 function onSearchBlur() {
   setTimeout(() => { searchVisible.value = false }, 150)
+}
+
+// 输入防抖检索：停顿 300ms 后请求
+watch(searchKeyword, (kw) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  const k = kw.trim()
+  if (!k) {
+    searchLoading.value = false
+    searchResults.value = {}
+    searchError.value = ''
+    return
+  }
+  searchLoading.value = true
+  searchError.value = ''
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await globalSearch(k)
+      if (res && res.success) {
+        searchResults.value = res.results || {}
+      } else {
+        searchResults.value = {}
+        searchError.value = (res && res.message) || '搜索失败'
+      }
+    } catch (e) {
+      searchResults.value = {}
+      searchError.value = '网络异常'
+    } finally {
+      searchLoading.value = false
+    }
+  }, 300)
+})
+
+// ===== 顶部：检查更新（GitHub Releases）=====
+const updateAvailable = ref(false)
+let updateChecking = false
+
+// 检查更新：silent=true 为启动静默检查（失败不打扰），手动点击时给完整反馈
+async function checkUpdate(silent = false) {
+  if (updateChecking) return
+  updateChecking = true
+  try {
+    const res = await checkForUpdates()
+    if (!res || !res.success) {
+      updateAvailable.value = false
+      if (!silent) dialogAlert((res && res.message) || '检查更新失败')
+      return
+    }
+    if (res.hasUpdate) {
+      updateAvailable.value = true
+      const go = await dialogConfirm(
+        `发现新版本 v${res.latest}（当前 v${res.current}），是否前往 GitHub 下载更新？`,
+        '发现新版本'
+      )
+      if (go) {
+        try {
+          const opened = await openExternal(res.url || `https://github.com/yconghua/grad-studio/releases/latest`)
+          if (!opened || !opened.success) dialogAlert((opened && opened.message) || '打开下载页失败')
+        } catch (e) {
+          dialogAlert('打开下载页失败')
+        }
+      }
+    } else {
+      updateAvailable.value = false
+      if (!silent) dialogAlert(`当前已是最新版本 v${res.current}`)
+    }
+  } catch (e) {
+    updateAvailable.value = false
+    if (!silent) dialogAlert('检查更新失败，请检查网络后重试')
+  } finally {
+    updateChecking = false
+  }
+}
+
+function onCheckUpdate() {
+  userMenuOpen.value = false
+  checkUpdate(false)
 }
 
 // ===== 退出登录 =====
 function onLogout() {
   exiting.value = false
   showConfirm.value = true
-}
-function cancelLogout() {
+}function cancelLogout() {
   if (exiting.value) return
   showConfirm.value = false
 }
@@ -304,11 +502,14 @@ onMounted(() => {
     fetchMsgUnread()
     fetchNoticeUnread()
   }, 60000)
+  // 启动后延迟静默检查一次更新，避免与登录后的数据加载抢网络
+  setTimeout(() => { checkUpdate(true) }, 2000)
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
   window.removeEventListener('notice-unread-changed', fetchNoticeUnread)
   if (msgTimer) clearInterval(msgTimer)
+  if (searchTimer) clearTimeout(searchTimer)
 })
 </script>
 
@@ -341,11 +542,24 @@ onUnmounted(() => {
 }
 .search-input:focus { border-color: #0d80e0; background: #fff; }
 .search-panel {
-  position: absolute; top: 40px; right: 0; width: 300px;
+  position: absolute; top: 40px; right: 0; width: 320px;
   background: #fff; border: 1px solid #eceff3; border-radius: 10px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14); z-index: 300; padding: 12px;
 }
 .search-state { text-align: center; font-size: 12px; color: #b8bec4; line-height: 1.7; padding: 8px 0; }
+.search-groups { max-height: 420px; overflow-y: auto; }
+.search-group { margin-bottom: 6px; }
+.search-group-title { font-size: 12px; color: #8a9099; margin: 6px 0 4px; font-weight: 600; }
+.search-result-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.search-result-item:hover { background: #eef6ff; }
+.search-result-main {
+  display: block; font-size: 13px; color: #1f2329; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.search-result-sub {
+  display: block; font-size: 11px; color: #8a9099; margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* 消息铃铛 */
 .bell-wrap { position: relative; cursor: pointer; display: inline-flex; align-items: center; }
@@ -421,6 +635,8 @@ onUnmounted(() => {
 }
 .dropdown-item:hover { background: #f5f8ff; color: #0d80e0; }
 .dropdown-item.danger:hover { background: #fff1f0; color: #ea4335; }
+.dropdown-item.update-item { display: flex; align-items: center; justify-content: space-between; }
+.update-dot { width: 8px; height: 8px; border-radius: 50%; background: #ea4335; flex-shrink: 0; }
 .dropdown-divider { height: 1px; background: #eceff3; margin: 5px 0; }
 .menu-fade-enter-active, .menu-fade-leave-active { transition: opacity 0.15s, transform 0.15s; }
 .menu-fade-enter-from, .menu-fade-leave-to { opacity: 0; transform: translateY(-4px); }

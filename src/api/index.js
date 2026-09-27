@@ -139,6 +139,11 @@ export function checkForUpdates() {
   return window.api.sys.checkForUpdates()
 }
 
+// 用系统浏览器打开外部链接（仅放行 GitHub 域名）
+export function openExternal(url) {
+  return window.api.sys.openExternal({ url })
+}
+
 // 选择附件文件（弹出文件对话框）
 export function pickAttachment() {
   return window.api.sys.pickAttachment()
@@ -577,4 +582,26 @@ export function markMessageRead(id) {
 
 export function markAllMessagesRead() {
   return window.api.message.markAllRead()
+}
+
+// ===== 数据总览（仅超管） =====
+export function listOverviewGroups() {
+  return window.api.overview.groups()
+}
+
+export function getOverviewGroupDetail(groupId) {
+  return window.api.overview.groupDetail({ group_id: groupId })
+}
+
+export function listOverviewUsers(role) {
+  return window.api.overview.users(role ? { role } : {})
+}
+
+export function getOverviewUserDetail(userId) {
+  return window.api.overview.userDetail({ user_id: userId })
+}
+
+// ===== 全局搜索（按角色限定可见范围） =====
+export function globalSearch(keyword) {
+  return window.api.search.global({ keyword })
 }
