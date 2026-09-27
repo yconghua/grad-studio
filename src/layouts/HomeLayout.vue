@@ -1,98 +1,67 @@
 ﻿<template>
   <div class="home-layout">
-    <!-- 顶部标题栏 -->
+    <!-- 顶部全局导航：品牌 + 全局搜索框 + 消息铃铛 + 头像下拉菜单 -->
     <header class="home-header">
       <div class="brand-wrap">
         <img class="brand-logo" :src="logoUrl" alt="logo" />
-        <span class="brand">研究生工作室管理平台</span>
+        <span class="brand">{{ appName }}</span>
         <button class="collapse-btn" @click="collapsed = !collapsed" title="折叠/展开导航">☰</button>
-        <!-- 面包屑：大导航 > 小导航，均可点击 -->
-        <nav class="breadcrumb" v-if="breadcrumb.length">
-          <template v-for="(bc, i) in breadcrumb" :key="i">
-            <RouterLink v-if="bc.to !== route.path" class="crumb-link" :to="bc.to">
-              <span class="crumb-icon">{{ bc.icon }}</span>{{ bc.title }}
-            </RouterLink>
-            <span v-else class="crumb-current">
-              <span class="crumb-icon">{{ bc.icon }}</span>{{ bc.title }}
-            </span>
-            <span v-if="i < breadcrumb.length - 1" class="crumb-sep">›</span>
-          </template>
-        </nav>
       </div>
+
       <div class="header-right">
-        <!-- 全局搜索：成员 / 论文 / 任务 / 公告 -->
+        <!-- 全局搜索框（骨架：搜索接口待接入，当前提示建设中） -->
         <div class="search-box">
           <input
             v-model="searchKeyword"
             class="search-input"
-            placeholder="搜索成员、论文、任务、公告"
+            placeholder="全局搜索"
             @focus="searchVisible = true"
-            @input="onSearchInput"
-            @keyup.enter="goFirstResult"
             @blur="onSearchBlur"
           />
           <div v-if="searchVisible" class="search-panel">
-            <div v-if="searching" class="search-state">搜索中…</div>
-            <template v-else>
-              <div v-if="searchResults.members.length" class="search-group">
-                <div class="search-group-title">👥 成员</div>
-                <div v-for="m in searchResults.members" :key="'m' + m.id" class="search-row" @mousedown.prevent="goResult('member', m)">
-                  {{ m.real_name || m.username }}<span class="search-sub">{{ roleText(m.role) }}</span>
-                </div>
-              </div>
-              <div v-if="searchResults.papers.length" class="search-group">
-                <div class="search-group-title">📄 论文</div>
-                <div v-for="p in searchResults.papers" :key="'p' + p.id" class="search-row" @mousedown.prevent="goResult('paper', p)">{{ p.title }}</div>
-              </div>
-              <div v-if="searchResults.tasks.length" class="search-group">
-                <div class="search-group-title">📋 任务</div>
-                <div v-for="t in searchResults.tasks" :key="'t' + t.id" class="search-row" @mousedown.prevent="goResult('task', t)">{{ t.title }}</div>
-              </div>
-              <div v-if="searchResults.notices.length" class="search-group">
-                <div class="search-group-title">📢 公告</div>
-                <div v-for="n in searchResults.notices" :key="'n' + n.id" class="search-row" @mousedown.prevent="goResult('notice', n)">{{ n.title }}</div>
-              </div>
-              <div v-if="searchKeyword.trim() && !hasResults" class="search-state">无匹配结果</div>
-              <div v-if="!searchKeyword.trim() && !searching" class="search-state">输入关键词搜索成员、论文、任务、公告</div>
-            </template>
+            <div class="search-state">
+              {{ searchKeyword.trim() ? '全局搜索功能建设中，将在接口接入后启用。' : '输入关键词进行全局搜索。' }}
+            </div>
           </div>
         </div>
-        <span class="bell" @click="goMessages" title="消息中心">🔔<span v-if="unread > 0" class="bell-badge">{{ unread > 99 ? "99+" : unread }}</span></span>
-        <RouterLink v-if="currentUser?.username" to="/profile" class="user-entry" title="进入个人主页">
+
+        <!-- 站内消息通知铃铛（UI 占位：消息中心尚未实现，后续接入未读数） -->
+        <span class="bell" @click="goMessages" title="站内消息">🔔</span>
+
+        <!-- 头像下拉菜单：个人资料 / 修改密码 / 使用帮助 / 退出登录 -->
+        <div class="user-menu" ref="userMenuRef" @click="userMenuOpen = !userMenuOpen">
           <span class="user-avatar">{{ avatarText }}</span>
-          <span v-if="!collapsed" class="user-name">{{ currentUser?.username }}</span>
-        </RouterLink>
-        <button class="logout-btn" @click="onLogout">退出登录</button>
+          <span v-if="!collapsed" class="user-name">{{ currentUser?.username || '未登录' }}</span>
+          <span class="user-caret" :class="{ open: userMenuOpen }">▾</span>
+
+          <transition name="menu-fade">
+            <div v-if="userMenuOpen" class="user-dropdown" @click.stop>
+              <RouterLink class="dropdown-item" to="/profile" @click="userMenuOpen = false">个人资料</RouterLink>
+              <RouterLink class="dropdown-item" to="/profile/password" @click="userMenuOpen = false">修改密码</RouterLink>
+              <RouterLink class="dropdown-item" to="/help" @click="userMenuOpen = false">使用帮助</RouterLink>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item danger" @click="onLogout">退出登录</button>
+            </div>
+          </transition>
+        </div>
       </div>
     </header>
 
-    <!-- 中间主体 -->
+    <!-- 中间主体：左侧动态权限菜单 + 右侧内容区 -->
     <div class="home-body">
       <nav class="home-nav" :class="{ collapsed: collapsed }">
-
-        <div v-for="group in visibleGroups" :key="group.key" class="nav-group">
-          <button
-            class="nav-parent"
-            :class="{ active: group.key === activeGroupKey }"
-            @click="toggleGroup(group)"
-            :title="group.title"
-          >
-            <span class="nav-icon">{{ groupIcon(group.key) }}</span>
-            <span v-if="!collapsed" class="nav-parent-title">{{ group.title }}</span>
-            <span v-if="!collapsed" class="nav-caret" :class="{ open: isGroupOpen(group.key) }">▸</span>
-          </button>
-          <div v-show="isGroupOpen(group.key) && !collapsed" class="nav-children">
-            <RouterLink
-              v-for="child in visibleChildren(group)"
-              :key="child.key"
-              :to="`/${group.key}/${child.key}`"
-              class="nav-item"
-            >
-              <span class="nav-icon">{{ childIcon(child.key) }}</span>
-              <span class="nav-item-title">{{ child.title }}</span>
-            </RouterLink>
-          </div>
-        </div>
+        <RouterLink
+          v-for="item in visibleMenus"
+          :key="item.key"
+          :to="menuPath(item)"
+          class="nav-item"
+          :class="{ 'router-link-active': isActive(item) }"
+          :title="item.title"
+        >
+          <span class="nav-icon">{{ menuIcon(item) }}</span>
+          <span v-if="!collapsed" class="nav-item-title">{{ item.title }}</span>
+          <span v-if="!collapsed && menuBadge(item)" class="nav-badge">{{ menuBadge(item) }}</span>
+        </RouterLink>
       </nav>
 
       <main class="home-content">
@@ -100,8 +69,9 @@
       </main>
     </div>
 
-    <footer class="home-footer">研究生工作室管理平台</footer>
+    <footer class="home-footer">{{ appName }}</footer>
 
+    <!-- 退出登录确认 -->
     <div v-if="showConfirm" class="modal-mask" @click.self="cancelLogout">
       <div class="modal-box">
         <p class="modal-text">确定要退出登录吗？</p>
@@ -111,403 +81,201 @@
         </div>
       </div>
     </div>
-
-    <!-- 登录引导（管理员可在系统参数中开关） -->
-    <GuideDialog
-      :visible="guideVisible"
-      :role="role"
-      :user-id="currentUser ? currentUser.id : ''"
-      :version="guideVersion"
-      @close="closeGuide"
-    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { logout, system, search as searchApi } from '../api'
-import { navGroups, profileNavItems, groupRoles, childRoles, isRoleAllowed } from '../config/navConfig'
-import { ROLE_STUDENT } from '../config/constants'
+import { logout } from '../api'
+import { visibleNavItems } from '../config/navConfig'
 import { useSession } from '../composables/useSession'
 import logoUrl from '../assets/logo.ico'
-import GuideDialog from '../components/GuideDialog.vue'
 
 const { clearSession, getSessionUser } = useSession()
 const currentUser = getSessionUser()
 const router = useRouter()
 const route = useRoute()
-const showConfirm = ref(false)
-const unread = ref(0)
+
+// 系统名称：可随时调整
+const appName = '课题组科研管理平台'
+
 const collapsed = ref(false)
-let pollTimer = null
+const showConfirm = ref(false)
+const exiting = ref(false)
 
-async function refreshUnread() {
-  try {
-    const r = await system.unreadCount()
-    unread.value = (r && r.success) ? r.count : 0
-  } catch (e) {}
+// ===== 侧边菜单：按当前角色动态过滤（动态权限渲染） =====
+const visibleMenus = computed(() => visibleNavItems(currentUser?.role || ''))
+
+// 菜单项路由路径：platform-xxx → /platform/xxx，其余 → /xxx
+function menuPath(item) {
+  return item.key.indexOf('platform-') === 0
+    ? '/platform/' + item.key.replace('platform-', '')
+    : '/' + item.key
 }
 
-function goMessages() {
-  router.push('/profile/message')
+// 当前路由高亮：精确匹配或前缀匹配
+function isActive(item) {
+  const p = menuPath(item)
+  return route.path === p || route.path.startsWith(p + '/')
 }
 
-const role = computed(() => currentUser?.role || ROLE_STUDENT)
-const visibleGroups = computed(() =>
-  navGroups.filter((g) => isRoleAllowed(groupRoles(g), role.value))
-)
-
-const activeGroupKey = computed(() => {
-  const path = route.path
-  const hit = visibleGroups.value.find(
-    (g) => path === `/${g.key}` || path.startsWith(`/${g.key}/`)
-  )
-  return hit ? hit.key : null
-})
-
-// 面包屑：大导航 > 小导航（均可点击跳转）；个人主页单独处理
-const breadcrumb = computed(() => {
-  const path = route.path
-  if (path === '/profile' || path.startsWith('/profile/')) {
-    const tab = profileNavItems.find((t) => path === `/profile/${t.key}`)
-    return [
-      { title: '个人主页', icon: '👤', to: '/profile' },
-      ...(tab ? [{ title: tab.title, icon: childIcon(tab.key), to: `/profile/${tab.key}` }] : [])
-    ]
+// 菜单角标（未读红点等）：当前仅课题组公告预留。
+// 接入方式：后续公告接口就绪后，通过公告未读接口刷新，
+// 返回值 > 0 时显示数字角标，未读数归零后自动隐藏。
+function menuBadge(item) {
+  if (item.key === 'notice') {
+    return noticeUnread.value > 0 ? noticeUnread.value : null
   }
-  const group = navGroups.find((g) => path === `/${g.key}` || path.startsWith(`/${g.key}/`))
-  if (!group) return []
-  const child = group.children.find((c) => path === `/${group.key}/${c.key}`)
-  return [
-    { title: group.title, icon: groupIcon(group.key), to: `/${group.key}` },
-    ...(child ? [{ title: child.title, icon: childIcon(child.key), to: `/${group.key}/${child.key}` }] : [])
-  ]
-})
-
-const openKey = ref(null)
-function isGroupOpen(key) {
-  return openKey.value === key || activeGroupKey.value === key
-}
-// 路由切换时同步展开状态：
-// - 切到其他模块（如工作台 → 协同办公）：收起旧模块、展开新模块；
-// - 切到个人主页等不属于任何导航组的页面：全部收起（key 为 null）。
-watch(activeGroupKey, (key) => {
-  openKey.value = key || null
-})
-function visibleChildren(group) {
-  return group.children.filter((c) => isRoleAllowed(childRoles(group, c), role.value))
-}
-function toggleGroup(group) {
-  openKey.value = group.key
-  router.push("/" + group.key)
+  return null
 }
 
-// 一级导航图标
-const groupIcons = {
-  workbench: '🏠',
-  research: '🔬',
-  studio: '🏢',
-  resource: '📚',
-  collaboration: '👥',
-  report: '📊',
-  system: '⚙️'
-}
-function groupIcon(key) { return groupIcons[key] || '📄' }
+// 公告未读数（预留，默认 0；后续由公告未读接口驱动）
+const noticeUnread = ref(0)
 
-// 二级导航图标
-const childIcons = {
-  overview: '🏠', todo: '✅', schedule: '📅', notice: '📢', shortcuts: '🔗',
-  project: '📊', paper: '📄', patent: '💡', subject: '🔬', log: '📝',
-  achievement: '🏆', graduation: '🎓', fund: '💰',
-  member: '👥', seat: '🪑', device: '🖥️', attendance: '🕐', duty: '🧹',
-  regulation: '📋', 'join-leave': '🚪', borrow: '📦',
-  doc: '📚', dataset: '🗃️', code: '💻', tool: '🛠️', template: '📑', drive: '☁️', link: '🔗',
-  'weekly-report': '📝', meeting: '👥', activity: '🎉', task: '📋', forum: '💬', approval: '✅',
-  'achievement-stat': '📊', 'attendance-stat': '📈', 'task-stat': '📉',
-  'device-stat': '🖥️', 'activity-stat': '🔥', export: '📤',
-  user: '👤', audit: '🔍', backup: '💾', param: '⚙️', update: 'ℹ️',
-  overview: '🏠', academic: '🎓', 'my-project': '📊', 'my-achievement': '🏆',
-  'my-task': '📋', 'my-schedule': '📅', message: '💬', setting: '⚙️'
+// ===== 菜单图标：Ant Design Vue 图标名（navConfig.icon）→ 当前占位渲染 =====
+// 说明：icon 字段已按 @ant-design/icons-vue 的图标名配置；
+// 安装依赖后，将下方 emoji 映射替换为图标组件解析（如 <component :is="AntdIcons[name]" />）。
+const MENU_ICON_FALLBACK = {
+  workbench: '🏠', notice: '📢', member: '👥', students: '🎓', degree: '🗓️',
+  meeting: '📅', subject: '🔬', task: '✅', 'research-record': '📝', 'my-work': '📋',
+  achievement: '🏆', literature: '📚', archive: '📂', knowledge: '📖', 'ai-assistant': '🤖',
+  settings: '⚙️', 'platform-users': '👤', 'platform-groups': '🏢',
+  'platform-config': '🔧', 'platform-logs': '🕐', 'platform-help': '❓'
 }
-function childIcon(key) { return childIcons[key] || '📄' }
+function menuIcon(item) {
+  return MENU_ICON_FALLBACK[item.key] || '📄'
+}
 
+// ===== 顶部：头像与下拉 =====
+const userMenuRef = ref(null)
+const userMenuOpen = ref(false)
 const avatarText = computed(() => {
   const name = currentUser?.username || '?'
   return name.charAt(0).toUpperCase()
 })
 
-onMounted(() => {
-  refreshUnread()
-  pollTimer = setInterval(refreshUnread, 30000)
-  maybeShowGuide()
-  // 消息页标记已读后广播 events，顶部数字立即刷新
-  window.addEventListener('messages-read', refreshUnread)
-  // 路由变化（如从消息页跳到任务页/返回）时同步刷新未读数
-  watch(() => route.path, () => refreshUnread())
-})
-onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
-  window.removeEventListener('messages-read', refreshUnread)
-})
-
-const exiting = ref(false)
-function onLogout() {
-  exiting.value = false
-  showConfirm.value = true
+// 点击页面其他区域关闭下拉
+function onDocClick(e) {
+  if (userMenuRef.value && !userMenuRef.value.contains(e.target)) {
+    userMenuOpen.value = false
+  }
 }
 
-// ===== 全局搜索 =====
+// ===== 顶部：消息铃铛 =====
+// 消息中心尚未实现；铃铛暂为 UI 占位，
+// 后续在此接入未读数查询与消息中心路由跳转。
+function goMessages() {
+  // 消息中心页面待建：当前无跳转目标
+}
+
+// ===== 顶部：全局搜索（骨架） =====
 const searchKeyword = ref('')
-const searchResults = ref({ members: [], papers: [], tasks: [], notices: [] })
 const searchVisible = ref(false)
-const searching = ref(false)
-let searchTimer = null
-
-const hasResults = computed(() =>
-  searchResults.value.members.length || searchResults.value.papers.length ||
-  searchResults.value.tasks.length || searchResults.value.notices.length
-)
-
-const ROLE_TEXT = { admin: '管理员', mentor: '导师', student: '学生', user: '普通用户' }
-function roleText(v) {
-  return ROLE_TEXT[v] || v || ''
-}
-
-function onSearchInput() {
-  if (searchTimer) clearTimeout(searchTimer)
-  const kw = searchKeyword.value.trim()
-  if (!kw) {
-    searchResults.value = { members: [], papers: [], tasks: [], notices: [] }
-    return
-  }
-  searchTimer = setTimeout(async () => {
-    searching.value = true
-    try {
-      const r = await searchApi.globalSearch(kw)
-      searchResults.value = r && r.success
-        ? { members: r.members || [], papers: r.papers || [], tasks: r.tasks || [], notices: r.notices || [] }
-        : { members: [], papers: [], tasks: [], notices: [] }
-    } catch (e) {
-      console.error('[search.global] 前端异常:', e)
-      searchResults.value = { members: [], papers: [], tasks: [], notices: [] }
-    } finally {
-      searching.value = false
-    }
-  }, 300)
-}
-
-function goResult(type) {
-  searchVisible.value = false
-  searchKeyword.value = ''
-  searchResults.value = { members: [], papers: [], tasks: [], notices: [] }
-  if (type === 'member') router.push('/system/user')
-  else if (type === 'paper') router.push('/research/paper')
-  else if (type === 'task') router.push('/collaboration/task')
-  else if (type === 'notice') router.push('/workbench/notice')
-}
-
-function goFirstResult() {
-  const types = ['members', 'papers', 'tasks', 'notices']
-  const typeMap = { members: 'member', papers: 'paper', tasks: 'task', notices: 'notice' }
-  for (const k of types) {
-    if (searchResults.value[k].length) {
-      goResult(typeMap[k])
-      return
-    }
-  }
-}
-
 function onSearchBlur() {
   setTimeout(() => { searchVisible.value = false }, 150)
 }
 
-// ===== 登录引导 =====
-const guideVisible = ref(false)
-const guideVersion = ref('1')
-
-async function maybeShowGuide() {
-  try {
-    // 1. 读取管理员开关（guide_enabled）；未配置默认开启，显式 '0' 才关闭
-    const enabledRes = await system.getParam('guide_enabled')
-    if (enabledRes && enabledRes.success && enabledRes.value === '0') return
-    // 2. 读取引导版本号（升级内容后 +1，让已看过的人再看一次）
-    const verRes = await system.getParam('guide_version')
-    const version = (verRes && verRes.success && verRes.value) ? String(verRes.value) : '1'
-    guideVersion.value = version
-    // 3. 本机该用户是否已看过当前版本
-    const uid = currentUser ? currentUser.id : null
-    if (uid === null || uid === undefined) return
-    try {
-      if (localStorage.getItem(`guide_seen_${uid}_${version}`)) return
-    } catch (e) {}
-    guideVisible.value = true
-  } catch (e) {
-    console.error('[guide.check] 异常:', e)
-  }
-}
-
-function closeGuide() {
-  guideVisible.value = false
-}
-async function confirmLogout() {
-  if (exiting.value) return
-  exiting.value = true
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-  showConfirm.value = false
+// ===== 退出登录 =====
+function onLogout() {
   exiting.value = false
-  await logout()
-  clearSession()
-  router.push('/login')
+  showConfirm.value = true
 }
 function cancelLogout() {
   if (exiting.value) return
   showConfirm.value = false
 }
+async function confirmLogout() {
+  if (exiting.value) return
+  exiting.value = true
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  showConfirm.value = false
+  exiting.value = false
+  try { await logout() } catch (e) {}
+  clearSession()
+  router.push('/login')
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', onDocClick)
+})
 </script>
 
 <style scoped>
 .home-layout { height: 100%; display: flex; flex-direction: column; }
+/* ===== 顶部导航 ===== */
 .home-header {
   height: 56px; flex: 0 0 56px;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 20px; background: #fff; border-bottom: 1px solid #eceff3;
+  position: relative; z-index: 20;
 }
 .brand-wrap { display: flex; align-items: center; gap: 10px; }
+.brand-logo { width: 26px; height: 26px; object-fit: contain; }
+.brand { font-size: 15px; font-weight: 600; white-space: nowrap; }
 .collapse-btn {
   width: 28px; height: 28px; border: 1px solid #dfe3e8; border-radius: 6px;
   background: #fff; cursor: pointer; font-size: 14px; color: #4e5969;
-  display: inline-flex; align-items: center; justify-content: center;
-  margin-left: 4px;
+  display: inline-flex; align-items: center; justify-content: center; margin-left: 4px;
 }
 .collapse-btn:hover { border-color: #0d80e0; color: #0d80e0; }
-.collapse-btn:hover { border-color: #0d80e0; color: #0d80e0; }
-.breadcrumb {
-  display: flex; align-items: center; gap: 4px;
-  margin-left: 12px; padding: 4px 6px;
-  background: #f5f7fa; border: 1px solid #eceff3; border-radius: 10px;
-  font-size: 13px;
-}
-.crumb-link {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 12px; border-radius: 7px;
-  color: #4e5969; text-decoration: none;
-  transition: all 0.15s;
-}
-.crumb-link:hover { background: #e8f2fc; color: #0d80e0; }
-.crumb-current {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 12px; border-radius: 7px;
-  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
-  color: #fff; font-weight: 600;
-  box-shadow: 0 2px 6px rgba(13, 128, 224, 0.25);
-}
-.crumb-icon { font-size: 14px; }
-.crumb-sep { color: #c0c4cc; margin: 0 3px; user-select: none; font-size: 12px; }
-.brand-logo { width: 26px; height: 26px; object-fit: contain; }
-.brand { font-size: 15px; font-weight: 600; }
-.header-right { display: flex; align-items: center; gap: 16px; }
+
+.header-right { display: flex; align-items: center; gap: 18px; }
 
 /* 全局搜索 */
-.search-box {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
+.search-box { position: relative; display: flex; align-items: center; }
 .search-input {
-  width: 240px;
-  height: 34px;
-  padding: 0 12px;
-  font-size: 13px;
-  border: 1px solid #dfe3e8;
-  border-radius: 8px;
-  outline: none;
-  background: #f5f7fa;
+  width: 240px; height: 34px; padding: 0 12px; font-size: 13px;
+  border: 1px solid #dfe3e8; border-radius: 8px; outline: none; background: #f5f7fa;
 }
-.search-input:focus {
-  border-color: #0d80e0;
-  background: #fff;
-}
+.search-input:focus { border-color: #0d80e0; background: #fff; }
 .search-panel {
-  position: absolute;
-  top: 40px;
-  right: 0;
-  width: 340px;
-  max-height: 420px;
-  overflow-y: auto;
-  background: #fff;
-  border: 1px solid #eceff3;
-  border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
-  z-index: 300;
-  padding: 8px 10px;
+  position: absolute; top: 40px; right: 0; width: 300px;
+  background: #fff; border: 1px solid #eceff3; border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14); z-index: 300; padding: 12px;
 }
-.search-group {
-  margin-bottom: 6px;
-}
-.search-group-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #8a9099;
-  padding: 6px 8px 4px;
-}
-.search-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #1f2329;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.search-row:hover {
-  background: #f5f8ff;
-  color: #0d80e0;
-}
-.search-sub {
-  font-size: 11px;
-  color: #8a9099;
-  flex-shrink: 0;
-  background: #f2f3f5;
-  border-radius: 8px;
-  padding: 1px 8px;
-}
-.search-state {
-  text-align: center;
-  font-size: 12px;
-  color: #b8bec4;
-  padding: 18px 0;
-}
+.search-state { text-align: center; font-size: 12px; color: #b8bec4; line-height: 1.7; padding: 8px 0; }
+
+/* 消息铃铛 */
 .bell { position: relative; cursor: pointer; font-size: 18px; user-select: none; }
-.bell-badge {
-  position: absolute; top: -4px; right: -8px;
-  background: #ea4335; color: #fff; font-size: 10px;
-  min-width: 16px; height: 16px; line-height: 16px;
-  text-align: center; border-radius: 999px; padding: 0 4px;
+
+/* 头像下拉菜单 */
+.user-menu {
+  position: relative; display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 10px 4px 4px; border-radius: 20px; cursor: pointer;
+  transition: background 0.2s; user-select: none;
 }
-.user-entry {
-  display: inline-flex; align-items: center; gap: 8px;
-  text-decoration: none; padding: 4px 10px 4px 4px; border-radius: 20px; transition: background 0.2s;
-}
-.user-entry:hover { background: #f5f7fa; }
+.user-menu:hover { background: #f5f7fa; }
 .user-avatar {
   width: 28px; height: 28px; border-radius: 50%;
   background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
   color: #fff; font-size: 14px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.user-name { font-size: 13px; color: #1f2329; font-weight: 500; }
-.logout-btn {
-  height: 32px; padding: 0 14px; border: 1px solid #dfe3e8; border-radius: 8px;
-  background: #fff; color: #4e5969; font-size: 13px; cursor: pointer; transition: all 0.2s;
+.user-name { font-size: 13px; color: #1f2329; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-caret { font-size: 11px; color: #8a9099; transition: transform 0.2s; }
+.user-caret.open { transform: rotate(180deg); }
+.user-dropdown {
+  position: absolute; top: 42px; right: 0; min-width: 150px;
+  background: #fff; border: 1px solid #eceff3; border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14); padding: 6px; z-index: 400;
 }
-.logout-btn:hover { border-color: #0d80e0; color: #0d80e0; }
+.dropdown-item {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 14px; border: none; border-radius: 8px;
+  font-size: 13px; color: #1f2329; background: transparent;
+  cursor: pointer; text-decoration: none; box-sizing: border-box;
+}
+.dropdown-item:hover { background: #f5f8ff; color: #0d80e0; }
+.dropdown-item.danger:hover { background: #fff1f0; color: #ea4335; }
+.dropdown-divider { height: 1px; background: #eceff3; margin: 5px 0; }
+.menu-fade-enter-active, .menu-fade-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.menu-fade-enter-from, .menu-fade-leave-to { opacity: 0; transform: translateY(-4px); }
 
+/* ===== 主体 ===== */
 .home-body { flex: 1 1 auto; display: flex; min-height: 0; }
 .home-nav {
   flex: 0 0 200px; width: 200px;
@@ -515,56 +283,40 @@ function cancelLogout() {
   padding: 12px 0; display: flex; flex-direction: column; gap: 2px; overflow-y: auto;
   transition: width 0.2s, flex-basis 0.2s;
 }
-.home-nav.collapsed {
-  flex: 0 0 60px; width: 60px;
-}
-.nav-group { display: flex; flex-direction: column; }
-.nav-parent {
-  display: flex; align-items: center; gap: 10px;
-  width: 100%; padding: 10px 20px;
-  font-size: 14px; font-weight: 600; color: #1f2329;
-  background: transparent; border: none; border-left: 3px solid transparent;
-  cursor: pointer; text-align: left;
-}
-.home-nav.collapsed .nav-parent {
-  padding: 10px 0; justify-content: center; gap: 0;
-}
-.nav-parent:hover { background: #f5f7fa; }
-.nav-parent.active { color: #0d80e0; border-left-color: #0d80e0; }
-.nav-icon { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; }
-.nav-parent-title { flex: 1; }
-.nav-caret { font-size: 12px; color: #8a9099; transition: transform 0.2s; }
-.nav-caret.open { transform: rotate(90deg); }
-.nav-children { display: flex; flex-direction: column; }
+.home-nav.collapsed { flex: 0 0 60px; width: 60px; }
 .nav-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 9px 20px 9px 36px;
-  font-size: 13px; color: #4e5969;
-  text-decoration: none; border-left: 3px solid transparent;
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 20px; margin: 0 10px; border-radius: 8px;
+  font-size: 14px; color: #4e5969; text-decoration: none;
+  transition: all 0.15s;
 }
+.home-nav.collapsed .nav-item { padding: 11px 0; justify-content: center; margin: 0 6px; }
 .nav-item:hover { background: #f5f7fa; }
 .nav-item.router-link-active {
-  color: #0d80e0; background: #eef6ff;
-  border-left-color: #0d80e0; font-weight: 600;
+  color: #0d80e0; background: #eef6ff; font-weight: 600;
 }
-.nav-item-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-icon { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; }
+.nav-item-title { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-badge {
+  flex: 0 0 auto; min-width: 18px; height: 18px; line-height: 18px;
+  padding: 0 5px; border-radius: 999px; text-align: center;
+  background: #ea4335; color: #fff; font-size: 11px;
+}
 
-.home-content {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto;
-  padding: 20px; background: #f5f7fa;
-}
+.home-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px; background: #f5f7fa; }
 .home-footer {
   flex: 0 0 auto; text-align: center; padding: 8px 0;
   font-size: 13px; color: #8a9099; background: #fff; border-top: 1px solid #eceff3;
 }
 
+/* ===== 退出确认弹窗 ===== */
 .modal-mask {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
   display: flex; align-items: center; justify-content: center; z-index: 100;
 }
 .modal-box {
   width: 300px; background: #fff; border-radius: 12px;
-  padding: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); text-align: center;
+  padding: 24px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18); text-align: center;
 }
 .modal-text { font-size: 15px; margin: 0 0 20px; color: #1f2329; }
 .modal-actions { display: flex; gap: 12px; }

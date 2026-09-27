@@ -1,8 +1,12 @@
 ﻿// 对 preload 暴露的 window.api 做一层薄封装，便于组件调用。
 // 若需要，可在此统一处理错误 / loading。
+//
+// 保留两组接口（平台基础设施，新业务接口待数据库与 IPC 设计后按模块补充）：
+//   auth    认证与用户管理（登录 / 会话 / 改密 / 账号管理）
+//   sys     系统与数据库连接（连接管理 / 版本信息 / 导出 / 附件等）
 
+// ===== 认证与用户管理 =====
 export function login(username, password) {
-  // 拼成单个对象再传，匹配 preload 工厂「每方法至多一个 payload 对象」的约定
   return window.api.auth.login({ username, password })
 }
 
@@ -15,11 +19,10 @@ export function getCurrentUser() {
 }
 
 export function changePassword(username, oldPassword, newPassword) {
-  // 拼成单个对象再传，匹配 preload 工厂「每方法至多一个 payload 对象」的约定
   return window.api.auth.changePassword({ username, oldPassword, newPassword })
 }
 
-// 用户管理
+// 用户管理（超级管理员：平台账号；课题组管理员：本组成员）
 export function listUsers() {
   return window.api.auth.listUsers()
 }
@@ -33,7 +36,7 @@ export function createUser(payload) {
   return window.api.auth.createUser(payload)
 }
 
-// 批量新增用户（成员管理 → 批量导入）
+// 批量新增用户
 export function batchCreateUsers(users) {
   return window.api.auth.batchCreateUsers({ users })
 }
@@ -42,22 +45,16 @@ export function updateUser(payload) {
   return window.api.auth.updateUser(payload)
 }
 
-// 读取当前登录用户自己的完整档案
+// 读取当前登录用户自己的档案（当前用户表仅含登录必需字段）
 export function getMyProfile() {
   return window.api.auth.getMyProfile()
 }
 
-// 更新当前登录用户自己的档案（个人主页 → 学术档案 / 个人设置）
-export function updateMyProfile(payload) {
-  return window.api.auth.updateProfile(payload)
-}
-
 export function deleteUser(id) {
-  // 拼成单个对象 { id } 再传，匹配 preload 工厂「每方法至多一个 payload 对象」的约定
   return window.api.auth.deleteUser({ id })
 }
 
-// 系统管理（系统名称 / 版本号 / 数据库信息）
+// ===== 系统与数据库连接（平台基础设施） =====
 export function getSysInfo() {
   return window.api.sys.info()
 }
@@ -71,7 +68,7 @@ export function getTablesInfo() {
   return window.api.sys.tablesInfo()
 }
 
-// 清理本地缓存（Electron 会话 / 磁盘缓存；localStorage 由前端自行处理）
+// 清理本地缓存（Electron 会话 / 磁盘缓存）
 export function clearCache() {
   return window.api.sys.clearCache()
 }
@@ -85,7 +82,7 @@ export function openUserDataDir() {
   return window.api.sys.openUserDataDir()
 }
 
-// 程序文件所在目录（路径展示 + 在系统文件管理器中打开）
+// 程序文件所在目录
 export function getAppPath() {
   return window.api.sys.appPath()
 }
@@ -94,27 +91,27 @@ export function openAppDir() {
   return window.api.sys.openAppDir()
 }
 
-// 导出当前库为 SQL 备份文件（弹出保存对话框，由主进程完成）
+// 导出当前库为 SQL 备份文件
 export function exportDatabase() {
   return window.api.sys.exportDb()
 }
 
-// 打开开发者控制台（DevTools）：独立窗口弹出，查看日志 / 网络请求与调试
+// 打开开发者控制台（DevTools）
 export function openDevTools() {
   return window.api.sys.openDevTools()
 }
 
-// 手动检查更新（GitHub Releases）：返回当前版本 / 最新版本 / 是否有更新 / 变更说明
+// 手动检查更新（GitHub Releases）
 export function checkForUpdates() {
   return window.api.sys.checkForUpdates()
 }
 
-// 选择附件文件（周报附件）：弹出文件对话框并把文件复制到用户数据目录，返回存储路径与原始文件名
+// 选择附件文件（弹出文件对话框）
 export function pickAttachment() {
   return window.api.sys.pickAttachment()
 }
 
-// 用系统默认程序打开附件（仅限用户数据目录 uploads 内的文件）
+// 用系统默认程序打开附件
 export function openAttachment(path) {
   return window.api.sys.openAttachment({ path })
 }
@@ -125,7 +122,6 @@ export function getDbConnections() {
 }
 
 export function switchDb(id) {
-  // 拼成单个对象 { id } 再传，匹配 preload 工厂「每方法至多一个 payload 对象」的约定
   return window.api.sys.switchDb({ id })
 }
 
@@ -134,108 +130,5 @@ export function addDb(payload) {
 }
 
 export function deleteDb(id) {
-  // 拼成单个对象 { id } 再传，匹配 preload 工厂「每方法至多一个 payload 对象」的约定
   return window.api.sys.deleteDb({ id })
-}
-
-// ===== 六大业务模块 API（薄封装 window.api，便于组件统一调用） =====
-
-// 生成某资源的「标准 CRUD 五件套」封装（group=模块名，name=资源名，对应 preload 暴露结构）
-function makeCrud(group, name) {
-  return {
-    list: (filters) => window.api[group][name].list(filters),
-    get: (id) => window.api[group][name].get({ id }),
-    create: (data) => window.api[group][name].create(data),
-    update: (id, data) => window.api[group][name].update({ id, ...data }),
-    remove: (id) => window.api[group][name].remove({ id })
-  }
-}
-
-// 科研管理：项目 / 论文 / 专利 / 科研日志 / 成果 / 经费 / 毕业里程碑
-export const research = {
-  project: makeCrud('research', 'project'),
-  paper: makeCrud('research', 'paper'),
-  patent: makeCrud('research', 'patent'),
-  log: makeCrud('research', 'log'),
-  achievement: makeCrud('research', 'achievement'),
-  fund: makeCrud('research', 'fund'),
-  milestone: makeCrud('research', 'milestone'),
-  milestoneOverview: () => window.api.research.milestoneOverview()
-}
-
-// 工作室事务：工位 / 设备 / 借用 / 考勤 / 排班 / 制度 / 入组离组
-export const studio = {
-  seat: makeCrud('studio', 'seat'),
-  device: makeCrud('studio', 'device'),
-  borrow: makeCrud('studio', 'borrow'),
-  attendance: makeCrud('studio', 'attendance'),
-  duty: makeCrud('studio', 'duty'),
-  regulation: makeCrud('studio', 'regulation'),
-  joinLeave: makeCrud('studio', 'joinLeave'),
-  returnBorrow: (id) => window.api.studio.returnBorrow({ id }),
-  reviewJoinLeave: (id, approved, remark) => window.api.studio.reviewJoinLeave({ id, approved, remark })
-}
-
-// 资源中心：统一资源 / 链接 / 下载计数
-export const resource = {
-  item: makeCrud('resource', 'item'),
-  link: makeCrud('resource', 'link'),
-  download: (id) => window.api.resource.download({ id })
-}
-
-// 协同办公：组会 / 活动 / 任务 / 讨论区 / 审批 / 周报
-export const collab = {
-  meeting: makeCrud('collab', 'meeting'),
-  activity: makeCrud('collab', 'activity'),
-  task: makeCrud('collab', 'task'),
-  post: makeCrud('collab', 'post'),
-  approval: makeCrud('collab', 'approval'),
-  weeklyReport: makeCrud('collab', 'weeklyReport'),
-  meetingAgenda: makeCrud('collab', 'meetingAgenda'),
-  meetingRead: makeCrud('collab', 'meetingRead'),
-  taskComment: makeCrud('collab', 'taskComment'),
-  signup: (activityId) => window.api.collab.signup({ activityId }),
-  cancelSignup: (activityId) => window.api.collab.cancelSignup({ activityId }),
-  signupList: (activityId) => window.api.collab.signupList({ activityId }),
-  viewPost: (id) => window.api.collab.viewPost({ id }),
-  reply: (postId, content, parentId) => window.api.collab.reply({ postId, content, parentId }),
-  replyList: (postId) => window.api.collab.replyList({ postId }),
-  reviewApproval: (id, approved, remark) => window.api.collab.reviewApproval({ id, approved, remark }),
-  reviewReport: (id, comment, score) => window.api.collab.reviewReport({ id, comment, score }),
-  reportToTask: (reportId, title, assigneeId, dueDate) => window.api.collab.reportToTask({ reportId, title, assigneeId, dueDate }),
-  markMeetingRead: (meetingId) => window.api.collab.markMeetingRead({ meetingId }),
-  meetingReadList: (meetingId) => window.api.collab.meetingReadList({ meetingId }),
-  meetingReadStatus: (meetingId) => window.api.collab.meetingReadStatus({ meetingId }),
-  remindMeetingUnread: (meetingId) => window.api.collab.remindMeetingUnread({ meetingId }),
-  calendarEvents: (start, end) => window.api.collab.calendarEvents({ start, end })
-}
-
-// 工作台：待办 / 日程 / 公告
-export const workbench = {
-  todo: makeCrud('workbench', 'todo'),
-  schedule: makeCrud('workbench', 'schedule'),
-  notice: makeCrud('workbench', 'notice'),
-  completeTodo: (id) => window.api.workbench.completeTodo({ id }),
-  publishNotice: (id) => window.api.workbench.publishNotice({ id }),
-  overview: () => window.api.workbench.overview()
-}
-
-// 全局搜索：成员 / 论文 / 任务 / 公告
-export const search = {
-  globalSearch: (keyword) => window.api.search.globalSearch({ keyword })
-}
-
-// 系统 / 个人：参数 / 操作日志 / 消息中心
-export const system = {
-  param: makeCrud('system', 'param'),
-  getParam: (key) => window.api.system.getParam({ key }),
-  setParam: (key, value, description) => window.api.system.setParam({ key, value, description }),
-  listLogs: (filters) => window.api.system.listLogs(filters || {}),
-  sendMessage: (payload) => window.api.system.sendMessage(payload),
-  myMessages: (filters) => window.api.system.myMessages(filters || {}),
-  unreadCount: () => window.api.system.unreadCount(),
-  markRead: (id) => window.api.system.markRead({ id }),
-  markAllRead: () => window.api.system.markAllRead(),
-  getNotificationPref: () => window.api.system.getNotificationPref(),
-  saveNotificationPref: (prefs) => window.api.system.saveNotificationPref({ prefs })
 }

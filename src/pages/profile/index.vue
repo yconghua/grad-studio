@@ -1,94 +1,91 @@
 <template>
-  <div class="profile">
-    <!-- 固定头部：页面标题 + 横向页签导航，滚动时钉在内容区顶部不随内容滚走 -->
-    <div class="profile-head">
-      <h2 class="page-title">个人主页</h2>
-
-      <!-- 横向导航（点击切换路由，子页面由 RouterView 渲染） -->
-      <nav class="tab-bar">
-        <RouterLink
-          v-for="tab in profileNavItems"
-          :key="tab.key"
-          :to="`/profile/${tab.key}`"
-          class="tab-item"
-          :class="{ active: isTabActive(tab.key) }"
-        >
-          {{ tab.title }}
-        </RouterLink>
-      </nav>
+  <div class="profile-page">
+    <div class="profile-card">
+      <div class="profile-avatar">{{ avatarText }}</div>
+      <div class="profile-info">
+        <h2 class="profile-name">{{ user?.username || '—' }}</h2>
+        <p class="profile-sub">
+          <span class="role-tag">{{ roleText }}</span>
+          <span class="username">账号：{{ user?.username || '—' }}</span>
+        </p>
+        <dl class="profile-detail">
+          <div class="detail-row">
+            <dt>账号状态</dt>
+            <dd>{{ statusText }}</dd>
+          </div>
+          <div class="detail-row">
+            <dt>首次登录改密</dt>
+            <dd>{{ user?.mustChangePassword ? '待修改' : '已完成' }}</dd>
+          </div>
+        </dl>
+      </div>
     </div>
-
-    <div class="tab-body">
-      <RouterView />
-    </div>
+    <p class="profile-tip">当前仅展示登录会话基础信息；完整档案与个人资料维护功能将在后续迭代中提供。</p>
   </div>
 </template>
 
 <script setup>
-import { useRoute } from 'vue-router'
-import { profileNavItems } from '../../config/navConfig'
+import { computed } from 'vue'
+import { useSession } from '../../composables/useSession'
+import {
+  ROLE_SUPER_ADMIN,
+  ROLE_GROUP_ADMIN,
+  ROLE_MENTOR,
+  ROLE_STUDENT,
+  ACCOUNT_STATUS_ACTIVE,
+  ACCOUNT_STATUS_DISABLED,
+  ACCOUNT_STATUS_LEAVE
+} from '../../config/constants'
 
-const route = useRoute()
+const { getSessionUser } = useSession()
+const user = getSessionUser()
 
-// 页签高亮：按当前路由精确匹配（直达 URL / 刷新后依然正确）
-function isTabActive(key) {
-  return route.path === `/profile/${key}`
+const ROLE_TEXT = {
+  [ROLE_SUPER_ADMIN]: '超级管理员',
+  [ROLE_GROUP_ADMIN]: '课题组管理员',
+  [ROLE_MENTOR]: '导师',
+  [ROLE_STUDENT]: '学生'
 }
+
+const STATUS_TEXT = {
+  [ACCOUNT_STATUS_ACTIVE]: '正常',
+  [ACCOUNT_STATUS_DISABLED]: '已禁用',
+  [ACCOUNT_STATUS_LEAVE]: '离组'
+}
+
+const roleText = computed(() => ROLE_TEXT[user?.role] || user?.role || '未知角色')
+const statusText = computed(() => STATUS_TEXT[user?.status] || user?.status || '未知')
+const avatarText = computed(() => {
+  const name = user?.username || '?'
+  return name.charAt(0).toUpperCase()
+})
 </script>
 
 <style scoped>
-/* 整页高度撑满内容区：头部固定 + 内容区自行滚动（不触发外层 .home-content 滚动条） */
-.profile {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+.profile-page { max-width: 640px; margin: 0 auto; }
+.profile-card {
+  display: flex; gap: 24px; align-items: flex-start;
+  background: #fff; border-radius: 14px; padding: 28px 32px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
 }
-/* 固定头部：标题 + 页签导航不参与滚动（滚动只发生在下方 .tab-body） */
-.profile-head {
-  flex: 0 0 auto;
+.profile-avatar {
+  flex: 0 0 72px; width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
+  color: #fff; font-size: 30px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
 }
-.page-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0 0 16px;
+.profile-info { flex: 1 1 auto; }
+.profile-name { margin: 0 0 8px; font-size: 22px; color: #1f2329; }
+.profile-sub { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; }
+.role-tag {
+  padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  color: #0d80e0; background: #eef6ff;
 }
-/* 横向导航（页签） */
-.tab-bar {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid #eceff3;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.tab-item {
-  display: inline-block;
-  padding: 10px 18px;
-  font-size: 14px;
-  color: #4e5969;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  transition: color 0.2s;
-  text-decoration: none;
-}
-.tab-item:hover {
-  color: #0d80e0;
-}
-.tab-item.active {
-  color: #0d80e0;
-  border-bottom-color: #0d80e0;
-  font-weight: 600;
-}
-/* 内容区：独立滚动；隐藏滚动条但保留滚动效果（仅本页生效） */
-.tab-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: none;    /* Firefox */
-  -ms-overflow-style: none; /* 旧版 Edge/IE */
-}
-.tab-body::-webkit-scrollbar {
-  display: none;            /* Chrome / Edge / Safari */
-}
+.username { font-size: 13px; color: #8a9099; }
+.profile-detail { margin: 0; }
+.detail-row { display: flex; padding: 8px 0; border-bottom: 1px dashed #eceff3; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row dt { flex: 0 0 120px; font-size: 13px; color: #8a9099; }
+.detail-row dd { flex: 1 1 auto; margin: 0; font-size: 13px; color: #1f2329; }
+.profile-tip { margin-top: 14px; font-size: 12px; color: #b8bec4; text-align: center; }
 </style>

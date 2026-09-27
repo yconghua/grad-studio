@@ -16,51 +16,20 @@ const BaseRepository = require('./BaseRepository')
 const { buildWhereClause } = require('./queryHelpers')
 
 // 用户表安全返回列（不含 password）：列表 / 详情 / 登录回填共用
+// 当前用户表仅含登录必需字段
 const SAFE_COLUMNS = [
   'id',
   'username',
   'role',
-  'real_name',
-  'gender',
-  'student_no',
-  'email',
-  'phone',
-  'avatar',
-  'bio',
-  'college',
-  'department',
-  'major',
-  'grade',
-  'degree_type',
-  'position',
-  'advisor_id',
   'status',
-  'must_change_password',
-  'join_date',
-  'last_login_at',
-  'created_at',
-  'updated_at'
+  'must_change_password'
 ]
 
 // 档案字段白名单：管理员可读写的用户档案列。
-// 注意：不含 username / password / role / id —— 这些由服务层显式处理，防止前端越权改写。
+// 当前用户表仅含登录必需字段，唯一可写的非核心字段为 status（禁用/离组）；
+// username / password / role / must_change_password 由服务层显式处理，防止前端越权改写。
 const PROFILE_FIELDS = [
-  'real_name',
-  'gender',
-  'student_no',
-  'email',
-  'phone',
-  'avatar',
-  'bio',
-  'college',
-  'department',
-  'major',
-  'grade',
-  'degree_type',
-  'position',
-  'advisor_id',
-  'status',
-  'join_date'
+  'status'
 ]
 
 // 列名拼接（反引号包裹，防与关键字冲突）
@@ -70,9 +39,7 @@ function cols(columns) {
 
 // 从输入对象中提取白名单内的档案字段。
 // - undefined：跳过（未传，不写入）；
-// - 空字符串 ''：跳过（视为「未填写」）。关键：gender / degree_type 是 ENUM 列，
-//   前端下拉框未选时会是 ''，直接写入会触发 MySQL「Data truncated for column」，
-//   跳过后由数据库取 DEFAULT（NULL）即可；对 NOT NULL DEFAULT 列（如 status）也安全。
+// - 空字符串 ''：跳过（视为「未填写」），避免空串触发 MySQL 对非空列的写入错误；
 // - null：保留（显式清空语义，写入 NULL）。
 function pickProfile(data) {
   const out = {}
@@ -103,8 +70,8 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * 用户列表，支持按角色 / 状态 / 关键字 / 导师过滤
-   * @param {{ role?: string, status?: string, keyword?: string, advisor_id?: number }} filters
+   * 用户列表，支持按角色 / 状态 / 关键字过滤
+   * @param {{ role?: string, status?: string, keyword?: string }} filters
    * @returns {Object[]} 仅返回安全列（不含 password）
    */
   async list(filters = {}) {
@@ -114,9 +81,6 @@ class UserRepository extends BaseRepository {
     }
     if (filters.status) {
       conditions.push({ field: 'status', op: '=', value: filters.status })
-    }
-    if (filters.advisor_id) {
-      conditions.push({ field: 'advisor_id', op: '=', value: filters.advisor_id })
     }
     if (filters.keyword) {
       conditions.push({ field: 'username', op: 'LIKE', value: `%${filters.keyword}%` })

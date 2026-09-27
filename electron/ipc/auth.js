@@ -110,23 +110,13 @@ function register(ipcMain) {
     }
   })
 
-  // 读取当前登录用户自己的完整档案
+  // 读取当前登录用户自己的档案（用户表仅含登录必需字段）
   ipcMain.handle('auth:get-my-profile', async () => {
     try {
       return await authService.getMyProfile()
     } catch (err) {
       console.error('[auth:get-my-profile] 未预期异常:', err)
       return { success: false, message: '读取档案失败，请稍后重试' }
-    }
-  })
-
-  // 更新当前登录用户自己的档案（个人主页 → 学术档案 / 个人设置）
-  ipcMain.handle('auth:update-profile', async (_evt, payload) => {
-    try {
-      return await authService.updateMyProfile(payload)
-    } catch (err) {
-      console.error('[auth:update-profile] 未预期异常:', err)
-      return { success: false, message: '保存失败，请稍后重试' }
     }
   })
 }

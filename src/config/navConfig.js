@@ -1,131 +1,71 @@
-﻿// 导航配置（单一数据源：左侧一级大导航 + 二级小导航 + 个人主页导航）
+﻿// 导航配置（单一数据源：左侧菜单 + 角色权限数组 + Ant Design Vue 图标名）
 //
-// - navGroups：左侧导航。每个一级大导航（group）包含若干二级小导航（children）。
-//   一级大导航 key 作为路由父路径段（如 workbench → /workbench），
-//   二级小导航 key 作为子路径段（如 overview → /workbench/overview）。
-// - profileNavItems：个人主页（右上角入口）内部的导航项，路径为 /profile/<key>。
-// - roles 权限字段：一级导航 / 二级导航均可选填，缺省表示「所有角色可见」；
-//   填写后仅列出的角色可见。二级导航未填时继承所属一级导航的 roles。
-//   角色取值见 shared/constants.js（ROLE_STUDENT / ROLE_MENTOR / ROLE_ADMIN）。
+// 权限模型：
+//   系统侧边导航采用「动态权限渲染」机制，共四类角色：
+//     super_admin 超级管理员（平台运维） / group_admin 课题组管理员 / mentor 导师 / student 学生
+//   每个菜单项绑定独立「角色权限数组」roles，前端遍历 navItems 按当前登录角色过滤渲染；
+//   后端接口层同时做角色鉴权，防止通过直接访问路由越权查看数据（前后端双重保障）。
 //
-// 想调整菜单，只改本文件即可；页面组件在 router/index.js 中统一指向占位页，
-// 后续接入真实页面时再按 key 映射对应组件。
+// 菜单排布原则：先通知、后业务，高频在前、低频在后。
+//   - 课题组公告紧跟工作台（组管 / 导师 / 学生进入系统第一眼即可看到组内重要通知）；
+//   - 超级管理员为平台运维角色，仅展示平台级管控菜单，不参与课题组内业务。
+//
+// 图标说明：icon 字段为 Ant Design Vue 图标名（字符串），渲染层按名解析为图标组件；
+//   依赖 @ant-design/icons-vue 安装后自动生效，未安装时布局组件回退显示占位符。
 
-import { ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from './constants'
+import {
+  ROLE_SUPER_ADMIN,
+  ROLE_GROUP_ADMIN,
+  ROLE_MENTOR,
+  ROLE_STUDENT
+} from './constants'
 
-// 左侧一级大导航 + 二级小导航
-export const navGroups = [
-  {
-    key: 'workbench',
-    title: '工作台',
-    children: [
-      { key: 'todo', title: '待办事项' },
-      { key: 'schedule', title: '日程安排' },
-      { key: 'notice', title: '通知公告' },
-      { key: 'shortcuts', title: '快捷入口' }
-    ]
-  },
-  {
-    key: 'research',
-    title: '科研管理',
-    children: [
-      { key: 'project', title: '项目管理' },
-      { key: 'paper', title: '论文著作' },
-      { key: 'patent', title: '专利软著' },
-      { key: 'subject', title: '课题申报' },
-      { key: 'log', title: '科研日志' },
-      { key: 'achievement', title: '成果登记' },
-      { key: 'graduation', title: '毕业进度' },
-      { key: 'fund', title: '经费管理', roles: [ROLE_MENTOR, ROLE_ADMIN] }
-    ]
-  },
-  {
-    key: 'studio',
-    title: '工作室事务',
-    children: [
-      { key: 'member', title: '成员管理', roles: [ROLE_MENTOR, ROLE_ADMIN] },
-      { key: 'seat', title: '工位管理', roles: [ROLE_MENTOR, ROLE_ADMIN] },
-      { key: 'device', title: '设备管理' },
-      { key: 'attendance', title: '考勤值班' },
-      { key: 'duty', title: '卫生排班' },
-      { key: 'regulation', title: '规章制度' },
-      { key: 'join-leave', title: '入组离组', roles: [ROLE_MENTOR, ROLE_ADMIN] },
-      { key: 'borrow', title: '物品借用' }
-    ]
-  },
-  {
-    key: 'resource',
-    title: '资源中心',
-    children: [
-      { key: 'doc', title: '文档库' },
-      { key: 'dataset', title: '数据集' },
-      { key: 'code', title: '代码库' },
-      { key: 'tool', title: '软件工具' },
-      { key: 'template', title: '模板中心' },
-      { key: 'drive', title: '共享网盘' },
-      { key: 'link', title: '常用链接' }
-    ]
-  },
-  {
-    key: 'collaboration',
-    title: '协同办公',
-    children: [
-      { key: 'weekly-report', title: '周报管理' },
-      { key: 'meeting', title: '组会管理' },
-      { key: 'activity', title: '活动报名' },
-      { key: 'task', title: '任务协作' },
-      { key: 'forum', title: '讨论区' },
-      { key: 'approval', title: '审批中心' }
-    ]
-  },
-  {
-    key: 'report',
-    title: '统计报表',
-    roles: [ROLE_ADMIN],
-    children: [
-      { key: 'achievement-stat', title: '成果统计' },
-      { key: 'attendance-stat', title: '考勤统计' },
-      { key: 'task-stat', title: '任务统计' },
-      { key: 'device-stat', title: '设备使用' },
-      { key: 'activity-stat', title: '活跃度' },
-      { key: 'export', title: '报表导出' }
-    ]
-  },
-  {
-    key: 'system',
-    title: '系统设置',
-    roles: [ROLE_ADMIN],
-    children: [
-      { key: 'user', title: '用户管理' },
-      { key: 'audit', title: '日志审计' },
-      { key: 'backup', title: '数据备份' },
-      { key: 'param', title: '系统参数' },
-      { key: 'update', title: '关于系统' }
-    ]
-  }
+/**
+ * 左侧菜单（平铺一级菜单，数组顺序即渲染顺序）。
+ * roles：该项对哪些角色可见；null / 缺省 = 全部四类角色可见。
+ * 各角色过滤后的菜单顺序与角色描述完全一致：
+ *   - 超级管理员：工作台 / 用户管理 / 课题组管理 / 系统配置 / 系统操作日志 / 帮助文档
+ *   - 课题组管理员：工作台 / 课题组公告 / 成员管理 / 学位节点管理 / 组会管理 / 课题管理 / 任务管理 / 科研成果 / 课题组知识库 / 课题组设置
+ *   - 导师：工作台 / 课题组公告 / 我的学生 / 学位节点管理 / 组会管理 / 课题管理 / 任务管理 / 科研成果 / 课题组知识库
+ *   - 学生：工作台 / 课题组公告 / 组会管理 / 科研记录 / 课题与任务 / 科研成果 / 文献与笔记 / 科研档案 / 课题组知识库 / AI科研助手
+ */
+export const navItems = [
+  // ===== 全角色通用（高频前置） =====
+  { key: 'workbench', title: '工作台', icon: 'DashboardOutlined', roles: null },
+  // 课题组公告：所有角色可见；组管拥有新增/编辑/删除/置顶，导师与学生仅查看（前端按角色控制操作按钮）
+  { key: 'notice', title: '课题组公告', icon: 'NotificationOutlined', roles: null },
+
+  // ===== 课题组管理员专属 =====
+  { key: 'member', title: '成员管理', icon: 'TeamOutlined', roles: [ROLE_GROUP_ADMIN] },
+  { key: 'settings', title: '课题组设置', icon: 'SettingOutlined', roles: [ROLE_GROUP_ADMIN] },
+
+  // ===== 导师专属 =====
+  { key: 'students', title: '我的学生', icon: 'UserSwitchOutlined', roles: [ROLE_MENTOR] },
+
+  // ===== 课题组管理员 + 导师（组内管理角色） =====
+  { key: 'degree', title: '学位节点管理', icon: 'ScheduleOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
+  { key: 'subject', title: '课题管理', icon: 'ExperimentOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
+  { key: 'task', title: '任务管理', icon: 'CheckSquareOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
+
+  // ===== 学生专属 =====
+  { key: 'research-record', title: '科研记录', icon: 'EditOutlined', roles: [ROLE_STUDENT] },
+  { key: 'my-work', title: '课题与任务', icon: 'ProjectOutlined', roles: [ROLE_STUDENT] },
+  { key: 'literature', title: '文献与笔记', icon: 'ReadOutlined', roles: [ROLE_STUDENT] },
+  { key: 'archive', title: '科研档案', icon: 'FolderOpenOutlined', roles: [ROLE_STUDENT] },
+  { key: 'ai-assistant', title: 'AI科研助手', icon: 'RobotOutlined', roles: [ROLE_STUDENT] },
+
+  // ===== 全角色通用（低频靠后） =====
+  { key: 'meeting', title: '组会管理', icon: 'CalendarOutlined', roles: null },
+  { key: 'achievement', title: '科研成果', icon: 'TrophyOutlined', roles: null },
+  { key: 'knowledge', title: '课题组知识库', icon: 'BookOutlined', roles: null },
+
+  // ===== 超级管理员专属（平台运维，无课题组内业务） =====
+  { key: 'platform-users', title: '用户管理', icon: 'UserOutlined', roles: [ROLE_SUPER_ADMIN] },
+  { key: 'platform-groups', title: '课题组管理', icon: 'ApartmentOutlined', roles: [ROLE_SUPER_ADMIN] },
+  { key: 'platform-config', title: '系统配置', icon: 'ControlOutlined', roles: [ROLE_SUPER_ADMIN] },
+  { key: 'platform-logs', title: '系统操作日志', icon: 'FileSearchOutlined', roles: [ROLE_SUPER_ADMIN] },
+  { key: 'platform-help', title: '帮助文档', icon: 'QuestionCircleOutlined', roles: [ROLE_SUPER_ADMIN] }
 ]
-
-// 个人主页（右上角入口）内部的导航项
-export const profileNavItems = [
-  { key: 'overview', title: '主页概览' },
-  { key: 'academic', title: '学术档案' },
-  { key: 'my-project', title: '我的项目' },
-  { key: 'my-achievement', title: '我的成果' },
-  { key: 'my-task', title: '我的任务' },
-  { key: 'my-schedule', title: '我的日程' },
-  { key: 'message', title: '消息中心' },
-  { key: 'setting', title: '个人设置' }
-]
-
-// 一级导航可见角色：未设置时返回 null（表示所有角色可见）
-export function groupRoles(group) {
-  return group.roles || null
-}
-
-// 二级导航实际可见角色：子项未指定时继承所属一级导航的 roles；仍无则 null（所有角色可见）
-export function childRoles(group, child) {
-  return child.roles || group.roles || null
-}
 
 // 判断某项（roles 数组或 null）对指定角色是否可见
 export function isRoleAllowed(roles, role) {
@@ -133,11 +73,10 @@ export function isRoleAllowed(roles, role) {
   return roles.includes(role)
 }
 
-// 一级导航的默认落地路径：跳转到该组第一个二级导航
-export function groupDefaultPath(group) {
-  const first = group.children && group.children[0]
-  return first ? `/${group.key}/${first.key}` : `/${group.key}`
+// 当前角色可见的菜单（按 navItems 数组顺序过滤）
+export function visibleNavItems(role) {
+  return navItems.filter((item) => isRoleAllowed(item.roles, role))
 }
 
-// 默认首页路径：第一个一级导航的默认落地路径
+// 默认首页路径（工作台：所有角色均有）
 export const defaultNavPath = '/workbench'

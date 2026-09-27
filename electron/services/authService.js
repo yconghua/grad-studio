@@ -15,30 +15,47 @@ const bcrypt = require('bcryptjs')
 const userRepository = require('../db/repositories/userRepository')
 // 事务上下文：createUser 用它保证「查重 + 插入」在同一连接上原子执行
 const { runTransaction } = require('../db/connection')
-// 操作日志（登录 / 退出 / 用户增删改的审计追溯）
-const logService = require('./logService')
 // 前后端共享常量（角色 / 密码长度 / bcrypt 成本等），单一事实来源，避免硬编码散落
-const { ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT, ROLE_USER, ACCOUNT_STATUS_DISABLED, ACCOUNT_STATUS_LEAVE, DEFAULT_PASSWORD_BY_ROLE, BCRYPT_ROUNDS } = require('../../shared/constants')
+const {
+  ROLE_SUPER_ADMIN,
+  ROLE_GROUP_ADMIN,
+  ROLE_MENTOR,
+  ROLE_STUDENT,
+  ACCOUNT_STATUS_DISABLED,
+  ACCOUNT_STATUS_LEAVE,
+  DEFAULT_PASSWORD_BY_ROLE,
+  BCRYPT_ROUNDS
+} = require('../../shared/constants')
 
 /** 进程内的当前登录用户（未落库，仅随进程存活） */
 let currentUser = null
 
-// 是否管理员（可进用户管理）
+// 是否超级管理员（平台运维 / 全平台账号管理）
 function isAdmin() {
-  return !!currentUser && currentUser.role === ROLE_ADMIN
+  return !!currentUser && currentUser.role === ROLE_SUPER_ADMIN
 }
 
-// 合法角色白名单（三角色 + 兼容历史 user）
-const VALID_ROLES = [ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT, ROLE_USER]
+// 是否课题组管理员（组内最高管理角色）
+function isGroupAdmin() {
+  return !!currentUser && currentUser.role === ROLE_GROUP_ADMIN
+}
+
+// 是否组内管理角色（课题组管理员或导师）：可执行组内管理类写操作
+function isGroupManager() {
+  return !!currentUser && (currentUser.role === ROLE_GROUP_ADMIN || currentUser.role === ROLE_MENTOR)
+}
+
+// 合法角色白名单（四类角色）
+const VALID_ROLES = [ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT]
 
 // 规范化角色：白名单内的原样返回；非法 / 空值回退到「学生」
 function normalizeRole(role) {
   return VALID_ROLES.includes(role) ? role : ROLE_STUDENT
 }
 
-// 角色默认密码：按角色取固定初始密码（历史角色 user 按学生处理）；未知角色回退学生密码
+// 角色默认密码：按角色取固定初始密码；未知角色回退学生密码
 function defaultPasswordForRole(role) {
-  const r = role === ROLE_ADMIN ? ROLE_ADMIN : role === ROLE_MENTOR ? ROLE_MENTOR : ROLE_STUDENT
+  const r = VALID_ROLES.includes(role) ? role : ROLE_STUDENT
   return DEFAULT_PASSWORD_BY_ROLE[r] || DEFAULT_PASSWORD_BY_ROLE[ROLE_STUDENT]
 }
 
@@ -71,11 +88,9 @@ async function login({ username, password }) {
       id: user.id,
       username: user.username,
       role: user.role,
-      real_name: user.real_name,
-      created_at: user.created_at,
+      status: user.status,
       mustChangePassword: !!user.must_change_password
     }
-    logService.record('login', 'user', user.id)
     return { success: true, message: '登录成功', user: currentUser }
   } catch (err) {
     console.error('[authService.login] 数据库异常:', err)
@@ -85,7 +100,6 @@ async function login({ username, password }) {
 
 // 退出登录：清空会话
 function logout() {
-  if (currentUser) logService.record('logout', 'user', currentUser.id)
   currentUser = null
   return { success: true }
 }
@@ -129,16 +143,15 @@ async function changePassword({ username, oldPassword, newPassword }) {
   }
 }
 
-// 用户列表：管理员和导师均可查看（导师只读，新增/编辑/删除由各自接口校验）
+// 用户列表：超级管理员 / 课题组管理员可查看（超管全平台，组管本组——课题组维度过滤待 group 字段设计后补充）；
+// 导师可查看全部用户（名下学生过滤待 advisor 关联字段重新设计后补充）
 async function listUsers() {
   if (!currentUser) return { success: false, message: '未登录，请重新登录' }
-  if (currentUser.role !== ROLE_ADMIN && currentUser.role !== ROLE_MENTOR) {
-    return { success: false, message: '无权限：仅管理员和导师可查看成员列表' }
+  if (!isAdmin() && !isGroupAdmin() && currentUser.role !== ROLE_MENTOR) {
+    return { success: false, message: '无权限：仅超级管理员、课题组管理员和导师可查看成员列表' }
   }
   try {
-    const filters = {}
-    if (currentUser.role === ROLE_MENTOR) { filters.advisor_id = currentUser.id }
-    const users = await userRepository.list(filters)
+    const users = await userRepository.list()
     return { success: true, users }
   } catch (err) {
     console.error('[authService.listUsers] 数据库异常:', err)
@@ -147,7 +160,7 @@ async function listUsers() {
 }
 
 // 成员列表（轻量，所有登录用户可读）：供前端「关联字段下拉选人」使用。
-// 仅返回 id / username / real_name / role，不含任何敏感字段。
+// 仅返回 id / username / role，不含任何敏感字段。
 async function listMembers() {
   if (!currentUser) return { success: false, message: '未登录，请重新登录' }
   try {
@@ -155,9 +168,7 @@ async function listMembers() {
     const members = users.map((u) => ({
       id: u.id,
       username: u.username,
-      real_name: u.real_name,
-      role: u.role,
-      advisor_id: u.advisor_id
+      role: u.role
     }))
     return { success: true, members }
   } catch (err) {
@@ -167,16 +178,16 @@ async function listMembers() {
 }
 
 // 新增用户：初始密码 = 该角色默认密码（首次登录强制修改）；用 runTransaction 包裹「查重 + 插入」保证原子性。
-// 支持携带档案字段（real_name / student_no / college 等，白名单过滤见 userRepository）
+// 权限：超级管理员（平台账号）/ 课题组管理员（本组成员）均可创建。
+// 用户表当前仅保留登录必需字段，额外档案字段由 userRepository 白名单过滤丢弃。
 async function createUser(payload) {
-  if (!isAdmin()) return { success: false, message: '无权限：仅管理员可创建用户' }
+  if (!isAdmin() && !isGroupAdmin()) return { success: false, message: '无权限：仅超级管理员与课题组管理员可创建用户' }
   const { username, role, ...profile } = payload || {}
   if (!username || !username.trim()) return { success: false, message: '账号不能为空' }
-  // 角色：admin 管理员 / mentor 导师 / student 学生（user 兼容历史），非法值回退「学生」
+  // 角色：super_admin 超级管理员 / group_admin 课题组管理员 / mentor 导师 / student 学生，非法值回退「学生」
   const roleVal = normalizeRole(role)
   const plain = defaultPasswordForRole(roleVal)
   try {
-    // 新用户 id 在事务内捕获，事务提交后再写操作日志（避免在事务回调内 fire-and-forget 触发连接竞态）
     let createdId = null
     // runTransaction 内部两步通过 acquireConn 自动拿到同一事务连接（无需显式传参）
     const result = await runTransaction(async () => {
@@ -186,7 +197,6 @@ async function createUser(payload) {
       createdId = await userRepository.createUser({ username: username.trim(), passwordHash: hash, role: roleVal, ...profile })
       return { success: true, id: createdId, message: '用户创建成功', plainPassword: plain }
     })
-    if (result && result.success) logService.record('create', 'user', createdId)
     return result
   } catch (err) {
     console.error('[authService.createUser] 数据库异常:', err)
@@ -199,10 +209,10 @@ async function createUser(payload) {
  * 逐行校验：账号必填 / 账号查重 / 角色合法；失败行记录原因，不阻断其他行。
  * 初始密码 = 各角色默认密码（首次登录强制修改）；每种角色只哈希一次，避免重复计算。
  * 成功行用事务统一插入，返回成功条数与失败明细，便于前端一次性提示。
- * @param {{ users: Array<{ username, role, real_name, ... }> }} payload
+ * @param {{ users: Array<{ username, role, ... }> }} payload
  */
 async function batchCreateUsers(payload) {
-  if (!isAdmin()) return { success: false, message: '无权限：仅管理员可批量创建用户' }
+  if (!isAdmin() && !isGroupAdmin()) return { success: false, message: '无权限：仅超级管理员与课题组管理员可批量创建用户' }
   const users = payload && payload.users
   if (!Array.isArray(users) || !users.length) return { success: false, message: '没有可导入的用户数据' }
   if (users.length > 500) return { success: false, message: '单次最多导入 500 条' }
@@ -226,7 +236,7 @@ async function batchCreateUsers(payload) {
       }
       const roleVal = normalizeRole(u.role)
       if (u.role && !VALID_ROLES.includes(roleVal)) {
-        failedRows.push({ row: rowNo, username, reason: '角色不合法（应为：管理员/导师/学生）' })
+        failedRows.push({ row: rowNo, username, reason: '角色不合法（应为：超级管理员/课题组管理员/导师/学生）' })
         return
       }
       existingSet.add(username) // 防止同一批内重复
@@ -240,7 +250,7 @@ async function batchCreateUsers(payload) {
     // 各角色默认密码（单一事实来源）；按角色缓存哈希，避免每行重复 bcrypt
     const hashCache = {}
     const plainPasswords = {}
-    for (const role of [ROLE_ADMIN, ROLE_MENTOR, ROLE_STUDENT]) {
+    for (const role of VALID_ROLES) {
       const plain = defaultPasswordForRole(role)
       plainPasswords[role] = plain
       hashCache[role] = await bcrypt.hash(plain, BCRYPT_ROUNDS)
@@ -259,7 +269,6 @@ async function batchCreateUsers(payload) {
         createdCount += 1
       }
     })
-    logService.record('create', 'user', null, { batch: createdCount })
     return {
       success: true,
       message: `成功导入 ${createdCount} 条${failedRows.length ? `，失败 ${failedRows.length} 条` : ''}`,
@@ -276,7 +285,7 @@ async function batchCreateUsers(payload) {
 // 编辑用户：可改角色 / 重置密码 / 更新档案；仅组装需要更新的字段（增量更新）。
 // password 字段在此显式丢弃（改密走 changePassword，重置走 resetPassword），防止前端直接改密。
 async function updateUser(payload) {
-  if (!isAdmin()) return { success: false, message: '无权限：仅管理员可管理用户' }
+  if (!isAdmin() && !isGroupAdmin()) return { success: false, message: '无权限：仅超级管理员与课题组管理员可管理用户' }
   const { id, role, resetPassword, password: _ignoredPassword, ...profile } = payload || {}
   if (!id) return { success: false, message: '缺少用户标识' }
   try {
@@ -302,7 +311,6 @@ async function updateUser(payload) {
     if (Object.keys(data).length) {
       await userRepository.updateById(id, data)
     }
-    logService.record('update', 'user', id)
     return { success: true, message: '保存成功', plainPassword }
   } catch (err) {
     console.error('[authService.updateUser] 数据库异常:', err)
@@ -312,7 +320,7 @@ async function updateUser(payload) {
 
 // 删除用户：硬删除，禁止删自己
 async function deleteUser({ id }) {
-  if (!isAdmin()) return { success: false, message: '无权限：仅管理员可删除用户' }
+  if (!isAdmin() && !isGroupAdmin()) return { success: false, message: '无权限：仅超级管理员与课题组管理员可删除用户' }
   if (!id) return { success: false, message: '缺少用户标识' }
   if (currentUser && currentUser.id === id) {
     return { success: false, message: '不能删除当前登录的账号' }
@@ -321,7 +329,6 @@ async function deleteUser({ id }) {
     const exist = await userRepository.findById(id)
     if (!exist) return { success: false, message: '用户不存在' }
     await userRepository.delete(id)
-    logService.record('delete', 'user', id)
     return { success: true, message: '已删除' }
   } catch (err) {
     console.error('[authService.deleteUser] 数据库异常:', err)
@@ -329,7 +336,8 @@ async function deleteUser({ id }) {
   }
 }
 
-// 读取当前登录用户自己的完整档案（不含 password），供「学术档案 / 个人设置」回显
+// 读取当前登录用户自己的完整档案（不含 password）：当前用户表仅保留登录必需字段，
+// 返回 id / username / role / status / must_change_password，供个人资料页展示。
 async function getMyProfile() {
   if (!currentUser) return { success: false, message: '未登录，请重新登录' }
   try {
@@ -337,47 +345,21 @@ async function getMyProfile() {
     if (!user) return { success: false, message: '用户不存在' }
     // 去掉 password，仅返回安全列
     const { password, ...profile } = user
-    // 附带指导导师信息（仅用于前端只读展示；无导师时为 null）
-    let advisor_real_name = null
-    let advisor_username = null
-    if (user.advisor_id) {
-      try {
-        const advisor = await userRepository.findById(user.advisor_id)
-        if (advisor) {
-          advisor_real_name = advisor.real_name || null
-          advisor_username = advisor.username || null
-        }
-      } catch (e) {
-        console.error('[authService.getMyProfile] 查询导师信息失败:', e)
-      }
-    }
-    return { success: true, profile: { ...profile, advisor_real_name, advisor_username } }
+    return { success: true, profile }
   } catch (err) {
     console.error('[authService.getMyProfile] 数据库异常:', err)
     return { success: false, message: '读取档案失败，请稍后重试' }
   }
 }
 
-// 更新当前登录用户自己的档案（仅档案字段，白名单过滤见 userRepository.updateById）。
-// 与 updateUser（管理员管理所有用户）区分：普通用户只能改自己，且不能改角色/账号/密码。
-async function updateMyProfile(payload) {
-  if (!currentUser) return { success: false, message: '未登录，请重新登录' }
-  try {
-    // 显式丢弃 role / password / username / id 等敏感字段，防止通过「改自己」接口越权改角色或改密
-    const { role, password, username, id, ...profile } = payload || {}
-    await userRepository.updateById(currentUser.id, profile)
-    // 同步会话中的姓名显示，让顶栏/个人主页立即生效
-    if (profile && profile.real_name) currentUser.real_name = profile.real_name
-    return { success: true, message: '保存成功' }
-  } catch (err) {
-    console.error('[authService.updateMyProfile] 数据库异常:', err)
-    return { success: false, message: '保存失败，请稍后重试' }
-  }
-}
-
 module.exports = {
-  ROLE_ADMIN,
+  ROLE_SUPER_ADMIN,
+  ROLE_GROUP_ADMIN,
+  ROLE_MENTOR,
+  ROLE_STUDENT,
   isAdmin,
+  isGroupAdmin,
+  isGroupManager,
   login,
   logout,
   getCurrentUser,
@@ -388,6 +370,5 @@ module.exports = {
   batchCreateUsers,
   updateUser,
   getMyProfile,
-  updateMyProfile,
   deleteUser
 }

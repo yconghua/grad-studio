@@ -2,17 +2,17 @@
   <div class="login-page" :style="{ backgroundImage: `url(${loginBg})` }">
     <!-- 上：系统标题 -->
     <header class="login-header">
-      <img :src="logoUrl" class="brand-mark" alt="研究生工作室管理平台" />
-      <h1 class="brand-title">研究生工作室管理平台</h1>
+      <img :src="logoUrl" class="brand-mark" alt="课题组科研管理平台" />
+      <h1 class="brand-title">课题组科研管理平台</h1>
     </header>
 
     <!-- 中：简介（左） + 登录表单（右） -->
     <main class="login-main">
       <section class="intro-panel">
-        <img :src="jianjieUrl" class="intro-image" alt="研究生工作室管理平台" />
+        <img :src="jianjieUrl" class="intro-image" alt="课题组科研管理平台" />
         <div class="intro-overlay">
           <h2 class="intro-title">系统简介</h2>
-          <p class="intro-foot">记录 · 管理 · 成长</p>
+          <p class="intro-foot">科研 · 协作 · 成长</p>
         </div>
       </section>
 
@@ -36,7 +36,7 @@
 
           <!-- 默认账号提示：仅提示默认密码，首次登录需修改密码 -->
           <div class="default-tip">
-            <b>默认密码提示</b>：管理员 <b>admin123456</b> · 导师 <b>ds123456@</b> · 学生 <b>xs123456@</b>（首次登录需修改密码）
+            <b>默认密码提示</b>：超级管理员 <b>admin123456</b> · 课题组管理员 <b>ga123456@</b> · 导师 <b>ds123456@</b> · 学生 <b>xs123456@</b>（首次登录需修改密码）
           </div>
 
           <form @submit.prevent="onSubmit">
@@ -89,7 +89,7 @@
     <!-- 下：页脚 -->
     <footer class="login-footer">
       <div class="footer-inner">
-        <span class="footer-copy">Copyright © 2025–{{ copyrightYear }} Gra Studio. All Rights Reserved. 研究生工作室管理平台 版权所有</span>
+        <span class="footer-copy">Copyright © 2025–{{ copyrightYear }} Gra Studio. All Rights Reserved. 课题组科研管理平台 版权所有</span>
       </div>
     </footer>
 
@@ -120,7 +120,7 @@
             更新时间：2026年8月25日
           </p>
           <p class="privacy-lead">
-            研究生工作室管理平台（以下简称"本系统"）重视您的隐私。本隐私协议说明本系统在本地运行过程中如何收集、存储与使用您的信息。
+            课题组科研管理平台（以下简称"本系统"）重视您的隐私。本隐私协议说明本系统在本地运行过程中如何收集、存储与使用您的信息。
           </p>
           <section v-for="(sec, i) in privacySections" :key="i" class="privacy-sec">
             <h4>{{ sec.title }}</h4>
@@ -143,7 +143,7 @@
             更新时间：2026年8月25日
           </p>
           <p class="privacy-lead">
-            研究生工作室管理平台（以下简称"本系统"）的账号由管理员统一分配与管理，使用前请仔细阅读以下服务条款。
+            课题组科研管理平台（以下简称"本系统"）的账号由管理员统一分配与管理，使用前请仔细阅读以下服务条款。
           </p>
           <section v-for="(sec, i) in termsSections" :key="i" class="privacy-sec">
             <h4>{{ sec.title }}</h4>

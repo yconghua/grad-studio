@@ -42,7 +42,7 @@ function createWindow() {
     center: true, // 启动时居中
     show: false,
     icon: resolveIcon(),
-    title: '研究生工作室管理平台',
+    title: '课题组科研管理平台',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

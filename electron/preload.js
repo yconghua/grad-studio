@@ -1,13 +1,16 @@
 /**
  * 预加载脚本
  *
- * 在主进程与渲染层之间架桥：通过 contextBridge 把「认证 / 系统 / 六大业务模块」的 API
+ * 在主进程与渲染层之间架桥：通过 contextBridge 把「认证 / 系统」的 API
  * 暴露到 window.api，渲染层拿不到 ipcRenderer 本体，安全性更高。
  *
+ * 仅暴露平台基础设施通道：
+ *   auth    认证与用户管理（auth:*）
+ *   sys     系统与数据库连接（sys:*）
+ * 新业务模块的 IPC 通道待数据库与接口设计后按模块补充。
+ *
  * 调用统一由 createInvoke 工厂封装，消除每个方法重复的箭头函数样板：
- *   - 约定：每个方法至多向主进程发送「一个 payload 对象」（无参方法发送 undefined）；
- *   - 标准 CRUD 资源用 crudApi 一行生成五件套（list / get / create / update / remove）；
- *   - 后续若要统一加日志、错误处理、超时等，只改 createInvoke 一处即可。
+ *   - 约定：每个方法至多向主进程发送「一个 payload 对象」（无参方法发送 undefined）。
  */
 const { contextBridge, ipcRenderer } = require('electron')
 
@@ -24,8 +27,6 @@ function sanitize(value) {
 }
 
 // 工厂：把「某个 IPC 通道」固化成一个函数，调用时把唯一 payload 透传给主进程。
-// 统一在此打印「请求 → 响应 → 耗时」，前端 DevTools 控制台即可看到每条调用链路，
-// 配合主进程 [IPC→]/[IPC←] 日志可快速定位是前端没发、主进程没回、还是数据库层出错。
 const createInvoke = (channel) => async (payload) => {
   const t0 = Date.now()
   console.log(`[API→] ${channel}`, sanitize(payload))
@@ -40,15 +41,6 @@ const createInvoke = (channel) => async (payload) => {
   }
 }
 
-// 生成某资源的「标准 CRUD 五件套」，通道命名 `<prefix>:<动作>`（与 ipc/crudRouter 一致）
-const crudApi = (prefix) => ({
-  list: createInvoke(`${prefix}:list`),
-  get: createInvoke(`${prefix}:get`),
-  create: createInvoke(`${prefix}:create`),
-  update: createInvoke(`${prefix}:update`),
-  remove: createInvoke(`${prefix}:remove`)
-})
-
 contextBridge.exposeInMainWorld('api', {
   // 认证相关（对应 ipc/auth.js，通道前缀 auth:*）
   auth: {
@@ -62,7 +54,6 @@ contextBridge.exposeInMainWorld('api', {
     batchCreateUsers: createInvoke('auth:batch-create-users'),
     updateUser: createInvoke('auth:update-user'),
     getMyProfile: createInvoke('auth:get-my-profile'),
-    updateProfile: createInvoke('auth:update-profile'),
     deleteUser: createInvoke('auth:delete-user')
   },
   // 系统相关（对应 ipc/sys.js，通道前缀 sys:*）
@@ -84,87 +75,5 @@ contextBridge.exposeInMainWorld('api', {
     checkForUpdates: createInvoke('sys:check-update'),
     pickAttachment: createInvoke('sys:pick-attachment'),
     openAttachment: createInvoke('sys:open-attachment')
-  },
-  // 科研管理（对应 ipc/research.js，通道前缀 research:*）
-  research: {
-    project: crudApi('research:project'),
-    paper: crudApi('research:paper'),
-    patent: crudApi('research:patent'),
-    log: crudApi('research:log'),
-    achievement: crudApi('research:achievement'),
-    fund: crudApi('research:fund'),
-    milestone: crudApi('research:milestone'),
-    milestoneOverview: createInvoke('research:milestone-overview')
-  },
-  // 工作室事务（对应 ipc/studio.js，通道前缀 studio:*）
-  studio: {
-    seat: crudApi('studio:seat'),
-    device: crudApi('studio:device'),
-    borrow: crudApi('studio:borrow'),
-    attendance: crudApi('studio:attendance'),
-    duty: crudApi('studio:duty'),
-    regulation: crudApi('studio:regulation'),
-    joinLeave: crudApi('studio:join-leave'),
-    returnBorrow: createInvoke('studio:borrow:return'),
-    reviewJoinLeave: createInvoke('studio:join-leave:review')
-  },
-  // 资源中心（对应 ipc/resource.js，通道前缀 resource:*）
-  resource: {
-    item: crudApi('resource:item'),
-    link: crudApi('resource:link'),
-    download: createInvoke('resource:download')
-  },
-  // 协同办公（对应 ipc/collab.js，通道前缀 collab:*）
-  collab: {
-    meeting: crudApi('collab:meeting'),
-    activity: crudApi('collab:activity'),
-    task: crudApi('collab:task'),
-    post: crudApi('collab:post'),
-    approval: crudApi('collab:approval'),
-    weeklyReport: crudApi('collab:weekly-report'),
-    meetingAgenda: crudApi('collab:meeting-agenda'),
-    meetingRead: crudApi('collab:meeting-read'),
-    taskComment: crudApi('collab:task-comment'),
-    signup: createInvoke('collab:signup'),
-    cancelSignup: createInvoke('collab:signup-cancel'),
-    signupList: createInvoke('collab:signup-list'),
-    viewPost: createInvoke('collab:post-view'),
-    reply: createInvoke('collab:reply'),
-    replyList: createInvoke('collab:reply-list'),
-    reviewApproval: createInvoke('collab:approval-review'),
-    reviewReport: createInvoke('collab:weekly-report-review'),
-    reportToTask: createInvoke('collab:weekly-report-to-task'),
-    markMeetingRead: createInvoke('collab:meeting-read-mark'),
-    meetingReadList: createInvoke('collab:meeting-read-list'),
-    meetingReadStatus: createInvoke('collab:meeting-read-status'),
-    remindMeetingUnread: createInvoke('collab:meeting-read-remind'),
-    calendarEvents: createInvoke('collab:calendar-events')
-  },
-  // 工作台（对应 ipc/workbench.js，通道前缀 workbench:*）
-  workbench: {
-    todo: crudApi('workbench:todo'),
-    schedule: crudApi('workbench:schedule'),
-    notice: crudApi('workbench:notice'),
-    completeTodo: createInvoke('workbench:todo-complete'),
-    publishNotice: createInvoke('workbench:notice-publish'),
-    overview: createInvoke('workbench:overview')
-  },
-  // 全局搜索（对应 ipc/search.js，通道前缀 search:*）
-  search: {
-    globalSearch: createInvoke('search:global')
-  },
-  // 系统 / 个人（对应 ipc/system.js，通道前缀 system:*）
-  system: {
-    param: crudApi('system:param'),
-    getParam: createInvoke('system:param-get'),
-    setParam: createInvoke('system:param-set'),
-    listLogs: createInvoke('system:log-list'),
-    sendMessage: createInvoke('system:message-send'),
-    myMessages: createInvoke('system:message-mine'),
-    unreadCount: createInvoke('system:message-unread'),
-    markRead: createInvoke('system:message-read'),
-    markAllRead: createInvoke('system:message-read-all'),
-    getNotificationPref: createInvoke('system:notification-pref-get'),
-    saveNotificationPref: createInvoke('system:notification-pref-save')
   }
 })
