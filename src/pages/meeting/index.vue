@@ -373,6 +373,7 @@ async function onSaveMeeting() {
     if (res && res.success) {
       meetingModal.value.visible = false
       loadMeetings()
+      if (res.message) dialogAlert(res.message)
     } else {
       meetingModal.value.error = (res && res.message) || '保存失败'
     }

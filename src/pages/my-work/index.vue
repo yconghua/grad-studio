@@ -85,8 +85,10 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { listMyTasks, submitTaskProgress, listTaskProgress } from '../../api'
 
+const route = useRoute()
 const tasks = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -104,8 +106,18 @@ async function load() {
   error.value = ''
   try {
     const res = await listMyTasks()
-    if (res && res.success) tasks.value = res.data || []
-    else error.value = (res && res.message) || '加载失败'
+    if (res && res.success) {
+      tasks.value = res.data || []
+      // 携带 focus 参数进入时，自动定位并展开该任务（工作台点击跳转）
+      const focus = Number(route.query.focus)
+      if (focus) {
+        const t = tasks.value.find((x) => x.id === focus)
+        if (t) {
+          expandedId.value = t.id
+          await loadProgress(t.id)
+        }
+      }
+    } else error.value = (res && res.message) || '加载失败'
   } catch (e) {
     error.value = '网络异常，请重试'
   } finally {

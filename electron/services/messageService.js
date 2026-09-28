@@ -7,6 +7,21 @@
 const permission = require('./permission')
 const messageRepository = require('../db/repositories/messageRepository')
 
+// 惰性取 noticeService：本模块被 noticeService 顶层引用，若此处顶层 require 会形成循环依赖
+function getNoticeService() {
+  return require('./noticeService')
+}
+
+// 公告已读联动：把与该公告关联的站内通知消息标记已读（供 noticeService 调用）
+async function markNoticeReadSync(noticeId, receiverId) {
+  if (!noticeId || !receiverId) return
+  try {
+    await messageRepository.markReadByRef(receiverId, 'notice', noticeId)
+  } catch (err) {
+    console.error('[messageService.markNoticeReadSync] 同步消息已读失败:', err)
+  }
+}
+
 // 生成一条站内消息（供业务模块通知接收人；sender 取当前操作者，未登录场景取 0=系统）
 async function sendMessage({ receiverId, msgType, title, content, refType, refId }) {
   if (!receiverId) return
@@ -60,7 +75,12 @@ async function markRead(payload = {}) {
   const { id } = payload
   if (!id) return { success: false, message: '缺少消息标识' }
   try {
+    const msg = await messageRepository.findById(id)
     await messageRepository.markRead(id, permission.currentUserId())
+    // 公告类通知消息已读时，同步标记对应公告已读（公告红点与铃铛保持一致）
+    if (msg && msg.ref_type === 'notice' && msg.ref_id > 0 && msg.status === 'unread') {
+      await getNoticeService().markRead({ notice_id: msg.ref_id })
+    }
     return { success: true, message: '已标记为已读' }
   } catch (err) {
     console.error('[messageService.markRead] 数据库异常:', err)
@@ -72,7 +92,15 @@ async function markRead(payload = {}) {
 async function markAllRead() {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   try {
+    // 先收集未读公告类消息对应的公告 id，再联动标记公告已读
+    const noticeIds = await messageRepository.listUnreadNoticeRefs(permission.currentUserId())
     await messageRepository.markAllRead(permission.currentUserId())
+    if (noticeIds.length) {
+      const noticeService = getNoticeService()
+      for (const noticeId of noticeIds) {
+        await noticeService.markRead({ notice_id: noticeId })
+      }
+    }
     return { success: true, message: '已全部标记为已读' }
   } catch (err) {
     console.error('[messageService.markAllRead] 数据库异常:', err)
@@ -82,6 +110,7 @@ async function markAllRead() {
 
 module.exports = {
   sendMessage,
+  markNoticeReadSync,
   listMine,
   unreadCount,
   markRead,

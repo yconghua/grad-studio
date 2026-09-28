@@ -112,6 +112,32 @@ class MessageRepository extends BaseRepository {
     const [result] = await this._execute(sql, [receiverId], 'markAllRead')
     return result.affectedRows
   }
+
+  /**
+   * 按引用（公告）批量标记当前接收人的未读消息为已读（公告已读联动用）
+   * @param {number} receiverId
+   * @param {string} refType
+   * @param {number} refId
+   * @returns {number} 受影响行数
+   */
+  async markReadByRef(receiverId, refType, refId) {
+    const sql = `UPDATE \`message\` SET status = 'read', read_at = NOW()
+      WHERE receiver_id = ? AND ref_type = ? AND ref_id = ? AND status = 'unread' AND is_deleted = 0`
+    const [result] = await this._execute(sql, [receiverId, refType, refId], 'markReadByRef')
+    return result.affectedRows
+  }
+
+  /**
+   * 取接收人未读的公告类消息引用 id 集合（「全部已读」联动公告用）
+   * @param {number} receiverId
+   * @returns {number[]}
+   */
+  async listUnreadNoticeRefs(receiverId) {
+    const sql = `SELECT DISTINCT ref_id FROM \`message\`
+      WHERE receiver_id = ? AND ref_type = 'notice' AND ref_id > 0 AND status = 'unread' AND is_deleted = 0`
+    const [rows] = await this._execute(sql, [receiverId], 'listUnreadNoticeRefs')
+    return rows.map((r) => r.ref_id)
+  }
 }
 
 module.exports = new MessageRepository()

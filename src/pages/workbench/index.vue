@@ -100,7 +100,7 @@
         <div v-if="loadingStudent" class="state">加载中…</div>
         <div v-else-if="!myTasks.length" class="state">🗂️ 暂无任务</div>
         <ul v-else class="feed">
-          <li v-for="t in myTasks" :key="t.id" class="feed-item clickable" @click="go('/task')">
+          <li v-for="t in myTasks" :key="t.id" class="feed-item clickable" @click="goTask(t)">
             <span class="feed-action">{{ t.title }}</span>
             <span class="status-chip" :class="'st-' + t.status">{{ statusText(t.status) }}</span>
             <span class="feed-detail">{{ t.progress_percent || 0 }}%</span>
@@ -148,6 +148,10 @@ const greeting = computed(() => {
 })
 
 function go(path) { router.push(path) }
+// 点击任务条目：跳转到学生的「课题与任务」页并自动定位展开该任务
+function goTask(t) {
+  router.push({ path: '/my-work', query: { focus: t.id } })
+}
 function statusText(s) {
   return { todo: '待办', in_progress: '进行中', completed: '已完成' }[s] || s
 }

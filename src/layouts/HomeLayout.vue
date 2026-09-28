@@ -303,6 +303,8 @@ async function onMarkAllRead() {
     await markAllMessagesRead()
     msgList.value = msgList.value.map((m) => ({ ...m, status: 'read' }))
     msgUnread.value = 0
+    // 「全部已读」会联动清空公告未读，同步刷新侧边公告角标
+    fetchNoticeUnread()
   } catch (e) {}
 }
 
@@ -313,6 +315,8 @@ async function onMsgItemClick(m) {
     try { await markMessageRead(m.id) } catch (e) {}
     m.status = 'read'
     msgUnread.value = Math.max(0, msgUnread.value - 1)
+    // 公告类消息已读会联动公告已读，同步刷新侧边公告角标
+    if (m.ref_type === 'notice') fetchNoticeUnread()
   }
   msgPanelOpen.value = false
   const target = REF_ROUTE_MAP[m.ref_type]
@@ -518,8 +522,14 @@ async function confirmLogout() {
   router.push('/login')
 }
 
+// 公告未读变化时，消息未读（铃铛）可能随之变化（公告已读联动消息已读），一并刷新
+function onNoticeUnreadChanged() {
+  fetchNoticeUnread()
+  fetchMsgUnread()
+}
+
 watch(currentGroupId, () => { fetchNoticeUnread() })
-window.addEventListener('notice-unread-changed', fetchNoticeUnread)
+window.addEventListener('notice-unread-changed', onNoticeUnreadChanged)
 
 onMounted(() => {
   document.addEventListener('click', onDocClick)
@@ -534,7 +544,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
-  window.removeEventListener('notice-unread-changed', fetchNoticeUnread)
+  window.removeEventListener('notice-unread-changed', onNoticeUnreadChanged)
   if (msgTimer) clearInterval(msgTimer)
   if (searchTimer) clearTimeout(searchTimer)
 })

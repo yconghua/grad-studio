@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS `notice` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `group_id`      INT UNSIGNED NOT NULL                COMMENT '所属课题组 group.id',
+  `meeting_id`    INT UNSIGNED DEFAULT NULL            COMMENT '关联组会 meeting.id（组会发布时自动生成的公告）',
   `title`         VARCHAR(200) NOT NULL                COMMENT '公告标题',
   `content`       TEXT                                 COMMENT '公告正文',
   `is_top`        TINYINT(1)   NOT NULL DEFAULT 0      COMMENT '是否置顶：1 置顶 / 0 普通',
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `notice` (
   PRIMARY KEY (`id`),
   KEY `idx_is_deleted` (`is_deleted`),
   KEY `idx_group_top` (`group_id`, `is_top`),
+  KEY `idx_meeting` (`meeting_id`),
   KEY `idx_publisher` (`publisher_id`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课题组公告表';

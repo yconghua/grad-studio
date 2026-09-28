@@ -143,6 +143,7 @@
 <script setup>
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useGroupContext } from '../../composables/useGroupContext'
 import {
   listTasks, createTask, updateTask, removeTask,
@@ -150,6 +151,7 @@ import {
 } from '../../api'
 
 const { currentGroupId, loadGroups } = useGroupContext()
+const route = useRoute()
 
 const tasks = ref([])
 const members = ref([])
@@ -197,6 +199,12 @@ async function loadTasks() {
     const res = await listTasks({ group_id: currentGroupId.value })
     if (res && res.success) {
       tasks.value = res.data || []
+      // 携带 focus 参数进入时，自动定位并展开该任务（工作台点击跳转）
+      const focus = Number(route.query.focus)
+      if (focus && tasks.value.some((x) => x.id === focus)) {
+        expandedId.value = focus
+        await loadProgress(focus)
+      }
     } else {
       tasks.value = []
       if (res && res.message) dialogAlert(res.message)

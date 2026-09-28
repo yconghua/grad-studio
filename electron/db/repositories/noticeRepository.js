@@ -8,12 +8,12 @@
 const BaseRepository = require('./BaseRepository')
 
 const SAFE_COLUMNS = [
-  'id', 'group_id', 'title', 'content', 'is_top',
+  'id', 'group_id', 'meeting_id', 'title', 'content', 'is_top',
   'publisher_id', 'status', 'published_at'
 ]
 
 const WRITE_FIELDS = [
-  'group_id', 'title', 'content', 'is_top',
+  'group_id', 'meeting_id', 'title', 'content', 'is_top',
   'publisher_id', 'status', 'published_at'
 ]
 
@@ -92,6 +92,19 @@ class NoticeRepository extends BaseRepository {
       WHERE \`notice_id\` IN (${placeholders}) AND \`user_id\` = ? AND \`is_deleted\` = 0`
     const [rows] = await this._execute(sql, [...noticeIds, userId], 'readNoticeIds')
     return new Set(rows.map((r) => r.notice_id))
+  }
+
+  /**
+   * 按关联组会查生效公告（组会发布自动生成的公告，一组会最多一条）
+   * @param {number} meetingId
+   * @returns {Object|null}
+   */
+  async findByMeetingId(meetingId) {
+    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`notice\`
+      WHERE \`meeting_id\` = ? AND \`status\` = 'active' AND is_deleted = 0
+      ORDER BY id DESC LIMIT 1`
+    const [rows] = await this._execute(sql, [meetingId], 'findByMeetingId')
+    return rows[0] || null
   }
 
   // 白名单提取可写入字段

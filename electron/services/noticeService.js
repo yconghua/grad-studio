@@ -11,6 +11,46 @@ const userGroupRepository = require('../db/repositories/userGroupRepository')
 const operationLogService = require('./operationLogService')
 const messageService = require('./messageService')
 
+const MEETING_TYPE_TEXT = { regular: '常规组会', seminar: '专题研讨', thesis: '开题答辩', other: '其他' }
+
+function fmtDT(v) {
+  return v ? String(v).replace('T', ' ').slice(0, 16) : '—'
+}
+
+// 由组会信息构建自动公告的正文
+function buildMeetingNoticeContent(m) {
+  const lines = []
+  if (m.meeting_type) lines.push(`类型：${MEETING_TYPE_TEXT[m.meeting_type] || m.meeting_type}`)
+  lines.push(`时间：${fmtDT(m.start_time)} ~ ${fmtDT(m.end_time)}`)
+  if (m.location) lines.push(`地点：${m.location}`)
+  if (m.agenda) lines.push(`议程：${m.agenda}`)
+  lines.push('请各位成员提前做好准备，准时参加。')
+  return lines.join('\n')
+}
+
+// 给本组导师与学生发站内通知（课题组管理员不接收公告类通知，发布者本人也不发）
+async function notifyGroupMembers(groupId, title, content, refId) {
+  try {
+    const members = await userGroupRepository.listByGroup({ group_id: groupId, status: 'active' })
+    const publisherId = permission.currentUserId()
+    members.forEach((m) => {
+      if (m.role_in_group === 'group_admin') return
+      if (m.user_id !== publisherId) {
+        messageService.sendMessage({
+          receiverId: m.user_id,
+          msgType: 'notice',
+          title,
+          content,
+          refType: 'notice',
+          refId
+        })
+      }
+    })
+  } catch (err) {
+    console.error('[noticeService] 发送公告通知失败:', err)
+  }
+}
+
 // 公告列表：按 group_id 过滤，置顶优先、发布时间倒序，并打 is_read 标记
 async function list(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
@@ -18,6 +58,11 @@ async function list(payload) {
   if (!group_id) return { success: false, message: '缺少课题组标识' }
   try {
     const notices = await noticeRepository.listByGroup(group_id)
+    // 课题组管理员不需要未读提示，公告全部视为已读
+    if (permission.isGroupAdmin()) {
+      const list = notices.map((n) => ({ ...n, is_read: 1 }))
+      return { success: true, notices: list }
+    }
     const readSet = await noticeRepository.readNoticeIds(
       notices.map((n) => n.id),
       permission.currentUserId()
@@ -36,6 +81,8 @@ async function unreadCount(payload) {
   const { group_id } = payload || {}
   if (!group_id) return { success: false, message: '缺少课题组标识' }
   try {
+    // 课题组管理员不显示公告未读
+    if (permission.isGroupAdmin()) return { success: true, count: 0 }
     const count = await noticeRepository.countUnreadByGroup(group_id, permission.currentUserId())
     return { success: true, count }
   } catch (err) {
@@ -51,12 +98,15 @@ async function markRead(payload) {
   if (!notice_id) return { success: false, message: '缺少公告标识' }
   try {
     const existed = await noticeReadRepository.findByNoticeAndUser(notice_id, permission.currentUserId())
-    if (existed) return { success: true, message: '已读' }
-    await noticeReadRepository.create({
-      notice_id,
-      user_id: permission.currentUserId(),
-      read_at: new Date()
-    })
+    if (!existed) {
+      await noticeReadRepository.create({
+        notice_id,
+        user_id: permission.currentUserId(),
+        read_at: new Date()
+      })
+    }
+    // 公告已读，同步其站内通知消息为已读（首页铃铛未读同步消失）
+    await messageService.markNoticeReadSync(notice_id, permission.currentUserId())
     return { success: true, message: '已标记为已读' }
   } catch (err) {
     console.error('[noticeService.markRead] 数据库异常:', err)
@@ -84,24 +134,7 @@ async function create(payload) {
       detail: `发布公告「${String(title).trim()}」`
     })
     // 站内通知：发送给本组生效成员（不含发布者本人）
-    try {
-      const members = await userGroupRepository.listByGroup({ group_id, status: 'active' })
-      const publisherId = permission.currentUserId()
-      members.forEach((m) => {
-        if (m.user_id !== publisherId) {
-          messageService.sendMessage({
-            receiverId: m.user_id,
-            msgType: 'notice',
-            title: '新公告',
-            content: `课题组发布新公告「${String(title).trim()}」`,
-            refType: 'notice',
-            refId: id
-          })
-        }
-      })
-    } catch (err) {
-      console.error('[noticeService.create] 发送公告通知失败:', err)
-    }
+    notifyGroupMembers(group_id, '新公告', `课题组发布新公告「${String(title).trim()}」`, id)
     return { success: true, message: '公告已发布', id }
   } catch (err) {
     console.error('[noticeService.create] 数据库异常:', err)
@@ -161,4 +194,28 @@ async function remove(payload) {
   }
 }
 
-module.exports = { list, unreadCount, markRead, create, update, remove }
+// 组会联动：组会保存为「已发布」时，自动生成 / 同步更新其关联公告（供 meetingService 调用）
+// 首次发布生成公告并触发站内通知；后续编辑（时间 / 地点等变更）只更新公告内容并提醒成员，不重复生成。
+async function syncFromMeeting(meeting) {
+  const meetingId = meeting && meeting.id
+  if (!meetingId || !meeting.group_id || !meeting.title) return null
+  const title = String(meeting.title).trim()
+  const noticeTitle = `组会通知：${title}`
+  const content = buildMeetingNoticeContent(meeting)
+  const exist = await noticeRepository.findByMeetingId(meetingId)
+  if (exist) {
+    await update({ id: exist.id, title: noticeTitle, content })
+    notifyGroupMembers(exist.group_id, '组会公告已更新', `组会「${title}」的公告已更新，请查看最新安排`, exist.id)
+    return { action: 'updated', noticeId: exist.id }
+  }
+  const res = await create({
+    group_id: meeting.group_id,
+    meeting_id: meetingId,
+    title: noticeTitle,
+    content,
+    is_top: 0
+  })
+  return { action: 'created', noticeId: res.id }
+}
+
+module.exports = { list, unreadCount, markRead, create, update, remove, syncFromMeeting }
