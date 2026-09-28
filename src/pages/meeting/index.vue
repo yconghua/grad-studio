@@ -159,7 +159,7 @@
             <span class="form-label">选择组会 *</span>
             <select v-model="reportModal.form.meeting_id">
               <option :value="0" disabled>请选择组会</option>
-              <option v-for="m in meetings" :key="m.id" :value="m.id">{{ m.title }}（{{ fmtDT(m.start_time) }}）</option>
+              <option v-for="m in publishableMeetings" :key="m.id" :value="m.id">{{ m.title }}（{{ fmtDT(m.start_time) }}）</option>
             </select>
           </label>
           <label class="form-item full">
@@ -332,6 +332,9 @@ function switchTab(t) {
   tab.value = t
   if (t === 'reports') loadReports()
 }
+
+// 学生提交汇报时，可选组会仅限「已发布」状态（草稿 / 已取消不可提交）
+const publishableMeetings = computed(() => meetings.value.filter((m) => m.status === 'published'))
 
 // ===== 组会弹窗 =====
 const emptyMeetingForm = () => ({

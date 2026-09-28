@@ -74,6 +74,23 @@ class MeetingReportRepository extends BaseRepository {
     const [rows] = await this._execute(sql, [studentId], 'listByStudent')
     return rows
   }
+
+  // 级联软删：删除组会时，将其下所有汇报一并软删（is_deleted = 1）
+  async softDeleteByMeeting(meetingId) {
+    const sql = 'UPDATE `meeting_report` SET is_deleted = 1 WHERE meeting_id = ? AND is_deleted = 0'
+    const [result] = await this._execute(sql, [meetingId], 'softDeleteByMeeting')
+    return result.affectedRows
+  }
+
+  // 级联软删：移除成员时，软删该成员在本组组会下提交的全部汇报（经 meeting 关联 group_id）
+  async softDeleteByGroupStudent(groupId, studentId) {
+    const sql =
+      'UPDATE `meeting_report` SET is_deleted = 1 ' +
+      'WHERE student_id = ? AND is_deleted = 0 ' +
+      'AND meeting_id IN (SELECT id FROM `meeting` WHERE group_id = ? AND is_deleted = 0)'
+    const [result] = await this._execute(sql, [studentId, groupId], 'softDeleteByGroupStudent')
+    return result.affectedRows
+  }
 }
 
 module.exports = new MeetingReportRepository()

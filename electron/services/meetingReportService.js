@@ -39,9 +39,12 @@ async function submit(payload) {
   }
   const body = payload || {}
   if (!body.meeting_id) return { success: false, message: '缺少组会标识（meeting_id）' }
-  // 校验组会存在且未删除
+  // 校验组会存在、未删除且已发布（草稿 / 已取消的组会不接受汇报）
   const meeting = await meetingRepository.findById(body.meeting_id)
   if (!meeting) return { success: false, message: '组会不存在或已删除' }
+  if (meeting.status !== 'published') {
+    return { success: false, message: '该组会未发布（草稿 / 已取消），无法提交汇报' }
+  }
   try {
     body.student_id = permission.currentUserId()
     const id = await meetingReportRepository.create(body)

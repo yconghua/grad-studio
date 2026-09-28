@@ -141,6 +141,34 @@ class BaseRepository {
     const [result] = await this._execute(sql, [id], 'delete')
     return result.affectedRows
   }
+
+  /**
+   * 按单字段条件批量软删除（is_deleted = 1，不物理删除）。
+   * 用于级联清理：删除用户 / 节点 / 组会时，把关联表里归属该对象的记录一并软删。
+   * field 只允许字母 / 数字 / 下划线（防注入），value 一律参数化绑定。
+   * @param {string} field 列名（开发者写死传入，不接受用户输入）
+   * @param {number|string|string[]} value 匹配值；数组表示 IN 匹配
+   * @returns {number} 受影响行数
+   */
+  async softDeleteByField(field, value) {
+    if (!/^[A-Za-z0-9_]+$/.test(String(field))) {
+      throw new Error(`softDeleteByField 非法字段名: ${field}`)
+    }
+    let clause
+    let params
+    if (Array.isArray(value)) {
+      if (!value.length) return 0
+      const marks = value.map(() => '?').join(', ')
+      clause = `\`${field}\` IN (${marks})`
+      params = value
+    } else {
+      clause = `\`${field}\` = ?`
+      params = [value]
+    }
+    const sql = `UPDATE \`${this.tableName}\` SET is_deleted = 1 WHERE ${clause} AND is_deleted = 0`
+    const [result] = await this._execute(sql, params, 'softDeleteByField')
+    return result.affectedRows
+  }
 }
 
 module.exports = BaseRepository

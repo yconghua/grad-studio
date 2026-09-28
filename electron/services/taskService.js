@@ -86,12 +86,23 @@ async function update(payload) {
   const id = payload && payload.id
   if (!id) return { success: false, message: '缺少任务标识（id）' }
   try {
+    const task = await taskRepository.findById(id)
+    if (!task) return { success: false, message: '任务不存在或已删除' }
     if (payload && payload.assignee_id) {
-      const task = await taskRepository.findById(id)
-      if (!task) return { success: false, message: '任务不存在或已删除' }
       const assignee = await userGroupRepository.findByUserAndGroup(payload.assignee_id, task.group_id)
       if (!assignee || assignee.status !== 'active') {
         return { success: false, message: '执行人不在该课题组，无法指派' }
+      }
+      // 执行人变更时通知新执行人，避免换人后新执行人不知情
+      if (Number(payload.assignee_id) !== task.assignee_id) {
+        messageService.sendMessage({
+          receiverId: Number(payload.assignee_id),
+          msgType: 'task',
+          title: '任务指派',
+          content: `任务「${String(task.title).trim()}」已指派给您`,
+          refType: 'task',
+          refId: id
+        })
       }
     }
     await taskRepository.update(id, payload || {})
@@ -181,6 +192,15 @@ async function progressSubmit(payload) {
       targetType: 'task',
       targetId: body.task_id,
       detail: `提交任务进展（进度 ${pct}%）`
+    })
+    // 站内通知：告知下发人，形成「提交进展 → 导师知晓」闭环
+    messageService.sendMessage({
+      receiverId: task.assigner_id,
+      msgType: 'task',
+      title: pct >= 100 ? '任务已完成' : '任务进展更新',
+      content: `任务「${String(task.title).trim()}」进度更新至 ${pct}%`,
+      refType: 'task',
+      refId: body.task_id
     })
     return { success: true, message: '进展已提交' }
   } catch (err) {

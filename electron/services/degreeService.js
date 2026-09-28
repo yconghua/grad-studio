@@ -61,19 +61,21 @@ async function saveNode(payload) {
   }
 }
 
-// degree:remove-node —— 软删除节点
+// degree:remove-node —— 软删除节点，级联软删该节点下的学生学位记录
 async function removeNode(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!canManage()) return { success: false, message: '无权限：仅课题组管理员与导师可删除学位节点' }
   const id = payload && payload.id
   if (!id) return { success: false, message: '缺少节点标识（id）' }
   try {
+    // 级联软删该节点下全部学生学位记录，避免删除节点后记录残留成孤儿引用
+    await studentDegreeRepository.softDeleteByField('node_id', id)
     await degreeNodeRepository.delete(id)
     operationLogService.writeLog({
       action: 'removeDegreeNode',
       targetType: 'degree_node',
       targetId: id,
-      detail: '删除学位节点'
+      detail: '删除学位节点（级联软删其下学生记录）'
     })
     return { success: true, message: '已删除' }
   } catch (err) {

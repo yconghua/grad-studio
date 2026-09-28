@@ -19,6 +19,8 @@ const userGroupRepository = require('../db/repositories/userGroupRepository')
 const { runTransaction } = require('../db/connection')
 // 操作日志：账号增删改等管理操作落审计
 const operationLogService = require('./operationLogService')
+// 级联软删：删除账号时一并软删该用户名下全部关联数据
+const userCascadeService = require('./userCascadeService')
 // 前后端共享常量（角色 / 密码长度 / bcrypt 成本等），单一事实来源，避免硬编码散落
 const {
   ROLE_SUPER_ADMIN,
@@ -359,7 +361,7 @@ async function updateUser(payload) {
   }
 }
 
-// 删除用户：硬删除，禁止删自己
+// 删除用户：软删除，禁止删自己；级联软删该账号名下全部关联数据
 async function deleteUser({ id }) {
   if (!isAdmin() && !isGroupAdmin()) return { success: false, message: '无权限：仅超级管理员与课题组管理员可删除用户' }
   if (!id) return { success: false, message: '缺少用户标识' }
@@ -369,12 +371,14 @@ async function deleteUser({ id }) {
   try {
     const exist = await userRepository.findById(id)
     if (!exist) return { success: false, message: '用户不存在' }
-    await userRepository.delete(id)
+    // 级联软删：账号本身 + 该用户名下全部关联数据，同一事务内完成
+    const result = await userCascadeService.softDeleteUser(id)
+    if (!result.success) return result
     operationLogService.writeLog({
       action: 'deleteUser',
       targetType: 'user',
       targetId: id,
-      detail: `删除账号 ${exist.username}`
+      detail: `删除账号 ${exist.username}（级联软删 ${result.data ? JSON.stringify(result.data.counts) : '关联数据'}）`
     })
     return { success: true, message: '已删除' }
   } catch (err) {

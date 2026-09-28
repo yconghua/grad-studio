@@ -52,7 +52,7 @@ import { useRouter } from 'vue-router'
 import { changePassword } from '../../api'
 import { useSession } from '../../composables/useSession'
 
-const { getSessionUser } = useSession()
+const { getSessionUser, setSession } = useSession()
 const router = useRouter()
 
 const oldPassword = ref('')
@@ -79,6 +79,8 @@ async function onSubmit() {
       oldPassword.value = ''
       newPassword.value = ''
       confirmPassword.value = ''
+      // 同步刷新本地会话：解除强制改密标记，避免后续导航仍被守卫拦截回改密页
+      setSession({ ...user, mustChangePassword: false })
       // 若当前处于强制改密状态（首次登录），改密成功后返回主界面
       if (user && user.mustChangePassword) {
         setTimeout(() => router.push('/'), 800)

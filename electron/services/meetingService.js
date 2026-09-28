@@ -5,6 +5,7 @@
  */
 const permission = require('./permission')
 const meetingRepository = require('../db/repositories/meetingRepository')
+const meetingReportRepository = require('../db/repositories/meetingReportRepository')
 const noticeService = require('./noticeService')
 const operationLogService = require('./operationLogService')
 
@@ -19,13 +20,20 @@ async function syncMeetingNotice(meeting) {
   }
 }
 
-// meeting:list —— 全员登录，按 group_id 过滤，开始时间倒序
+// meeting:list —— 全员登录，按 group_id 过滤，开始时间倒序。
+// 组管可见全部状态；导师 / 学生仅可见已发布与已结束（草稿 / 已取消对外不可见）
 async function list(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   const groupId = payload && payload.group_id
   if (!groupId) return { success: false, message: '缺少课题组标识（group_id）' }
   try {
     const data = await meetingRepository.listByGroup(groupId)
+    if (!permission.isGroupAdmin()) {
+      return {
+        success: true,
+        data: data.filter((m) => m.status === 'published' || m.status === 'finished')
+      }
+    }
     return { success: true, data }
   } catch (err) {
     console.error('[meetingService.list] 数据库异常:', err)
@@ -89,19 +97,21 @@ async function update(payload) {
   }
 }
 
-// meeting:remove —— 仅课题组管理员，软删除
+// meeting:remove —— 仅课题组管理员，软删除，级联软删该组会下全部汇报
 async function remove(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isGroupAdmin()) return { success: false, message: '无权限：仅课题组管理员可删除组会' }
   const id = payload && payload.id
   if (!id) return { success: false, message: '缺少组会标识（id）' }
   try {
+    // 级联软删该组会下全部汇报，避免删除组会后汇报残留成孤儿记录
+    await meetingReportRepository.softDeleteByMeeting(id)
     await meetingRepository.delete(id)
     operationLogService.writeLog({
       action: 'removeMeeting',
       targetType: 'meeting',
       targetId: id,
-      detail: '删除组会'
+      detail: '删除组会（级联软删其下汇报）'
     })
     return { success: true, message: '已删除' }
   } catch (err) {

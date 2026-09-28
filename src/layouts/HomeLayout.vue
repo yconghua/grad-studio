@@ -310,6 +310,24 @@ async function onMarkAllRead() {
 
 const REF_ROUTE_MAP = { notice: '/notice', task: '/task', achievement: '/achievement', weekly: '/research-record' }
 
+// 消息跳转目标：按消息类型与当前角色分流。
+// - task 消息：学生跳「课题与任务」（带 focus 定位任务），组管/导师跳「任务管理」；
+// - weekly 消息：跳「科研记录」并带 tab=weekly + focus，直达被批阅的周报。
+function msgTarget(m) {
+  if (m.ref_type === 'task') {
+    const role = currentUser?.role || ''
+    if (role === 'student') {
+      return { path: '/my-work', query: m.ref_id ? { focus: m.ref_id } : {} }
+    }
+    return '/task'
+  }
+  if (m.ref_type === 'weekly') {
+    return { path: '/research-record', query: { tab: 'weekly', ...(m.ref_id ? { focus: m.ref_id } : {}) } }
+  }
+  const target = REF_ROUTE_MAP[m.ref_type]
+  return target || null
+}
+
 async function onMsgItemClick(m) {
   if (m.status === 'unread') {
     try { await markMessageRead(m.id) } catch (e) {}
@@ -319,7 +337,7 @@ async function onMsgItemClick(m) {
     if (m.ref_type === 'notice') fetchNoticeUnread()
   }
   msgPanelOpen.value = false
-  const target = REF_ROUTE_MAP[m.ref_type]
+  const target = msgTarget(m)
   if (target) router.push(target)
 }
 

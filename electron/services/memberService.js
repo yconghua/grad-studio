@@ -8,6 +8,8 @@ const permission = require('./permission')
 const userGroupRepository = require('../db/repositories/userGroupRepository')
 const userRepository = require('../db/repositories/userRepository')
 const operationLogService = require('./operationLogService')
+// 级联软删：移除成员时一并软删该成员在本组的组内关联数据
+const userCascadeService = require('./userCascadeService')
 
 // 按课题组列出成员（仅组管理员）
 async function list(payload) {
@@ -96,7 +98,7 @@ async function update(payload) {
   }
 }
 
-// 从组移除（软删除 user_group 记录；仅组管理员）
+// 从组移除（软删除成员记录 + 该成员在本组的组内关联数据；仅组管理员）
 async function remove(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isGroupAdmin()) return { success: false, message: '无权限：仅课题组管理员可管理成员' }
@@ -105,12 +107,18 @@ async function remove(payload) {
   try {
     const exist = await userGroupRepository.findById(id)
     if (!exist) return { success: false, message: '成员记录不存在' }
-    await userGroupRepository.delete(id)
+    // 级联软删：成员记录本身 + 该成员在本组的组内关联数据（指导关系 / 学位记录 / 任务 / 汇报 / 课题成员），同一事务内完成
+    const result = await userCascadeService.softRemoveMember({
+      userGroupId: exist.id,
+      groupId: exist.group_id,
+      userId: exist.user_id
+    })
+    if (!result.success) return result
     operationLogService.writeLog({
       action: 'removeMember',
       targetType: 'user_group',
       targetId: id,
-      detail: `移除成员 ${exist.user_id} 出课题组 ${exist.group_id}`
+      detail: `移除成员 ${exist.user_id} 出课题组 ${exist.group_id}（级联软删 ${result.data ? JSON.stringify(result.data.counts) : '组内关联数据'}）`
     })
     return { success: true, message: '已移除' }
   } catch (err) {

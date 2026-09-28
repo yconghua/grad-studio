@@ -55,7 +55,7 @@
           <tr><th>周次</th><th>本周工作</th><th>下周计划</th><th>状态</th><th>提交时间</th><th style="width:170px">操作</th></tr>
         </thead>
         <tbody>
-          <tr v-for="item in weeklies" :key="item.id">
+          <tr v-for="item in weeklies" :key="item.id" :class="{ 'row-focus': focusWeeklyId && item.id === focusWeeklyId }">
             <td class="nowrap">{{ item.week_start }} ~ {{ item.week_end }}</td>
             <td class="content-cell">{{ item.work_content || '—' }}</td>
             <td class="content-cell">{{ item.plan_content || '—' }}</td>
@@ -69,7 +69,14 @@
           </tr>
         </tbody>
       </table>
-      <div v-if="reviewTip" class="review-tip">{{ reviewTip }}</div>
+      <!-- 导师批阅意见：全部已批阅周报逐条展示，方便学生对照查看 -->
+      <div v-if="reviewedWeeklies.length" class="review-tip">
+        <div class="review-tip-title">导师批阅意见</div>
+        <div v-for="w in reviewedWeeklies" :key="w.id" class="review-item">
+          <span class="review-week">{{ w.week_start }} ~ {{ w.week_end }}</span>
+          <span class="review-text">{{ w.review_comment }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- 日志弹窗 -->
@@ -142,13 +149,19 @@
 
 <script setup>
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   listMyResearchLogs, createResearchLog, updateResearchLog, removeResearchLog,
   listMyWeeklyReports, createWeeklyReport, updateWeeklyReport, submitWeeklyReport
 } from '../../api'
 
+const route = useRoute()
 const tab = ref('log')
+
+// 从站内消息跳转带入的定位参数：tab=weekly 直达周报 Tab，focus=周报 id 高亮对应行
+const focusWeeklyId = ref(Number(route.query.focus) || 0)
+if (route.query.tab === 'weekly') tab.value = 'weekly'
 
 // ===== 科研日志 =====
 const logs = ref([])
@@ -216,7 +229,11 @@ async function onRemoveLog(item) {
 const weeklies = ref([])
 const weeklyLoading = ref(false)
 const weeklyError = ref('')
-const reviewTip = ref('')
+
+// 已批阅且有评语的周报列表（全部展示，便于对照查看）
+const reviewedWeeklies = computed(() =>
+  weeklies.value.filter((w) => w.status === 'reviewed' && w.review_comment)
+)
 
 const weeklyModal = ref({
   show: false, saving: false, error: '',
@@ -230,7 +247,6 @@ async function loadWeekly() {
     const res = await listMyWeeklyReports()
     if (res && res.success) {
       weeklies.value = res.data || []
-      reviewTip.value = weeklies.value.find(w => w.status === 'reviewed' && w.review_comment)?.review_comment || ''
     } else {
       weeklyError.value = (res && res.message) || '加载失败'
     }
@@ -374,7 +390,13 @@ loadWeekly()
 .link { background: none; border: none; color: #0d80e0; cursor: pointer; font-size: 13px; padding: 0 6px; }
 .link:hover { text-decoration: underline; }
 .link.danger { color: #ea4335; }
-.review-tip { margin-top: 12px; padding: 10px 14px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; font-size: 13px; color: #19a558; }
+.review-tip { margin-top: 12px; padding: 12px 14px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; font-size: 13px; color: #19a558; }
+.review-tip-title { font-weight: 600; margin-bottom: 8px; }
+.review-item { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px dashed #d9f0c0; }
+.review-item:last-child { border-bottom: none; }
+.review-week { flex: 0 0 auto; white-space: nowrap; color: #8a9099; }
+.review-text { color: #4e5969; line-height: 1.6; }
+.row-focus { background: #fffbe6 !important; }
 
 .modal-mask {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);

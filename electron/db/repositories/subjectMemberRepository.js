@@ -82,6 +82,16 @@ class SubjectMemberRepository extends BaseRepository {
     const [result] = await this._execute(sql, [roleInSubject, id], 'reactivate')
     return result.affectedRows
   }
+
+  // 级联软删：移除成员时，软删该成员在本组全部课题下的成员关系（经 subject 关联 group_id）
+  async softDeleteByGroupUser(groupId, userId) {
+    const sql =
+      'UPDATE `subject_member` SET is_deleted = 1 ' +
+      'WHERE user_id = ? AND is_deleted = 0 ' +
+      'AND subject_id IN (SELECT id FROM `subject` WHERE group_id = ? AND is_deleted = 0)'
+    const [result] = await this._execute(sql, [userId, groupId], 'softDeleteByGroupUser')
+    return result.affectedRows
+  }
 }
 
 module.exports = new SubjectMemberRepository()
