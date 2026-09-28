@@ -50,8 +50,8 @@
                     <span class="member-title">成员列表（{{ membersOf(s.id).length }}）</span>
                     <div class="member-add">
                       <select v-model="memberPick[s.id]">
-                        <option :value="0" disabled>选择成员</option>
-                        <option v-for="m in leaderOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
+                        <option disabled value="">请选择成员</option>
+                        <option v-for="m in subjectMemberOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
                       </select>
                       <button class="btn btn-mini btn-primary" @click="onAddMember(s)">添加</button>
                     </div>
@@ -104,9 +104,10 @@
             </select>
           </label>
           <label class="form-item">
-            <span class="form-label">负责人</span>
-            <select v-model="subjectModal.form.leader_id">
-              <option :value="0">未指定</option>
+            <span class="form-label">负责人 <i>*</i></span>
+            <input v-if="isMentor" :value="mentorSelfLabel" disabled />
+            <select v-else v-model="subjectModal.form.leader_id">
+              <option :value="0" disabled>请选择负责人</option>
               <option v-for="m in leaderOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
             </select>
           </label>
@@ -160,6 +161,8 @@
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useGroupContext } from '../../composables/useGroupContext'
+import { useRole } from '../../composables/useRole'
+import { useSession } from '../../composables/useSession'
 import {
   listSubjects, createSubject, updateSubject, removeSubject,
   listSubjectMembers, addSubjectMember, removeSubjectMember,
@@ -167,6 +170,12 @@ import {
 } from '../../api'
 
 const { currentGroupId, loadGroups } = useGroupContext()
+const { isMentor } = useRole()
+const { getSessionUser } = useSession()
+const currentUser = getSessionUser()
+const mentorSelfLabel = currentUser
+  ? (currentUser.real_name ? currentUser.real_name + '（' + currentUser.username + '）' : currentUser.username)
+  : ''
 
 const subjects = ref([])
 const members = ref([])
@@ -185,8 +194,10 @@ function statusText(s) { return STATUS_TEXT[s] || s || '—' }
 function memberLabel(m) {
   return m.real_name ? m.real_name + '（' + m.username + '）' : m.username
 }
-// 负责人候选：仅当前课题组的导师 / 学生（课题组管理员不可作为课题负责人）
-const leaderOptions = computed(() => members.value.filter((m) => m.role !== 'group_admin'))
+// 负责人候选：仅导师
+const leaderOptions = computed(() => members.value.filter((m) => m.role === 'mentor'))
+// 课题成员候选：仅学生
+const subjectMemberOptions = computed(() => members.value.filter((m) => m.role === 'student'))
 function nameOf(id) {
   const m = members.value.find((x) => x.id === Number(id))
   return m ? memberLabel(m) : (id ? ('#' + id) : '—')
@@ -219,6 +230,7 @@ async function loadSubjects() {
 async function toggleExpand(id) {
   if (expandedId.value === id) { expandedId.value = null; return }
   expandedId.value = id
+  if (!memberPick.value[id]) memberPick.value[id] = ''
   await loadMemberList(id)
 }
 
@@ -237,7 +249,7 @@ async function onAddMember(subject) {
   if (!uid) { dialogAlert('请先选择成员'); return }
   const res = await addSubjectMember({ subject_id: subject.id, user_id: uid, role_in_subject: 'member' })
   if (res && res.success) {
-    memberPick.value[subject.id] = 0
+    memberPick.value[subject.id] = ''
     loadMemberList(subject.id)
   } else {
     dialogAlert((res && res.message) || '添加失败')
@@ -269,6 +281,7 @@ function openSubjectModal(row) {
     }
   } else {
     subjectModal.value.form = emptyForm()
+    if (isMentor && currentUser) subjectModal.value.form.leader_id = currentUser.id
   }
   subjectModal.value.error = ''
   subjectModal.value.visible = true
@@ -277,6 +290,7 @@ function openSubjectModal(row) {
 async function onSaveSubject() {
   const f = subjectModal.value.form
   if (!f.name.trim()) { subjectModal.value.error = '课题名称不能为空'; return }
+  if (!f.leader_id) { subjectModal.value.error = '请选择负责人'; return }
   subjectModal.value.saving = true
   subjectModal.value.error = ''
   const payload = {

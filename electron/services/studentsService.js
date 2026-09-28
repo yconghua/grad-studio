@@ -77,6 +77,30 @@ async function listGroupStudents(payload) {
   }
 }
 
+// 绑定候选学生：当前组内 role_in_group=student，且尚未被任何导师绑定（active）的学生
+async function listAvailableForBind(payload) {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isManager()) return { success: false, message: '无权限' }
+  const { group_id } = payload || {}
+  if (!group_id) return { success: false, message: '缺少课题组标识' }
+  try {
+    const members = await userGroupRepository.listByGroup({ group_id, role_in_group: 'student' })
+    const relations = await mentorStudentRepository.listByGroup(group_id, 'active')
+    const boundIds = new Set(relations.map((r) => Number(r.student_id)))
+    const rows = members
+      .filter((m) => !boundIds.has(Number(m.user_id)))
+      .map((m) => ({
+        id: m.user_id,
+        username: m.username,
+        real_name: m.real_name || ''
+      }))
+    return { success: true, students: rows }
+  } catch (err) {
+    console.error('[studentsService.listAvailableForBind] 数据库异常:', err)
+    return { success: false, message: '读取失败，请稍后重试' }
+  }
+}
+
 // 绑定师生关系：组管理员可任意绑定；导师只能绑自己名下（mentor_id 强制取本人）
 async function bind(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
@@ -137,4 +161,4 @@ async function unbind(payload) {
   }
 }
 
-module.exports = { list, listGroupStudents, myMentor, bind, unbind }
+module.exports = { list, listGroupStudents, listAvailableForBind, myMentor, bind, unbind }

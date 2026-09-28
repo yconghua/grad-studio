@@ -45,6 +45,26 @@ function register(ipcMain) {
       return { success: false, message: '操作失败，请稍后重试' }
     }
   })
+
+  // 当前库全部数据表清单
+  ipcMain.handle('overview:list-tables', async () => {
+    try {
+      return await overviewService.listTables()
+    } catch (err) {
+      console.error('[overview:list-tables] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
+
+  // 取某张表的数据（含软删行）
+  ipcMain.handle('overview:table-data', async (_evt, payload) => {
+    try {
+      return await overviewService.tableData(payload)
+    } catch (err) {
+      console.error('[overview:table-data] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
 }
 
 module.exports = { register }

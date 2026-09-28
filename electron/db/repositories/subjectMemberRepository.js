@@ -62,11 +62,25 @@ class SubjectMemberRepository extends BaseRepository {
     return rows
   }
 
-  // 按 课题 + 用户 定位成员记录（唯一索引 uk_subject_user）
+  // 按 课题 + 用户 定位成员记录（唯一索引 uk_subject_user，仅未软删）
   async findBySubjectUser(subjectId, userId) {
     const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`subject_member\` WHERE subject_id = ? AND user_id = ? AND is_deleted = 0`
     const [rows] = await this._execute(sql, [subjectId, userId], 'findBySubjectUser')
     return rows[0] || null
+  }
+
+  // 按 课题 + 用户 定位成员记录（含已软删，用于唯一索引冲突后的复活）
+  async findAnyBySubjectUser(subjectId, userId) {
+    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`subject_member\` WHERE subject_id = ? AND user_id = ?`
+    const [rows] = await this._execute(sql, [subjectId, userId], 'findAnyBySubjectUser')
+    return rows[0] || null
+  }
+
+  // 复活一条已软删的成员记录（唯一索引不区分 is_deleted，重新加入时走 UPDATE 而非 INSERT）
+  async reactivate(id, roleInSubject) {
+    const sql = `UPDATE \`subject_member\` SET \`is_deleted\` = 0, \`status\` = 'active', \`role_in_subject\` = ?, \`quit_date\` = NULL WHERE id = ?`
+    const [result] = await this._execute(sql, [roleInSubject, id], 'reactivate')
+    return result.affectedRows
   }
 }
 

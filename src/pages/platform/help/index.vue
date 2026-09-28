@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">❓ 帮助文档</h2>
-        <p class="page-desc">课题组科研管理平台使用说明（仅超级管理员可见）</p>
+        <p class="page-desc">{{ appName }}使用说明（仅超级管理员可见）</p>
       </div>
     </div>
 
@@ -59,6 +59,8 @@
 </template>
 
 <script setup>
+import { useAppName } from '../../../composables/useAppName'
+const { appName } = useAppName()
 </script>
 
 <style scoped>

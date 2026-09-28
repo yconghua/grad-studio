@@ -75,6 +75,24 @@ class PaperRepository extends BaseRepository {
   }
 
   /**
+   * 列出某课题组内所有成员的论文（导师/组管查看），联 user / user_profile 取作者名
+   * @param {number} groupId
+   * @returns {Object[]}
+   */
+  async listByGroup(groupId) {
+    const sql = `SELECT ${SAFE_COLUMNS.map((c) => 'p.\`' + c + '\`').join(', ')},
+        u.username, up.real_name
+      FROM \`paper\` AS p
+      JOIN \`user_group\` AS ug ON ug.user_id = p.user_id AND ug.group_id = ? AND ug.is_deleted = 0 AND ug.status = 'active'
+      LEFT JOIN \`user\` AS u ON u.id = p.user_id AND u.is_deleted = 0
+      LEFT JOIN \`user_profile\` AS up ON up.user_id = p.user_id AND up.is_deleted = 0
+      WHERE p.is_deleted = 0
+      ORDER BY p.created_at DESC, p.id DESC`
+    const [rows] = await this._execute(sql, [groupId], 'listByGroup')
+    return rows
+  }
+
+  /**
    * 为指定学生新增论文
    * @param {number} userId
    * @param {Object} data

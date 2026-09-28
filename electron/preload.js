@@ -80,6 +80,7 @@ contextBridge.exposeInMainWorld('api', {
   // 系统相关（对应 ipc/sys.js，通道前缀 sys:*）
   sys: {
     info: createInvoke('sys:info'),
+    getPublicInfo: createInvoke('sys:get-public-info'),
     dbInfo: createInvoke('sys:db-info'),
     tablesInfo: createInvoke('sys:tables-info'),
     dbConnections: createInvoke('sys:db-connections'),
@@ -122,6 +123,7 @@ contextBridge.exposeInMainWorld('api', {
   students: {
     list: createInvoke('students:list'),
     listGroupStudents: createInvoke('students:list-group-students'),
+    listAvailable: createInvoke('students:list-available'),
     myMentor: createInvoke('students:my-mentor'),
     bind: createInvoke('students:bind'),
     unbind: createInvoke('students:unbind')
@@ -266,7 +268,9 @@ contextBridge.exposeInMainWorld('api', {
     groups: createInvoke('overview:groups'),
     groupDetail: createInvoke('overview:group-detail'),
     users: createInvoke('overview:users'),
-    userDetail: createInvoke('overview:user-detail')
+    userDetail: createInvoke('overview:user-detail'),
+    listTables: createInvoke('overview:list-tables'),
+    tableData: createInvoke('overview:table-data')
   },
   // 全局搜索（search:*，按角色限定可见范围）
   search: {

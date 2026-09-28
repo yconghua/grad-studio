@@ -169,17 +169,16 @@ import { dialogAlert, dialogConfirm } from '../composables/useDialog'
 import { visibleNavItems } from '../config/navConfig'
 import { useSession } from '../composables/useSession'
 import { useGroupContext } from '../composables/useGroupContext'
+import { useAppName } from '../composables/useAppName'
 import logoUrl from '../assets/logo.ico'
 
 const { clearSession, getSessionUser } = useSession()
 const { currentGroupId } = useGroupContext()
+const { appName } = useAppName()
 
 const currentUser = getSessionUser()
 const router = useRouter()
 const route = useRoute()
-
-// 系统名称：可随时调整
-const appName = '课题组科研管理平台'
 
 const collapsed = ref(false)
 const showConfirm = ref(false)

@@ -42,7 +42,7 @@ function createWindow() {
     center: true, // 启动时居中
     show: false,
     icon: resolveIcon(),
-    title: '课题组科研管理平台',
+    title: '',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -50,6 +50,9 @@ function createWindow() {
       sandbox: false
     }
   })
+
+  // 阻止页面 <title> 覆盖窗口标题，保持标题栏空白
+  win.on('page-title-updated', (e) => e.preventDefault())
 
   if (isDev) {
     win.loadURL(`${DEV_URL}/#/login`)

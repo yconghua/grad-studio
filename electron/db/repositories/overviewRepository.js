@@ -363,6 +363,36 @@ class OverviewRepository extends BaseRepository {
 
     return data
   }
+
+  // 当前库全部数据表（行数含软删行）
+  async listAllTables() {
+    const sql = `SELECT TABLE_NAME AS table_name, TABLE_ROWS AS row_count
+      FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+      ORDER BY TABLE_NAME ASC`
+    const [rows] = await this._execute(sql, [], 'overview:list-tables')
+    return rows
+  }
+
+  // 取某张表的数据（含软删行）。表名先经 information_schema 校验，防 SQL 注入。
+  async getTableData(tableName, limit = 100, offset = 0) {
+    const [exists] = await this._execute(
+      `SELECT TABLE_NAME AS t FROM information_schema.TABLES
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+      [tableName], 'overview:table-data:check'
+    )
+    if (!exists || !exists.length) {
+      const err = new Error('表不存在')
+      err.notFound = true
+      throw err
+    }
+    const safeLimit = Math.max(1, Math.min(500, Number(limit) || 100))
+    const safeOffset = Math.max(0, Number(offset) || 0)
+    // LIMIT/OFFSET 经整数校验后直接拼接，避免 mysql2 prepared statement 对占位符类型的兼容问题
+    const sql = `SELECT * FROM \`${tableName}\` LIMIT ${safeLimit} OFFSET ${safeOffset}`
+    const [rows] = await this._execute(sql, [], 'overview:table-data')
+    return rows
+  }
 }
 
 module.exports = new OverviewRepository()

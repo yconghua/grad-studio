@@ -2,14 +2,14 @@
   <div class="login-page" :style="{ backgroundImage: `url(${loginBg})` }">
     <!-- 上：系统标题 -->
     <header class="login-header">
-      <img :src="logoUrl" class="brand-mark" alt="课题组科研管理平台" />
-      <h1 class="brand-title">课题组科研管理平台</h1>
+      <img :src="logoUrl" class="brand-mark" alt="平台" />
+      <h1 class="brand-title">{{ appName }}</h1>
     </header>
 
     <!-- 中：简介（左） + 登录表单（右） -->
     <main class="login-main">
       <section class="intro-panel">
-        <img :src="jianjieUrl" class="intro-image" alt="课题组科研管理平台" />
+        <img :src="jianjieUrl" class="intro-image" :alt="appName" />
         <div class="intro-overlay">
           <h2 class="intro-title">系统简介</h2>
           <p class="intro-foot">科研 · 协作 · 成长</p>
@@ -89,7 +89,7 @@
     <!-- 下：页脚 -->
     <footer class="login-footer">
       <div class="footer-inner">
-        <span class="footer-copy">Copyright © 2025–{{ copyrightYear }} Gra Studio. All Rights Reserved. 课题组科研管理平台 版权所有</span>
+        <span class="footer-copy">Copyright © 2025–{{ copyrightYear }} Gra Studio. All Rights Reserved. {{ appName }} 版权所有</span>
       </div>
     </footer>
 
@@ -120,7 +120,7 @@
             更新时间：2026年8月25日
           </p>
           <p class="privacy-lead">
-            课题组科研管理平台（以下简称"本系统"）重视您的隐私。本隐私协议说明本系统在本地运行过程中如何收集、存储与使用您的信息。
+            {{ appName }}（以下简称"本系统"）重视您的隐私。本隐私协议说明本系统在本地运行过程中如何收集、存储与使用您的信息。
           </p>
           <section v-for="(sec, i) in privacySections" :key="i" class="privacy-sec">
             <h4>{{ sec.title }}</h4>
@@ -143,7 +143,7 @@
             更新时间：2026年8月25日
           </p>
           <p class="privacy-lead">
-            课题组科研管理平台（以下简称"本系统"）的账号由管理员统一分配与管理，使用前请仔细阅读以下服务条款。
+            {{ appName }}（以下简称"本系统"）的账号由管理员统一分配与管理，使用前请仔细阅读以下服务条款。
           </p>
           <section v-for="(sec, i) in termsSections" :key="i" class="privacy-sec">
             <h4>{{ sec.title }}</h4>
@@ -189,16 +189,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, deleteDb, getDbInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
+import { useAppName } from '../../composables/useAppName'
 import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/db'
 import logoUrl from '../../assets/logo.ico'
 import loginBg from '../../assets/login_bg.png'
 import jianjieUrl from '../../assets/login_jianjie.png'
 
 const { setSession } = useSession()
+const { appName } = useAppName()
 const router = useRouter()
 const username = ref('')
 const password = ref('')
@@ -206,8 +208,20 @@ const errorMsg = ref('')
 const loading = ref(false)
 // 登录成功后的初始化弹窗：显示 1 秒（转圈 + 「数据正在初始化中…」）后自动进入首页
 const showInit = ref(false)
-// 是否同意隐私协议与服务条款（未勾选不可登录）
+// 是否同意隐私协议与服务条款（未勾选不可登录）；7 天内勾选过则自动勾选
 const agreePolicy = ref(false)
+const AGREE_KEY = 'agreed_policy_at'
+const AGREE_TTL = 7 * 24 * 60 * 60 * 1000
+try {
+  const ts = Number(localStorage.getItem(AGREE_KEY) || 0)
+  if (ts && Date.now() - ts < AGREE_TTL) agreePolicy.value = true
+} catch (e) {}
+watch(agreePolicy, (v) => {
+  try {
+    if (v) localStorage.setItem(AGREE_KEY, String(Date.now()))
+    else localStorage.removeItem(AGREE_KEY)
+  } catch (e) {}
+})
 
 // 登录卡片右上角的数据库状态：挂载时 + 切换数据库后刷新
 // 状态值：loading（检测中）/ connected（已连接）/ disconnected（未连接）/ unavailable（环境不可用）

@@ -113,6 +113,9 @@
 import { dialogAlert, dialogConfirm } from '../../../composables/useDialog'
 import { ref, onMounted } from 'vue'
 import { listSystemParams, saveSystemParam, removeSystemParam, getSysInfo, getDbInfo, getUserDataPath, getAppPath, openDevTools } from '../../../api'
+import { useAppName } from '../../../composables/useAppName'
+
+const { refreshAppName } = useAppName()
 
 const rows = ref([])
 const loading = ref(false)
@@ -208,6 +211,9 @@ async function submitForm() {
     if (res && res.success) {
       showForm.value = false
       await loadList()
+      if (form.value.param_key.trim() === 'app_name') {
+        refreshAppName()
+      }
     } else {
       formError.value = (res && res.message) || '保存失败'
     }

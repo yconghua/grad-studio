@@ -27,6 +27,16 @@ function register(ipcMain) {
     }
   })
 
+  // 绑定候选：组内尚未被任何导师绑定的学生
+  ipcMain.handle('students:list-available', async (_evt, payload) => {
+    try {
+      return await studentsService.listAvailableForBind(payload)
+    } catch (err) {
+      console.error('[students:list-available] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
+
   // 我的指导老师（学生本人，个人资料页）
   ipcMain.handle('students:my-mentor', async (_evt, payload) => {
     try {

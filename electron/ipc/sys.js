@@ -15,6 +15,9 @@ const { app, session, shell, dialog, BrowserWindow } = require('electron')
 const appPkg = require('../../package.json')
 const connectionService = require('../services/connectionService')
 const authService = require('../services/authService')
+const systemParamRepository = require('../db/repositories/systemParamRepository')
+
+const DEFAULT_APP_NAME = '课题组科研管理平台'
 
 // 应用启动时间戳：模块加载时机≈主进程启动，供「运行时长」计算
 const STARTED_AT = Date.now()
@@ -344,6 +347,21 @@ function register(ipcMain) {
       console.error('[sys:open-attachment] 未预期异常:', err)
       return { success: false, message: '打开失败，请重试' }
     }
+  })
+
+  // 公开应用信息（无需登录）：读取 system_param 中 app_name 参数，供登录页 / 主界面品牌名使用。
+  // 数据库未连接或参数不存在时回退默认名，不报错。
+  ipcMain.handle('sys:get-public-info', async () => {
+    let appName = DEFAULT_APP_NAME
+    try {
+      const row = await systemParamRepository.findByKey('app_name')
+      if (row && row.param_value && String(row.param_value).trim()) {
+        appName = String(row.param_value).trim()
+      }
+    } catch (err) {
+      // 数据库未连接 / 表不存在时静默回退默认名
+    }
+    return { success: true, appName }
   })
 
   // 当前生效数据库信息 + 实时连接状态（SELECT 1 探活）；不要求登录，供登录页「系统设置」展示

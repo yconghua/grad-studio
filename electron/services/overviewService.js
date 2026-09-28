@@ -66,4 +66,33 @@ async function userDetail(payload = {}) {
   }
 }
 
-module.exports = { listGroups, groupDetail, listUsers, userDetail }
+// 列出当前库全部数据表（行数含软删行）
+async function listTables() {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isAdmin()) return { success: false, message: '无权限：仅超级管理员可查看数据总览' }
+  try {
+    const rows = await overviewRepository.listAllTables()
+    return { success: true, tables: rows }
+  } catch (err) {
+    console.error('[overviewService.listTables] 数据库异常:', err)
+    return { success: false, message: '读取失败，请稍后重试' }
+  }
+}
+
+// 取某张表的数据（含软删行）
+async function tableData(payload = {}) {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isAdmin()) return { success: false, message: '无权限：仅超级管理员可查看数据总览' }
+  const tableName = payload && payload.table ? String(payload.table) : ''
+  if (!tableName) return { success: false, message: '缺少表名' }
+  try {
+    const rows = await overviewRepository.getTableData(tableName, payload.limit, payload.offset)
+    return { success: true, rows }
+  } catch (err) {
+    if (err && err.notFound) return { success: false, message: '表不存在' }
+    console.error('[overviewService.tableData] 数据库异常:', err)
+    return { success: false, message: '读取失败：' + (err && err.message ? err.message : '请稍后重试') }
+  }
+}
+
+module.exports = { listGroups, groupDetail, listUsers, userDetail, listTables, tableData }

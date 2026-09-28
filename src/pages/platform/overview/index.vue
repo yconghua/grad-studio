@@ -39,6 +39,18 @@
           </div>
         </template>
 
+        <!-- 数据表模式：表清单 -->
+        <template v-else-if="activeTab === 'table'">
+          <div class="side-title">数据表（含软删行）</div>
+          <div v-if="loadingTables" class="state">加载中…</div>
+          <div v-else-if="!tableList.length" class="state">暂无数据表</div>
+          <div v-for="t in tableList" :key="t.table_name" class="side-item" :class="{ active: activeTable === t.table_name }"
+            @click="selectTable(t.table_name)">
+            <div class="side-main">{{ t.table_name }}</div>
+            <div class="side-sub">{{ t.row_count != null ? t.row_count + ' 行' : '—' }}</div>
+          </div>
+        </template>
+
         <!-- 用户模式：用户列表 -->
         <template v-else>
           <div class="side-title">选择用户</div>
@@ -124,6 +136,36 @@
           </template>
         </template>
 
+        <!-- 数据表模式：选表后展示该表全部数据 -->
+        <template v-else-if="activeTab === 'table'">
+          <div v-if="!activeTable" class="state">👈 在左侧选择一张数据表查看内容</div>
+          <template v-else>
+            <div class="ctx-head">
+              <span class="ctx-title">🗄️ {{ activeTable }}</span>
+              <span class="ctx-sub">含软删行 · 每页 {{ pageSize }} 条</span>
+              <div class="pager">
+                <button class="btn btn-mini" :disabled="tableOffset === 0" @click="prevPage">← 上一页</button>
+                <button class="btn btn-mini" :disabled="tableRows.length < pageSize" @click="nextPage">下一页 →</button>
+              </div>
+            </div>
+            <div v-if="loadingTableData" class="state">加载中…</div>
+            <div v-else-if="tableError" class="state error">⚠️ {{ tableError }}</div>
+            <div v-else-if="!tableRows.length" class="state">该表暂无数据</div>
+            <div v-else class="table-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr><th v-for="c in tableColumns" :key="c">{{ c }}</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, i) in tableRows" :key="i">
+                    <td v-for="c in tableColumns" :key="c">{{ formatCell(row[c]) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+        </template>
+
         <!-- 角色模式：角色用户表 → 用户详情 -->
         <template v-else>
           <div v-if="!activeRole" class="state">👈 在左侧选择一个角色查看用户列表</div>
@@ -172,7 +214,9 @@ import {
   listOverviewGroups,
   getOverviewGroupDetail,
   listOverviewUsers,
-  getOverviewUserDetail
+  getOverviewUserDetail,
+  listOverviewTables,
+  getOverviewTableData
 } from '../../../api'
 import GroupDetail from './GroupDetail.vue'
 import UserDetail from './UserDetail.vue'
@@ -181,7 +225,8 @@ const tabs = [
   { key: 'group', label: '按课题组' },
   { key: 'member', label: '按成员' },
   { key: 'user', label: '按用户' },
-  { key: 'role', label: '按角色' }
+  { key: 'role', label: '按角色' },
+  { key: 'table', label: '按数据表' }
 ]
 const roleItems = [
   { value: 'super_admin', label: '超级管理员' },
@@ -236,6 +281,75 @@ const activeRole = ref('')
 const roleUserId = ref(null)
 const roleUserName = ref('')
 
+// 数据表模式
+const tableList = ref([])
+const loadingTables = ref(false)
+const activeTable = ref('')
+const tableRows = ref([])
+const tableColumns = ref([])
+const loadingTableData = ref(false)
+const tableError = ref('')
+const tableOffset = ref(0)
+const pageSize = 100
+
+async function loadTables() {
+  loadingTables.value = true
+  try {
+    const res = await listOverviewTables()
+    if (res && res.success) tableList.value = res.tables || []
+    else tableList.value = []
+  } catch (e) {
+    tableList.value = []
+  } finally {
+    loadingTables.value = false
+  }
+}
+
+async function selectTable(name) {
+  activeTable.value = name
+  tableOffset.value = 0
+  await loadTableData()
+}
+
+async function loadTableData() {
+  loadingTableData.value = true
+  tableError.value = ''
+  tableRows.value = []
+  tableColumns.value = []
+  try {
+    const res = await getOverviewTableData(activeTable.value, pageSize, tableOffset.value)
+    if (res && res.success) {
+      tableRows.value = res.rows || []
+      if (tableRows.value.length) {
+        tableColumns.value = Object.keys(tableRows.value[0])
+      }
+    } else {
+      tableError.value = (res && res.message) || '加载失败'
+    }
+  } catch (e) {
+    tableError.value = '网络异常'
+  } finally {
+    loadingTableData.value = false
+  }
+}
+
+function prevPage() {
+  if (tableOffset.value === 0) return
+  tableOffset.value = Math.max(0, tableOffset.value - pageSize)
+  loadTableData()
+}
+function nextPage() {
+  tableOffset.value += pageSize
+  loadTableData()
+}
+
+function formatCell(v) {
+  if (v == null) return '—'
+  if (typeof v === 'boolean') return v ? '是' : '否'
+  if (v instanceof Date) return v.toLocaleString()
+  return String(v)
+}
+
 function switchTab(key) {
   if (activeTab.value === key) return
   activeTab.value = key
@@ -247,6 +361,11 @@ function switchTab(key) {
   memberUserId.value = null
   roleUserId.value = null
   activeRole.value = ''
+  activeTable.value = ''
+  tableRows.value = []
+  tableColumns.value = []
+  tableOffset.value = 0
+  if (key === 'table' && !tableList.value.length) loadTables()
 }
 
 async function loadGroups() {
@@ -419,4 +538,9 @@ onMounted(() => {
 .tbl tbody tr:hover { background: #eef6ff; }
 .ops { display: flex; gap: 12px; }
 .link { background: none; border: none; color: #0d80e0; cursor: pointer; font-size: 13px; padding: 0; }
+.pager { margin-left: auto; display: flex; gap: 8px; }
+.table-wrap { overflow: auto; max-height: calc(100vh - 280px); }
+.table-wrap .tbl { min-width: 100%; }
+.table-wrap .tbl td, .table-wrap .tbl th { white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.state.error { color: #ea4335; }
 </style>

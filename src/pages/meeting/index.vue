@@ -34,14 +34,14 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="m in meetings" :key="m.id">
+            <tr v-for="m in meetings" :key="m.id" @click="openMeetingDetail(m)" style="cursor:pointer">
               <td class="cell-title">{{ m.title }}</td>
               <td>{{ typeText(m.meeting_type) }}</td>
               <td class="cell-time">{{ fmtDT(m.start_time) }} ~ {{ fmtDT(m.end_time) }}</td>
               <td>{{ m.location || '—' }}</td>
               <td>{{ nameOf(m.host_id) }}</td>
               <td><span :class="['status-tag', 'st-' + m.status]">{{ statusText(m.status) }}</span></td>
-              <td v-if="isGroupAdmin">
+              <td v-if="isGroupAdmin" @click.stop>
                 <button class="btn btn-mini" @click="openMeetingModal(m)">编辑</button>
                 <button class="btn btn-mini btn-danger" @click="onRemoveMeeting(m)">删除</button>
               </td>
@@ -68,7 +68,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in reports" :key="r.id">
+            <tr v-for="r in reports" :key="r.id" @click="openReportDetail(r)" style="cursor:pointer">
               <td class="cell-title">{{ meetingTitleOf(r.meeting_id) }}</td>
               <td>{{ nameOf(r.student_id) }}</td>
               <td>{{ r.topic || '—' }}</td>
@@ -76,7 +76,7 @@
               <td><span :class="['status-tag', 'st-' + r.status]">{{ reportStatusText(r.status) }}</span></td>
               <td class="cell-desc">{{ r.review_comment || '—' }}</td>
               <td class="cell-time">{{ fmtDT(r.created_at) }}</td>
-              <td v-if="isManager">
+              <td v-if="isManager" @click.stop>
                 <template v-if="r.status === 'pending'">
                   <button class="btn btn-mini btn-primary" @click="openReviewModal(r, 'approved')">通过</button>
                   <button class="btn btn-mini btn-danger" @click="openReviewModal(r, 'rejected')">驳回</button>
@@ -201,6 +201,45 @@
           <button class="btn btn-primary" :disabled="reviewModal.saving" @click="onReview">
             {{ reviewModal.saving ? '提交中…' : '确认' }}
           </button>
+        </div>
+      </div>
+    </div>
+    <!-- 组会详情弹窗（只读） -->
+    <div v-if="meetingDetail.visible" class="modal-mask" @click.self="meetingDetail.visible = false">
+      <div class="modal-box">
+        <h3 class="modal-title">组会详情</h3>
+        <div v-if="meetingDetail.row" class="detail-grid">
+          <div class="detail-item full"><span class="detail-label">主题</span><span class="detail-value">{{ meetingDetail.row.title }}</span></div>
+          <div class="detail-item"><span class="detail-label">类型</span><span class="detail-value">{{ typeText(meetingDetail.row.meeting_type) }}</span></div>
+          <div class="detail-item"><span class="detail-label">状态</span><span class="detail-value"><span :class="['status-tag', 'st-' + meetingDetail.row.status]">{{ statusText(meetingDetail.row.status) }}</span></span></div>
+          <div class="detail-item"><span class="detail-label">开始时间</span><span class="detail-value">{{ fmtDT(meetingDetail.row.start_time) }}</span></div>
+          <div class="detail-item"><span class="detail-label">结束时间</span><span class="detail-value">{{ fmtDT(meetingDetail.row.end_time) }}</span></div>
+          <div class="detail-item full"><span class="detail-label">地点</span><span class="detail-value">{{ meetingDetail.row.location || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">主持人</span><span class="detail-value">{{ nameOf(meetingDetail.row.host_id) }}</span></div>
+          <div class="detail-item full"><span class="detail-label">议程 / 议题</span><span class="detail-value detail-text">{{ meetingDetail.row.agenda || '—' }}</span></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="meetingDetail.visible = false">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 组会汇报详情弹窗（只读） -->
+    <div v-if="reportDetail.visible" class="modal-mask" @click.self="reportDetail.visible = false">
+      <div class="modal-box">
+        <h3 class="modal-title">组会汇报详情</h3>
+        <div v-if="reportDetail.row" class="detail-grid">
+          <div class="detail-item full"><span class="detail-label">所属组会</span><span class="detail-value">{{ meetingTitleOf(reportDetail.row.meeting_id) }}</span></div>
+          <div class="detail-item"><span class="detail-label">汇报学生</span><span class="detail-value">{{ nameOf(reportDetail.row.student_id) }}</span></div>
+          <div class="detail-item"><span class="detail-label">状态</span><span class="detail-value"><span :class="['status-tag', 'st-' + reportDetail.row.status]">{{ reportStatusText(reportDetail.row.status) }}</span></span></div>
+          <div class="detail-item full"><span class="detail-label">汇报主题</span><span class="detail-value">{{ reportDetail.row.topic || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">汇报内容</span><span class="detail-value detail-text">{{ reportDetail.row.content || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">附件路径</span><span class="detail-value detail-text">{{ reportDetail.row.file_path || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">审阅意见</span><span class="detail-value detail-text">{{ reportDetail.row.review_comment || '—' }}</span></div>
+          <div class="detail-item"><span class="detail-label">提交时间</span><span class="detail-value">{{ fmtDT(reportDetail.row.created_at) }}</span></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="reportDetail.visible = false">关闭</button>
         </div>
       </div>
     </div>
@@ -407,6 +446,18 @@ async function onReview() {
   }
 }
 
+// ===== 详情弹窗 =====
+const meetingDetail = ref({ visible: false, row: null })
+function openMeetingDetail(row) {
+  meetingDetail.value.row = row
+  meetingDetail.value.visible = true
+}
+const reportDetail = ref({ visible: false, row: null })
+function openReportDetail(row) {
+  reportDetail.value.row = row
+  reportDetail.value.visible = true
+}
+
 onMounted(() => {
   loadGroups()
   loadMembers()
@@ -499,4 +550,11 @@ watch(currentGroupId, () => {
 .form-item input:focus, .form-item select:focus, .form-item textarea:focus { border-color: #0d80e0; }
 .form-error { color: #ea4335; font-size: 12px; margin: 10px 0 0; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.detail-item { display: flex; flex-direction: column; gap: 4px; }
+.detail-item.full { grid-column: 1 / -1; }
+.detail-label { font-size: 12px; color: #8a9099; }
+.detail-value { font-size: 13px; color: #1f2329; }
+.detail-value.detail-text { white-space: pre-wrap; line-height: 1.6; }
 </style>

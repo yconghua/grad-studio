@@ -166,11 +166,20 @@ async function listAll(payload = {}) {
 
 // ===== 论文 paper（本人子记录） =====
 
-// 列出我的论文
-async function paperList() {
+// 列出论文：学生看本人；导师/组管传 group_id 时看全组
+async function paperList(payload = {}) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   const userId = permission.currentUserId()
   try {
+    const groupId = payload && payload.group_id ? Number(payload.group_id) : null
+    if (groupId && permission.isManager()) {
+      const ug = await userGroupRepository.findByUserAndGroup(userId, groupId)
+      if (!ug || ug.status !== 'active' || ug.role_in_group === 'student') {
+        return { success: false, message: '无权查看该组论文' }
+      }
+      const data = await paperRepository.listByGroup(groupId)
+      return { success: true, data }
+    }
     const data = await paperRepository.listByUser(userId)
     return { success: true, data }
   } catch (err) {

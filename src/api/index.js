@@ -87,9 +87,14 @@ export function deleteUser(id) {
   return window.api.auth.deleteUser({ id })
 }
 
-// ===== 系统与数据库连接（平台基础设施） =====
+// ===== 系统与数据库连接 =====
 export function getSysInfo() {
   return window.api.sys.info()
+}
+
+// 公开应用信息（无需登录）：平台显示名称等
+export function getPublicInfo() {
+  return window.api.sys.getPublicInfo()
 }
 
 export function getDbInfo() {
@@ -227,6 +232,11 @@ export function listStudents(payload) {
 // 学生名单（导师看自己名下 / 组管与超管看组内学生）——学位记录等选人场景
 export function listGroupStudents(payload) {
   return window.api.students.listGroupStudents(payload)
+}
+
+// 绑定候选学生：组内尚未被任何导师绑定的学生
+export function listAvailableStudents(payload) {
+  return window.api.students.listAvailable(payload)
 }
 
 // 我的指导老师（学生本人，个人资料页）
@@ -443,9 +453,9 @@ export function listAllAchievements(payload) {
   return window.api.achievement.listAll(payload)
 }
 
-// ===== 论文投稿跟踪（学生本人） =====
-export function listPapers() {
-  return window.api.paper.list()
+// 论文投稿跟踪（学生本人传空；管理员传 { group_id } 看全组）
+export function listPapers(options) {
+  return window.api.paper.list(options || {})
 }
 
 export function createPaper(payload) {
@@ -599,6 +609,14 @@ export function listOverviewUsers(role) {
 
 export function getOverviewUserDetail(userId) {
   return window.api.overview.userDetail({ user_id: userId })
+}
+
+export function listOverviewTables() {
+  return window.api.overview.listTables()
+}
+
+export function getOverviewTableData(table, limit = 100, offset = 0) {
+  return window.api.overview.tableData({ table, limit, offset })
 }
 
 // ===== 全局搜索（按角色限定可见范围） =====

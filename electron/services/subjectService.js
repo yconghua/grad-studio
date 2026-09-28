@@ -119,6 +119,18 @@ async function addMember(payload) {
     }
     const exist = await subjectMemberRepository.findBySubjectUser(body.subject_id, body.user_id)
     if (exist) return { success: false, message: '该成员已在本课题中' }
+    // 唯一索引 uk_subject_user 不区分 is_deleted：若存在软删记录则复活，避免 Duplicate entry
+    const softDeleted = await subjectMemberRepository.findAnyBySubjectUser(body.subject_id, body.user_id)
+    if (softDeleted) {
+      await subjectMemberRepository.reactivate(softDeleted.id, body.role_in_subject || 'member')
+      operationLogService.writeLog({
+        action: 'addSubjectMember',
+        targetType: 'subject_member',
+        targetId: softDeleted.id,
+        detail: `重新添加成员 ${body.user_id} 至课题 ${body.subject_id}`
+      })
+      return { success: true, message: '添加成功', data: { id: softDeleted.id } }
+    }
     const id = await subjectMemberRepository.create(body)
     operationLogService.writeLog({
       action: 'addSubjectMember',

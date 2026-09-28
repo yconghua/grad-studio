@@ -51,7 +51,7 @@
           <select v-model="bindForm.student_id" class="form-input">
             <option :value="null" disabled>请选择学生</option>
             <option v-for="u in studentUsers" :key="u.id" :value="u.id">
-              {{ u.username }}（学生）
+              {{ u.username }}<template v-if="u.real_name">（{{ u.real_name }}）</template>
             </option>
           </select>
         </div>
@@ -87,13 +87,13 @@
 <script setup>
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ref, computed, watch, onMounted } from 'vue'
-import { listStudents, bindStudent, unbindStudent, listMembers } from '../../api'
+import { listStudents, bindStudent, unbindStudent, listAvailableStudents } from '../../api'
 import { useGroupContext } from '../../composables/useGroupContext'
 
 const { currentGroupId, loadGroups } = useGroupContext()
 
 const students = ref([])
-const allUsers = ref([])
+const availableStudents = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
 
@@ -108,18 +108,16 @@ const unbinding = ref(false)
 const STATUS_TEXT = { active: '指导中', quit: '已离师' }
 function statusText(s) { return STATUS_TEXT[s] || s || '-' }
 
-// 已绑定学生的 id 集合，用于候选下拉排除
-const boundIds = computed(() => new Set(students.value.map((s) => s.student_id)))
-// 仅列出全局角色为 student 且尚未被绑定的用户供绑定
-const studentUsers = computed(() =>
-  allUsers.value.filter((u) => u.role === 'student' && !boundIds.value.has(u.id))
-)
+// 候选学生 = 组内尚未被任何导师绑定的学生（后端已过滤）
+const studentUsers = computed(() => availableStudents.value)
 
-async function loadAllUsers() {
+async function loadAvailable() {
+  if (!currentGroupId.value) { availableStudents.value = []; return }
   try {
-    const res = await listMembers()
-    if (res && res.success) allUsers.value = res.members || []
-  } catch (e) { /* 不阻断 */ }
+    const res = await listAvailableStudents({ group_id: currentGroupId.value })
+    if (res && res.success) availableStudents.value = res.students || []
+    else availableStudents.value = []
+  } catch (e) { availableStudents.value = [] }
 }
 
 async function loadStudents() {
@@ -146,6 +144,7 @@ function openBind() {
   bindForm.value = { student_id: null, remark: '' }
   bindError.value = ''
   bindVisible.value = true
+  loadAvailable()
 }
 
 async function onBind() {
@@ -161,6 +160,7 @@ async function onBind() {
     if (res && res.success) {
       bindVisible.value = false
       loadStudents()
+      loadAvailable()
     } else {
       bindError.value = (res && res.message) || '绑定失败'
     }
@@ -190,11 +190,11 @@ async function onUnbind() {
   }
 }
 
-watch(currentGroupId, () => { loadStudents() })
+watch(currentGroupId, () => { loadStudents(); loadAvailable() })
 
 onMounted(() => {
   loadGroups()
-  loadAllUsers()
+  loadAvailable()
   loadStudents()
 })
 </script>

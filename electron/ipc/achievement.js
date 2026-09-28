@@ -69,10 +69,10 @@ function register(ipcMain) {
   })
 
   // ===== 论文 paper =====
-  // 我的论文列表
-  ipcMain.handle('paper:list', async () => {
+  // 论文列表（学生本人 / 管理员传 group_id 看全组）
+  ipcMain.handle('paper:list', async (_evt, payload) => {
     try {
-      return await achievementService.paperList()
+      return await achievementService.paperList(payload)
     } catch (err) {
       console.error('[paper:list] 未预期异常:', err)
       return { success: false, message: '读取失败，请稍后重试' }

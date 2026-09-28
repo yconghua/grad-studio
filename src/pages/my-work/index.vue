@@ -151,7 +151,7 @@ async function onSubmitProgress() {
   progModal.value.saving = true
   progModal.value.error = ''
   try {
-    const res = await submitTaskProgress(f)
+    const res = await submitTaskProgress({ ...f })
     if (res && res.success) {
       progModal.value.show = false
       await load()
@@ -160,7 +160,7 @@ async function onSubmitProgress() {
       progModal.value.error = (res && res.message) || '提交失败'
     }
   } catch (e) {
-    progModal.value.error = '网络异常，请重试'
+    progModal.value.error = (e && e.message) ? ('网络异常：' + e.message) : '网络异常，请重试'
   } finally {
     progModal.value.saving = false
   }

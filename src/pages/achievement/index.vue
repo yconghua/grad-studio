@@ -5,8 +5,8 @@
         <h2 class="page-title">🏆 科研成果</h2>
       </div>
       <div class="header-right">
-        <button v-if="tab === 'ach'" class="btn btn-primary" @click="openAchModal()">
-          {{ isManager ? '全组成果审核' : '＋ 新增成果' }}
+        <button v-if="tab === 'ach' && !isManager" class="btn btn-primary" @click="openAchModal()">
+          ＋ 新增成果
         </button>
         <button v-if="tab === 'paper' && !isManager" class="btn btn-primary" @click="openPaperModal()">＋ 新增论文</button>
       </div>
@@ -34,14 +34,14 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="a in achievements" :key="a.id">
+          <tr v-for="a in achievements" :key="a.id" @click="openAchDetail(a)" style="cursor:pointer">
             <td>{{ achTypeText(a.ach_type) }}</td>
             <td class="cell-title">{{ a.title }}</td>
             <td v-if="isManager">{{ nameOf(a.user_id) }}</td>
             <td class="cell-time">{{ a.submit_date || '—' }}</td>
             <td><span :class="['status-tag', 'st-' + a.status]">{{ achStatusText(a.status) }}</span></td>
             <td class="cell-desc">{{ a.audit_comment || '—' }}</td>
-            <td>
+            <td @click.stop>
               <template v-if="isManager && a.status === 'pending'">
                 <button class="btn btn-mini btn-primary" @click="openReviewModal(a, 'approved')">通过</button>
                 <button class="btn btn-mini btn-danger" @click="openReviewModal(a, 'rejected')">驳回</button>
@@ -68,6 +68,7 @@
           <tr>
             <th>论文标题</th>
             <th>作者</th>
+            <th v-if="isManager">归属人</th>
             <th>期刊 / 会议</th>
             <th>等级</th>
             <th>状态</th>
@@ -78,18 +79,19 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="p in papers" :key="p.id">
+          <tr v-for="p in papers" :key="p.id" @click="openPaperDetail(p)" style="cursor:pointer">
             <td class="cell-title">{{ p.title }}</td>
             <td class="cell-desc">{{ p.authors || '—' }}</td>
+            <td v-if="isManager">{{ paperOwnerName(p) }}</td>
             <td>{{ p.journal || p.conference || '—' }}</td>
             <td>{{ p.level_desc || '—' }}</td>
             <td><span :class="['status-tag', 'pt-' + p.status]">{{ paperStatusText(p.status) }}</span></td>
             <td class="cell-time">{{ p.submit_date || '—' }}</td>
             <td class="cell-time">{{ p.publish_date || '—' }}</td>
             <td class="cell-desc">{{ p.doi || '—' }}</td>
-            <td>
-              <button class="btn btn-mini" @click="openPaperModal(p)">编辑</button>
-              <button class="btn btn-mini btn-danger" @click="onRemovePaper(p)">删除</button>
+            <td @click.stop>
+              <button v-if="!isManager" class="btn btn-mini" @click="openPaperModal(p)">编辑</button>
+              <button v-if="!isManager" class="btn btn-mini btn-danger" @click="onRemovePaper(p)">删除</button>
             </td>
           </tr>
         </tbody>
@@ -229,6 +231,49 @@
         </div>
       </div>
     </div>
+    <!-- 成果详情弹窗（只读） -->
+    <div v-if="achDetail.visible" class="modal-mask" @click.self="achDetail.visible = false">
+      <div class="modal-box">
+        <h3 class="modal-title">成果详情</h3>
+        <div v-if="achDetail.row" class="detail-grid">
+          <div class="detail-item full"><span class="detail-label">成果名称</span><span class="detail-value">{{ achDetail.row.title }}</span></div>
+          <div class="detail-item"><span class="detail-label">类型</span><span class="detail-value">{{ achTypeText(achDetail.row.ach_type) }}</span></div>
+          <div class="detail-item"><span class="detail-label">状态</span><span class="detail-value"><span :class="['status-tag', 'st-' + achDetail.row.status]">{{ achStatusText(achDetail.row.status) }}</span></span></div>
+          <div class="detail-item"><span class="detail-label">提交日期</span><span class="detail-value">{{ fmtDate(achDetail.row.submit_date) }}</span></div>
+          <div class="detail-item" v-if="isManager"><span class="detail-label">归属人</span><span class="detail-value">{{ nameOf(achDetail.row.user_id) }}</span></div>
+          <div class="detail-item full"><span class="detail-label">成果说明</span><span class="detail-value detail-text">{{ achDetail.row.description || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">审核意见</span><span class="detail-value detail-text">{{ achDetail.row.audit_comment || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">附件路径</span><span class="detail-value detail-text">{{ achDetail.row.file_path || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">备注</span><span class="detail-value detail-text">{{ achDetail.row.remark || '—' }}</span></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="achDetail.visible = false">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 论文详情弹窗（只读） -->
+    <div v-if="paperDetail.visible" class="modal-mask" @click.self="paperDetail.visible = false">
+      <div class="modal-box">
+        <h3 class="modal-title">论文详情</h3>
+        <div v-if="paperDetail.row" class="detail-grid">
+          <div class="detail-item full"><span class="detail-label">论文标题</span><span class="detail-value">{{ paperDetail.row.title }}</span></div>
+          <div class="detail-item full"><span class="detail-label">作者列表</span><span class="detail-value">{{ paperDetail.row.authors || '—' }}</span></div>
+          <div class="detail-item" v-if="isManager"><span class="detail-label">归属人</span><span class="detail-value">{{ paperOwnerName(paperDetail.row) }}</span></div>
+          <div class="detail-item"><span class="detail-label">状态</span><span class="detail-value"><span :class="['status-tag', 'pt-' + paperDetail.row.status]">{{ paperStatusText(paperDetail.row.status) }}</span></span></div>
+          <div class="detail-item"><span class="detail-label">期刊 / 会议</span><span class="detail-value">{{ paperDetail.row.journal || paperDetail.row.conference || '—' }}</span></div>
+          <div class="detail-item"><span class="detail-label">等级 / 分区</span><span class="detail-value">{{ paperDetail.row.level_desc || '—' }}</span></div>
+          <div class="detail-item"><span class="detail-label">本人一作</span><span class="detail-value">{{ paperDetail.row.is_first_author ? '是' : '否' }}</span></div>
+          <div class="detail-item"><span class="detail-label">投稿日期</span><span class="detail-value">{{ fmtDate(paperDetail.row.submit_date) }}</span></div>
+          <div class="detail-item"><span class="detail-label">录用日期</span><span class="detail-value">{{ fmtDate(paperDetail.row.accept_date) }}</span></div>
+          <div class="detail-item"><span class="detail-label">发表日期</span><span class="detail-value">{{ fmtDate(paperDetail.row.publish_date) }}</span></div>
+          <div class="detail-item full"><span class="detail-label">DOI</span><span class="detail-value">{{ paperDetail.row.doi || '—' }}</span></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="paperDetail.visible = false">关闭</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -267,8 +312,30 @@ function achStatusText(s) { return ACH_STATUS_TEXT[s] || s || '—' }
 function paperStatusText(s) { return PAPER_STATUS_TEXT[s] || s || '—' }
 function nameOf(id) {
   const m = members.value.find((x) => x.id === Number(id))
-  return m ? m.username : (id ? ('#' + id) : '—')
+  return m ? memberLabel(m) : (id ? ('#' + id) : '—')
 }
+function memberLabel(m) {
+  return m.real_name ? m.real_name + '（' + m.username + '）' : (m.username || ('#' + m.id))
+}
+function paperOwnerName(p) {
+  if (p.real_name || p.username) {
+    return p.real_name ? p.real_name + '（' + p.username + '）' : p.username
+  }
+  return nameOf(p.user_id)
+}
+
+// ===== 详情弹窗 =====
+const achDetail = ref({ visible: false, row: null })
+function openAchDetail(row) {
+  achDetail.value.row = row
+  achDetail.value.visible = true
+}
+const paperDetail = ref({ visible: false, row: null })
+function openPaperDetail(row) {
+  paperDetail.value.row = row
+  paperDetail.value.visible = true
+}
+function fmtDate(v) { return v || '—' }
 
 async function loadMembers() {
   try {
@@ -299,7 +366,8 @@ async function loadAchievements() {
 async function loadPapers() {
   loadingPaper.value = true
   try {
-    const res = await listPapers()
+    const opts = (isManager && currentGroupId.value) ? { group_id: currentGroupId.value } : {}
+    const res = await listPapers(opts)
     if (res && res.success) {
       papers.value = res.data || []
     } else {
@@ -437,7 +505,10 @@ async function onRemovePaper(row) {
 }
 
 watch(currentGroupId, () => {
-  if (isManager) loadAchievements()
+  if (isManager) {
+    loadAchievements()
+    if (tab.value === 'paper') loadPapers()
+  }
 })
 
 onMounted(() => {
@@ -531,4 +602,11 @@ onMounted(() => {
 .form-item input:focus, .form-item select:focus, .form-item textarea:focus { border-color: #0d80e0; }
 .form-error { color: #ea4335; font-size: 12px; margin: 10px 0 0; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.detail-item { display: flex; flex-direction: column; gap: 4px; }
+.detail-item.full { grid-column: 1 / -1; }
+.detail-label { font-size: 12px; color: #8a9099; }
+.detail-value { font-size: 13px; color: #1f2329; }
+.detail-value.detail-text { white-space: pre-wrap; line-height: 1.6; }
 </style>

@@ -81,7 +81,7 @@
             <input v-model="taskModal.form.title" type="text" placeholder="任务标题" />
           </label>
           <label class="form-item">
-            <span class="form-label">执行人</span>
+            <span class="form-label">执行人 <i>*</i></span>
             <select v-model="taskModal.form.assignee_id">
               <option :value="0" disabled>请选择执行人</option>
               <option v-for="m in assigneeOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
@@ -172,8 +172,8 @@ function statusText(s) { return STATUS_TEXT[s] || s || '—' }
 function memberLabel(m) {
   return m.real_name ? m.real_name + '（' + m.username + '）' : m.username
 }
-// 执行人候选：仅当前课题组的导师 / 学生（课题组管理员不可作为任务执行人）
-const assigneeOptions = computed(() => members.value.filter((m) => m.role !== 'group_admin'))
+// 执行人候选：仅学生（导师/组管不接受任务派发）
+const assigneeOptions = computed(() => members.value.filter((m) => m.role === 'student'))
 function nameOf(id) {
   const m = members.value.find((x) => x.id === Number(id))
   return m ? memberLabel(m) : (id ? ('#' + id) : '—')

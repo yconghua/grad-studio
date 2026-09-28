@@ -164,9 +164,9 @@ const selectedUserRole = computed(() => {
   return u ? u.role : ''
 })
 
-async function loadAllUsers() {
+async function loadAllUsers(force = false) {
   try {
-    const res = await listMembers()
+    const res = await listMembers(force ? { force: true } : undefined)
     if (res && res.success) allUsers.value = res.members || []
   } catch (e) { /* 不阻断 */ }
 }
@@ -195,6 +195,7 @@ function openAdd() {
   addForm.value = { user_id: null, remark: '' }
   addError.value = ''
   addVisible.value = true
+  loadAllUsers(true)
 }
 
 async function onAdd() {
@@ -212,6 +213,7 @@ async function onAdd() {
     if (res && res.success) {
       addVisible.value = false
       loadMembers()
+      loadAllUsers(true)
     } else {
       addError.value = (res && res.message) || '添加失败'
     }
@@ -262,6 +264,7 @@ async function onRemove() {
     if (res && res.success) {
       removeTarget.value = null
       loadMembers()
+      loadAllUsers(true)
     } else {
       dialogAlert((res && res.message) || '移除失败')
     }
