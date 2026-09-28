@@ -20,11 +20,14 @@ import NotFoundView from '../pages/notfound/index.vue'
 import ProfileView from '../pages/profile/index.vue'
 import ProfilePasswordView from '../pages/profile/password.vue'
 import HelpView from '../pages/help/index.vue'
-import { navItems, defaultNavPath, isRoleAllowed } from '../config/navConfig'
+import { navItems, defaultNavPath, isRoleAllowed, noGroupOnlyNavPath } from '../config/navConfig'
+import { ROLE_MENTOR, ROLE_STUDENT } from '../config/constants'
 import { useSession } from '../composables/useSession'
+import { useGroupContext } from '../composables/useGroupContext'
 import { getCurrentUser } from '../api'
 
 const { isSessionValid, clearSession, getSessionUser } = useSession()
+const { groups, loadGroups } = useGroupContext()
 
 // 菜单 key → 路由 path 的映射规则：platform-xxx → /platform/xxx，其余 → /xxx
 function keyToPath(key) {
@@ -98,6 +101,16 @@ async function checkBackendSession() {
   }
 }
 
+// 登录后落地页：未加入任何课题组的导师/学生 → 测试内容页，其余角色 → 工作台
+async function resolveDefaultPath() {
+  const u = getSessionUser()
+  if (u && (u.role === ROLE_MENTOR || u.role === ROLE_STUDENT)) {
+    await loadGroups()
+    if (groups.value.length === 0) return noGroupOnlyNavPath
+  }
+  return defaultNavPath
+}
+
 // 全局前置守卫：登录态 → 后端会话 → 强制改密 → 角色权限
 router.beforeEach(async (to) => {
   if (!isSessionValid()) {
@@ -132,6 +145,11 @@ router.beforeEach(async (to) => {
     if (!r || !isRoleAllowed(roles, r)) {
       return defaultNavPath
     }
+  }
+  // 未加入课题组的导师/学生：工作台非其默认落地页，改跳测试内容页
+  const home = await resolveDefaultPath()
+  if (to.path === defaultNavPath && home !== defaultNavPath) {
+    return home
   }
   return true
 })

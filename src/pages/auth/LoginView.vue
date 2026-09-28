@@ -1,18 +1,18 @@
 <template>
-  <div class="login-page" :style="{ backgroundImage: `url(${loginBg})` }">
+  <div class="login-page">
     <!-- 上：系统标题 -->
     <header class="login-header">
       <img :src="logoUrl" class="brand-mark" alt="平台" />
       <h1 class="brand-title">{{ appName }}</h1>
     </header>
 
-    <!-- 中：简介（左） + 登录表单（右） -->
+    <!-- 中：系统介绍（左） + 登录表单（右） -->
     <main class="login-main">
       <section class="intro-panel">
-        <img :src="jianjieUrl" class="intro-image" :alt="appName" />
-        <div class="intro-overlay">
-          <h2 class="intro-title">系统简介</h2>
-          <p class="intro-foot">科研 · 协作 · 成长</p>
+        <div class="intro-inner">
+          <div class="intro-quote">
+            <p class="quote-text">愿每一次投入，都有记录；<br />愿每一段成长，都有回响。</p>
+          </div>
         </div>
       </section>
 
@@ -196,12 +196,11 @@ import { useSession } from '../../composables/useSession'
 import { useAppName } from '../../composables/useAppName'
 import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/db'
 import logoUrl from '../../assets/logo.ico'
-import loginBg from '../../assets/login_bg.png'
-import jianjieUrl from '../../assets/login_jianjie.png'
 
 const { setSession } = useSession()
 const { appName } = useAppName()
 const router = useRouter()
+
 const username = ref('')
 const password = ref('')
 const errorMsg = ref('')
@@ -433,10 +432,7 @@ async function onSubmit() {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #eef2ff;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-color: #f5f7fa;
 }
 
 /* 上：系统标题（居中、字体稍大） */
@@ -445,68 +441,63 @@ async function onSubmit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 22px 16px 18px;
+  gap: 10px;
+  padding: 14px 16px 12px;
   background: transparent;
 }
 .brand-mark {
   flex: 0 0 auto;
-  width: 52px;
-  height: 52px;
+  width: 34px;
+  height: 34px;
   object-fit: contain;
 }
 .brand-title {
   margin: 0;
-  font-size: 40px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 600;
   letter-spacing: 1px;
-  color: #1d2129;
+  color: #1f2329;
 }
 
-/* 中：简介（左） + 表单（右） */
+/* 中：系统介绍（左） + 表单（右） */
 .login-main {
   flex: 1 1 auto;
   display: flex;
   min-height: 0;
-  padding: 40px 0;
+  padding: 32px 0;
 }
+/* 左：系统介绍卡片（功能亮点） */
 .intro-panel {
   flex: 1 1 auto;
   position: relative;
   background: #fff;
+  border: 1px solid #eceff3;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   margin-right: 12px;
   margin-left: 30px;
+  display: flex;
 }
-.intro-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+.intro-inner {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 44px 46px;
+  min-width: 0;
 }
-.intro-overlay {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 22px 26px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
-  color: #fff;
+
+/* 左侧：单纯的一句话，居中、不设强调 */
+.intro-quote {
+  max-width: 420px;
+  text-align: center;
 }
-.intro-title {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.35;
-  margin: 0 0 6px;
-  color: #fff;
-}
-.intro-foot {
+.quote-text {
   margin: 0;
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: rgba(255, 255, 255, 0.92);
+  font-size: 17px;
+  line-height: 2;
+  color: #4e5969;
 }
 
 /* 右：登录表单（固定较窄宽度，左右紧凑） */
@@ -522,9 +513,10 @@ async function onSubmit() {
   width: 340px;
   max-width: 100%;
   background: #fff;
+  border: 1px solid #eceff3;
   border-radius: 12px;
   padding: 34px 30px;
-  box-shadow: 0 8px 30px rgba(13, 128, 224, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -679,7 +671,7 @@ async function onSubmit() {
   text-align: center;
 }
 .admin-link {
-  color: #42b883;
+  color: #0d80e0;
   cursor: pointer;
   text-decoration: none;
 }
@@ -754,7 +746,7 @@ async function onSubmit() {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  color: #1d2129;
+  color: #1f2329;
 }
 .privacy-close {
   width: 30px;
@@ -784,7 +776,7 @@ async function onSubmit() {
 .privacy-sec h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #1d2129;
+  color: #1f2329;
   margin: 16px 0 6px;
 }
 .privacy-sec p {

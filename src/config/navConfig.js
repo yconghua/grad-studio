@@ -61,6 +61,11 @@ export const navItems = [
   { key: 'achievement', title: '科研成果', icon: 'TrophyOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
   { key: 'knowledge', title: '课题组知识库', icon: 'BookOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
 
+  // ===== 导师 / 学生未加入课题组的兜底菜单 =====
+  // noGroupOnly：导师/学生未加入任何课题组时仅保留本菜单项（其余菜单隐藏），
+  // 已加入课题组后本菜单项隐藏；超管/组管不受入组状态影响（且不显示该项）。
+  { key: 'test-content', title: '测试内容', icon: 'BulbOutlined', roles: [ROLE_MENTOR, ROLE_STUDENT], noGroupOnly: true },
+
   // ===== 超级管理员专属（平台运维，无课题组内业务） =====
   { key: 'platform-users', title: '用户管理', icon: 'UserOutlined', roles: [ROLE_SUPER_ADMIN] },
   { key: 'platform-groups', title: '课题组管理', icon: 'ApartmentOutlined', roles: [ROLE_SUPER_ADMIN] },
@@ -77,9 +82,20 @@ export function isRoleAllowed(roles, role) {
 }
 
 // 当前角色可见的菜单（按 navItems 数组顺序过滤）
-export function visibleNavItems(role) {
-  return navItems.filter((item) => isRoleAllowed(item.roles, role))
+// inGroup：导师/学生是否已加入课题组。未加入时仅显示 noGroupOnly 菜单项（兜底页），
+// 已加入时隐藏 noGroupOnly 菜单项；超管/组管不受入组状态影响。
+export function visibleNavItems(role, inGroup = true) {
+  const isGroupUser = role === ROLE_MENTOR || role === ROLE_STUDENT
+  return navItems.filter((item) => {
+    if (!isRoleAllowed(item.roles, role)) return false
+    if (!isGroupUser) return true
+    return item.noGroupOnly ? !inGroup : inGroup
+  })
 }
+
+// 未加入课题组的导师/学生落地页（noGroupOnly 菜单项对应路径）
+export const noGroupOnlyNavPath =
+  '/' + (navItems.find((i) => i.noGroupOnly) || { key: 'test-content' }).key
 
 // 默认首页路径（工作台：所有角色均有）
 export const defaultNavPath = '/workbench'

@@ -152,7 +152,7 @@ import {
   FileTextOutlined, EditOutlined, ProjectOutlined, ReadOutlined, FolderOpenOutlined,
   RobotOutlined, CalendarOutlined, TrophyOutlined, BookOutlined, UserOutlined,
   ApartmentOutlined, DatabaseOutlined, ControlOutlined, FileSearchOutlined,
-  QuestionCircleOutlined
+  QuestionCircleOutlined, BulbOutlined
 } from '@ant-design/icons-vue'
 import {
   logout,
@@ -173,7 +173,7 @@ import { useAppName } from '../composables/useAppName'
 import logoUrl from '../assets/logo.ico'
 
 const { clearSession, getSessionUser } = useSession()
-const { currentGroupId } = useGroupContext()
+const { currentGroupId, groups, groupsLoaded } = useGroupContext()
 const { appName } = useAppName()
 
 const currentUser = getSessionUser()
@@ -184,8 +184,13 @@ const collapsed = ref(false)
 const showConfirm = ref(false)
 const exiting = ref(false)
 
-// ===== 侧边菜单：按当前角色动态过滤（动态权限渲染） =====
-const visibleMenus = computed(() => visibleNavItems(currentUser?.role || ''))
+// ===== 侧边菜单：按当前角色 + 课题组归属动态过滤 =====
+// 导师/学生未加入课题组时仅保留 noGroupOnly 菜单项（测试内容页）；
+// 组列表加载完成前按「已入组」处理，避免加载期间菜单闪烁；加载失败同样兜底为已入组。
+const visibleMenus = computed(() => {
+  const inGroup = groupsLoaded.value ? groups.value.length > 0 : true
+  return visibleNavItems(currentUser?.role || '', inGroup)
+})
 
 // 菜单项路由路径：platform-xxx → /platform/xxx，其余 → /xxx
 function menuPath(item) {
@@ -222,14 +227,14 @@ const MENU_ICONS = {
   FileTextOutlined, EditOutlined, ProjectOutlined, ReadOutlined, FolderOpenOutlined,
   RobotOutlined, CalendarOutlined, TrophyOutlined, BookOutlined, UserOutlined,
   ApartmentOutlined, DatabaseOutlined, ControlOutlined, FileSearchOutlined,
-  QuestionCircleOutlined
+  QuestionCircleOutlined, BulbOutlined
 }
 const MENU_ICON_FALLBACK = {
   workbench: '🏠', notice: '📢', member: '👥', students: '🎓', degree: '🗓️',
   meeting: '📅', subject: '🔬', task: '✅', 'research-record': '📝', 'my-work': '📋',
   achievement: '🏆', literature: '📚', archive: '📂', knowledge: '📖', 'ai-assistant': '🤖',
-  settings: '⚙️', 'weekly-review': '📄', 'platform-users': '👤', 'platform-groups': '🏢',
-  'platform-config': '🔧', 'platform-logs': '🕐', 'platform-help': '❓'
+  settings: '⚙️', 'weekly-review': '📄', 'test-content': '💡', 'platform-users': '👤',
+  'platform-groups': '🏢', 'platform-config': '🔧', 'platform-logs': '🕐', 'platform-help': '❓'
 }
 function menuIcon(item) {
   const C = item.icon && MENU_ICONS[item.icon]
