@@ -26,6 +26,7 @@
 //   systemParam    系统参数
 //   operationLog   操作日志
 //   message        站内消息
+//   chat           聊天（chat:*，独立于 message:*）
 
 // ===== 认证与用户管理 =====
 export function login(username, password) {
@@ -592,6 +593,56 @@ export function markMessageRead(id) {
 
 export function markAllMessagesRead() {
   return window.api.message.markAllRead()
+}
+
+// ===== 聊天（chat:*，独立于 message:*） =====
+export function listChatContacts() {
+  return window.api.chat.listContacts()
+}
+
+export function listChatConversations() {
+  return window.api.chat.listConversations()
+}
+
+export function openChatConversation(userId) {
+  return window.api.chat.open({ user_id: userId })
+}
+
+export function listChatMessages(conversationId, beforeId = 0, limit = 30) {
+  return window.api.chat.listMessages({ conversation_id: conversationId, before_id: beforeId, limit })
+}
+
+export function sendChatMessage(payload) {
+  return window.api.chat.send(payload)
+}
+
+export function recallChatMessage(messageId) {
+  return window.api.chat.recall({ message_id: messageId })
+}
+
+export function markChatRead(conversationId) {
+  return window.api.chat.markRead({ conversation_id: conversationId })
+}
+
+export function deleteChatConversation(conversationId) {
+  return window.api.chat.deleteConversation({ conversation_id: conversationId })
+}
+
+export function searchChatMessages(keyword) {
+  return window.api.chat.search({ keyword })
+}
+
+export function getChatUnreadTotal() {
+  return window.api.chat.unreadTotal()
+}
+
+export function getChatAttachmentPreview(filePath) {
+  return window.api.chat.attachmentPreview({ path: filePath })
+}
+
+// 订阅聊天实时推送（主进程 chat:push），返回取消订阅函数
+export function onChatPush(callback) {
+  return window.api.chat.onPush(callback)
 }
 
 // ===== 数据总览（仅超管） =====

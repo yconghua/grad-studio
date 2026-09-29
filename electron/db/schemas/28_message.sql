@@ -6,12 +6,13 @@ CREATE TABLE IF NOT EXISTS `message` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `sender_id`     INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '发送人 user.id（0 表示系统消息）',
   `receiver_id`   INT UNSIGNED NOT NULL                COMMENT '接收人 user.id',
-  `msg_type`      VARCHAR(20)  NOT NULL DEFAULT 'system' COMMENT '类型：system 系统 / notice 公告 / meeting 组会 / task 任务 / achievement 成果审核 / other 其他',
+  `msg_type`      VARCHAR(20)  NOT NULL DEFAULT 'system' COMMENT '类型：system 系统 / notice 公告 / meeting 组会 / task 任务 / achievement 成果审核 / chat 聊天消息 / other 其他',
   `title`         VARCHAR(200) DEFAULT NULL     COMMENT '消息标题',
   `content`       TEXT                                 COMMENT '消息内容',
   `status`        VARCHAR(20)  NOT NULL DEFAULT 'unread' COMMENT '状态：unread 未读 / read 已读',
-  `ref_type`      VARCHAR(30)  DEFAULT NULL     COMMENT '关联业务类型（如 notice / meeting / task）',
-  `ref_id`        INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '关联业务 id',
+  `ref_type`      VARCHAR(30)  DEFAULT NULL     COMMENT '关联业务类型（如 notice / meeting / task / chat）',
+  `ref_id`        INT UNSIGNED NOT NULL DEFAULT 0      COMMENT '关联业务 id（chat 类型为会话 chat_conversation.id）',
+  `chat_message_id` INT UNSIGNED DEFAULT NULL     COMMENT '关联聊天消息 chat_message.id（仅 msg_type=chat 使用，撤回/已读联动精确定位）',
   `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
   `read_at`       DATETIME                             COMMENT '已读时间',
   `is_deleted`    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '软删除标记：0 正常 / 1 已删除',
@@ -20,5 +21,6 @@ CREATE TABLE IF NOT EXISTS `message` (
   KEY `idx_is_deleted` (`is_deleted`),
   KEY `idx_receiver_status` (`receiver_id`, `status`),
   KEY `idx_msg_type` (`msg_type`),
-  KEY `idx_ref` (`ref_type`, `ref_id`)
+  KEY `idx_ref` (`ref_type`, `ref_id`),
+  KEY `idx_chat_message` (`chat_message_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息表';

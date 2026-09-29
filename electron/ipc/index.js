@@ -28,6 +28,7 @@
  *   system-param   系统参数（system-param:*）
  *   operation-log  操作日志（operation-log:*）
  *   message        站内消息（message:*）
+ *   chat           聊天（chat:*）
  *
  * 日志说明：
  *   registerAll 内部通过 withLogging 包装 ipcMain.handle，因此所有模块
@@ -57,6 +58,7 @@ const groupSettingRoutes = require('./groupSetting')
 const systemParamRoutes = require('./systemParam')
 const operationLogRoutes = require('./operationLog')
 const messageRoutes = require('./message')
+const chatRoutes = require('./chat')
 const overviewRoutes = require('./overview')
 const searchRoutes = require('./search')
 
@@ -123,6 +125,7 @@ function registerAll(ipcMain) {
   systemParamRoutes.register(logger)
   operationLogRoutes.register(logger)
   messageRoutes.register(logger)
+  chatRoutes.register(logger)
   overviewRoutes.register(logger)
   searchRoutes.register(logger)
 }

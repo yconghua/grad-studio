@@ -12,6 +12,11 @@ function getNoticeService() {
   return require('./noticeService')
 }
 
+// 惰性取 chatService：聊天已读联动（聊天 mark-read 时同步铃铛，反向亦然）
+function getChatService() {
+  return require('./chatService')
+}
+
 // 公告已读联动：把与该公告关联的站内通知消息标记已读（供 noticeService 调用）
 async function markNoticeReadSync(noticeId, receiverId) {
   if (!noticeId || !receiverId) return
@@ -23,7 +28,8 @@ async function markNoticeReadSync(noticeId, receiverId) {
 }
 
 // 生成一条站内消息（供业务模块通知接收人；sender 取当前操作者，未登录场景取 0=系统）
-async function sendMessage({ receiverId, msgType, title, content, refType, refId }) {
+// chatMessageId 仅供聊天双写传入（msg_type='chat' 时关联 chat_message.id）
+async function sendMessage({ receiverId, msgType, title, content, refType, refId, chatMessageId }) {
   if (!receiverId) return
   try {
     await messageRepository.create({
@@ -34,7 +40,8 @@ async function sendMessage({ receiverId, msgType, title, content, refType, refId
       content: content || '',
       status: 'unread',
       ref_type: refType || '',
-      ref_id: refId || 0
+      ref_id: refId || 0,
+      chat_message_id: chatMessageId || null
     })
   } catch (err) {
     console.error('[messageService.sendMessage] 写入消息失败:', err)
@@ -81,6 +88,10 @@ async function markRead(payload = {}) {
     if (msg && msg.ref_type === 'notice' && msg.ref_id > 0 && msg.status === 'unread') {
       await getNoticeService().markRead({ notice_id: msg.ref_id })
     }
+    // 聊天类消息已读时，同步聊天会话的已读位置（铃铛与聊天角标保持一致）
+    if (msg && msg.ref_type === 'chat' && msg.ref_id > 0 && msg.status === 'unread') {
+      await getChatService().markConversationRead({ conversation_id: msg.ref_id })
+    }
     return { success: true, message: '已标记为已读' }
   } catch (err) {
     console.error('[messageService.markRead] 数据库异常:', err)
@@ -101,6 +112,8 @@ async function markAllRead() {
         await noticeService.markRead({ notice_id: noticeId })
       }
     }
+    // 聊天会话已读位置同步（聊天角标与铃铛「全部已读」保持一致）
+    await getChatService().markAllConversationsRead()
     return { success: true, message: '已全部标记为已读' }
   } catch (err) {
     console.error('[messageService.markAllRead] 数据库异常:', err)

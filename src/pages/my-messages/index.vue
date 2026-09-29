@@ -3,7 +3,7 @@
     <div class="page-head card">
       <div class="header-left">
         <h2 class="page-title">💬 我的消息</h2>
-        <p class="page-desc">系统站内消息：任务指派、周报批阅、成果审核、组会汇报等通知都会在这里汇总。</p>
+        <p class="page-desc">系统站内消息：任务指派、周报批阅、成果审核、组会汇报、聊天等通知都会在这里汇总。</p>
       </div>
       <button class="btn btn-primary" :disabled="msgSaving" @click="onMarkAllRead">
         {{ msgSaving ? '处理中…' : '全部已读' }}
@@ -58,6 +58,7 @@ const MSG_TYPE_TEXT = {
   achievement: '成果',
   meeting_report: '组会汇报',
   notice: '公告',
+  chat: '聊天',
   system: '系统'
 }
 function msgTypeText(t) { return MSG_TYPE_TEXT[t] || '通知' }
@@ -74,6 +75,9 @@ function msgTarget(m) {
   }
   if (m.ref_type === 'weekly') {
     return { path: '/research-record', query: { tab: 'weekly', ...(m.ref_id ? { focus: m.ref_id } : {}) } }
+  }
+  if (m.ref_type === 'chat') {
+    return { path: '/chat', query: m.ref_id ? { conv: m.ref_id } : {} }
   }
   return REF_ROUTE_MAP[m.ref_type] || null
 }

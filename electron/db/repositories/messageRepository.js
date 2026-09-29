@@ -19,6 +19,7 @@ const SAFE_COLUMNS = [
   'status',
   'ref_type',
   'ref_id',
+  'chat_message_id',
   'created_at',
   'read_at',
   'is_deleted'
@@ -34,6 +35,7 @@ const WRITE_FIELDS = [
   'status',
   'ref_type',
   'ref_id',
+  'chat_message_id',
   'read_at'
 ]
 
@@ -137,6 +139,45 @@ class MessageRepository extends BaseRepository {
       WHERE receiver_id = ? AND ref_type = 'notice' AND ref_id > 0 AND status = 'unread' AND is_deleted = 0`
     const [rows] = await this._execute(sql, [receiverId], 'listUnreadNoticeRefs')
     return rows.map((r) => r.ref_id)
+  }
+
+  /**
+   * 按聊天消息 id 标记接收人的该条铃铛消息已读（聊天页单条已读 → 铃铛同步）
+   * @param {number} receiverId
+   * @param {number} chatMessageId
+   * @returns {number} 受影响行数
+   */
+  async markReadByChatMessage(receiverId, chatMessageId) {
+    const sql = `UPDATE \`message\` SET status = 'read', read_at = NOW()
+      WHERE receiver_id = ? AND msg_type = 'chat' AND chat_message_id = ? AND status = 'unread' AND is_deleted = 0`
+    const [result] = await this._execute(sql, [receiverId, chatMessageId], 'markReadByChatMessage')
+    return result.affectedRows
+  }
+
+  /**
+   * 按聊天会话标记接收人的该会话全部铃铛消息已读（聊天页进入会话 → 铃铛同步）
+   * @param {number} receiverId
+   * @param {number} conversationId
+   * @returns {number} 受影响行数
+   */
+  async markReadByChatConversation(receiverId, conversationId) {
+    const sql = `UPDATE \`message\` SET status = 'read', read_at = NOW()
+      WHERE receiver_id = ? AND msg_type = 'chat' AND ref_type = 'chat' AND ref_id = ? AND status = 'unread' AND is_deleted = 0`
+    const [result] = await this._execute(sql, [receiverId, conversationId], 'markReadByChatConversation')
+    return result.affectedRows
+  }
+
+  /**
+   * 按聊天消息 id 更新铃铛消息内容（聊天撤回 → 铃铛同步为「消息已撤回」）
+   * @param {number} chatMessageId
+   * @param {string} content
+   * @returns {number} 受影响行数
+   */
+  async updateContentByChatMessage(chatMessageId, content) {
+    const sql = `UPDATE \`message\` SET content = ?
+      WHERE msg_type = 'chat' AND chat_message_id = ? AND is_deleted = 0`
+    const [result] = await this._execute(sql, [content, chatMessageId], 'updateContentByChatMessage')
+    return result.affectedRows
   }
 }
 

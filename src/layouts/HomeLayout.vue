@@ -156,7 +156,7 @@ import {
   FileTextOutlined, EditOutlined, ProjectOutlined, ReadOutlined, FolderOpenOutlined,
   RobotOutlined, CalendarOutlined, TrophyOutlined, BookOutlined, UserOutlined,
   ApartmentOutlined, DatabaseOutlined, ControlOutlined, FileSearchOutlined,
-  QuestionCircleOutlined, BulbOutlined
+  QuestionCircleOutlined, BulbOutlined, MessageOutlined
 } from '@ant-design/icons-vue'
 import {
   logout,
@@ -167,7 +167,9 @@ import {
   getNoticeUnreadCount,
   globalSearch,
   checkForUpdates,
-  openExternal
+  openExternal,
+  getChatUnreadTotal,
+  onChatPush
 } from '../api'
 import { dialogAlert, dialogConfirm } from '../composables/useDialog'
 import { visibleNavItems } from '../config/navConfig'
@@ -210,16 +212,22 @@ function isActive(item) {
 }
 
 // 菜单角标（未读红点等）：课题组公告未读数由公告未读接口驱动，
+// 聊天未读数由聊天独立角标接口驱动（chatUnread），与铃铛（业务通知）分开统计；
 // 返回值 > 0 时显示数字角标，未读数归零后自动隐藏。
 function menuBadge(item) {
   if (item.key === 'notice') {
     return noticeUnread.value > 0 ? noticeUnread.value : null
+  }
+  if (item.key === 'chat') {
+    return chatUnread.value > 0 ? chatUnread.value : null
   }
   return null
 }
 
 // 公告未读数（公告未读接口驱动，登录后与组切换时刷新）
 const noticeUnread = ref(0)
+// 聊天未读数（chat:unread-total 驱动，聊天页已读/新消息推送时变化）
+const chatUnread = ref(0)
 
 // ===== 菜单图标：按 navConfig.icon 的 Ant Design Vue 图标名解析组件 =====
 // 说明：icon 字段为 @ant-design/icons-vue 的组件名，渲染层按名解析为图标组件；
@@ -231,10 +239,10 @@ const MENU_ICONS = {
   FileTextOutlined, EditOutlined, ProjectOutlined, ReadOutlined, FolderOpenOutlined,
   RobotOutlined, CalendarOutlined, TrophyOutlined, BookOutlined, UserOutlined,
   ApartmentOutlined, DatabaseOutlined, ControlOutlined, FileSearchOutlined,
-  QuestionCircleOutlined, BulbOutlined
+  QuestionCircleOutlined, BulbOutlined, MessageOutlined
 }
 const MENU_ICON_FALLBACK = {
-  workbench: '🏠', notice: '📢', member: '👥', students: '🎓', degree: '🗓️',
+  workbench: '🏠', chat: '💬', notice: '📢', member: '👥', students: '🎓', degree: '🗓️',
   meeting: '📅', subject: '🔬', task: '✅', 'research-record': '📝', 'my-work': '📋',
   achievement: '🏆', literature: '📚', archive: '📂', knowledge: '📖', 'ai-assistant': '🤖',
   settings: '⚙️', 'weekly-review': '📄', 'test-content': '💡', 'platform-users': '👤',
@@ -316,7 +324,8 @@ const REF_ROUTE_MAP = { notice: '/notice', task: '/task', achievement: '/achieve
 
 // 消息跳转目标：按消息类型与当前角色分流。
 // - task 消息：学生跳「课题与任务」（带 focus 定位任务），导师跳「任务管理」（组管无任务页，不跳转）；
-// - weekly 消息：跳「科研记录」并带 tab=weekly + focus，直达被批阅的周报。
+// - weekly 消息：跳「科研记录」并带 tab=weekly + focus，直达被批阅的周报；
+// - chat 消息：跳「聊天」并带 conv=会话id，聊天页自动打开对应会话。
 function msgTarget(m) {
   if (m.ref_type === 'task') {
     const role = currentUser?.role || ''
@@ -328,6 +337,9 @@ function msgTarget(m) {
   }
   if (m.ref_type === 'weekly') {
     return { path: '/research-record', query: { tab: 'weekly', ...(m.ref_id ? { focus: m.ref_id } : {}) } }
+  }
+  if (m.ref_type === 'chat') {
+    return { path: '/chat', query: m.ref_id ? { conv: m.ref_id } : {} }
   }
   const target = REF_ROUTE_MAP[m.ref_type]
   return target || null
@@ -557,18 +569,47 @@ function onMessagesReadChanged() {
   fetchNoticeUnread()
 }
 
+// ===== 聊天：独立未读角标 + 实时推送 =====
+// 聊天未读与铃铛（业务通知）分开统计：聊天页已读 / 收到新消息推送时通过
+// chat-unread-changed 事件同步侧栏角标；推送不可达时由 60s 轮询兜底。
+async function fetchChatUnread() {
+  try {
+    const res = await getChatUnreadTotal()
+    chatUnread.value = (res && res.success && res.data && res.data.total) || 0
+  } catch (e) {}
+}
+
+function onChatUnreadChanged(e) {
+  chatUnread.value = (e && e.detail && e.detail.total) || 0
+}
+
+// 聊天推送：对方发来新消息时立即刷新聊天角标（「对方发送立即弹出」由聊天页负责插入气泡）
+let offChatPush = null
+function onChatPushPayload(payload) {
+  const list = (payload && payload.messages) || []
+  if (!list.length) return
+  fetchChatUnread()
+  // 聊天新消息已双写 message 表（未读），铃铛计数同步刷新
+  fetchMsgUnread()
+}
+
 watch(currentGroupId, () => { fetchNoticeUnread() })
 window.addEventListener('notice-unread-changed', onNoticeUnreadChanged)
 window.addEventListener('messages-read-changed', onMessagesReadChanged)
+window.addEventListener('chat-unread-changed', onChatUnreadChanged)
 
 onMounted(() => {
   document.addEventListener('click', onDocClick)
   fetchMsgUnread()
   fetchNoticeUnread()
+  fetchChatUnread()
   msgTimer = setInterval(() => {
     fetchMsgUnread()
     fetchNoticeUnread()
+    fetchChatUnread()
   }, 60000)
+  // 订阅聊天实时推送（仅导师/学生角色有 chat 菜单；其他角色推送体为空，忽略即可）
+  offChatPush = onChatPush(onChatPushPayload)
   // 启动后延迟静默检查一次更新，避免与登录后的数据加载抢网络
   setTimeout(() => { checkUpdate(true) }, 2000)
 })
@@ -576,6 +617,8 @@ onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
   window.removeEventListener('notice-unread-changed', onNoticeUnreadChanged)
   window.removeEventListener('messages-read-changed', onMessagesReadChanged)
+  window.removeEventListener('chat-unread-changed', onChatUnreadChanged)
+  if (offChatPush) offChatPush()
   if (msgTimer) clearInterval(msgTimer)
   if (searchTimer) clearTimeout(searchTimer)
 })

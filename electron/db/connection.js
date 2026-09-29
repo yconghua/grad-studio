@@ -24,13 +24,42 @@ let pool = null
 // 当前活跃连接配置（供需要时读取 host/user/database 等元信息）
 let activeConfig = null
 
+// 获取连接的超时兜底（毫秒）：
+// mysql2 3.x 的 Pool.acquireTimeout 实际不生效（仅对 Connection 报警告），
+// 池被占满 / RDS 并发连接数达上限时 getConnection 会无限挂起，表现为「整个应用假死」。
+// 这里用 Promise.race 自行兜底：超时抛明确错误，由上层转成友好提示，绝不无限等待。
+const ACQUIRE_TIMEOUT_MS = 10000
+const DB_BUSY_MSG = '数据库连接繁忙，请稍后重试（可能已达连接数上限）'
+
+// 给 promise 加超时：超时 reject，正常完成则透传结果
+function withTimeout(promise, ms, message) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms)
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v) },
+      (e) => { clearTimeout(timer); reject(e) }
+    )
+  })
+}
+
 // 根据连接配置创建连接池（复用 main.js 的 dateStrings 设定，保证时间字段返回字符串）
+// 新连接建立时统一设置会话级 innodb_lock_wait_timeout=5：并发写锁等待最坏 5 秒内超时返回
+// （配合 service 层死锁重试），避免默认 50 秒锁等待造成请求长时间挂起。
 function createPool(config) {
-  return mysql.createPool({
+  const pool = mysql.createPool({
     ...config,
     waitForConnections: true,
     connectionLimit: CONNECTION_LIMIT
   })
+  // 注意：'connection' 事件回调拿到的是 mysql2 原生（非 Promise 包装）连接，
+  // 其 query 返回的是 Query 对象而非 Promise，必须用回调式而非 .catch()，否则触发
+  // "query that is not a promise" 警告。
+  pool.on('connection', (conn) => {
+    conn.query('SET SESSION innodb_lock_wait_timeout = 5', (err) => {
+      if (err) console.error('[DB-CONN] 设置 innodb_lock_wait_timeout 失败:', err && err.message)
+    })
+  })
+  return pool
 }
 
 /**
@@ -79,11 +108,11 @@ async function acquireConn() {
     throw new Error('未配置数据库连接，请先添加数据库连接')
   }
   try {
-    const conn = await pool.getConnection()
+    const conn = await withTimeout(pool.getConnection(), ACQUIRE_TIMEOUT_MS, DB_BUSY_MSG)
     // 非事务：归还连接到池
     return { conn, release: () => conn.release() }
   } catch (err) {
-    console.error('[DB-CONN] 从连接池获取连接失败:', err)
+    console.error('[DB-CONN] 从连接池获取连接失败:', err.message)
     throw err
   }
 }
@@ -99,7 +128,7 @@ async function runTransaction(fn) {
     console.error('[DB-TX] 启动事务失败：未配置数据库连接（请先添加数据库连接）')
     throw new Error('未配置数据库连接，请先添加数据库连接')
   }
-  const conn = await pool.getConnection()
+  const conn = await withTimeout(pool.getConnection(), ACQUIRE_TIMEOUT_MS, DB_BUSY_MSG)
   try {
     await conn.beginTransaction()
     // 把事务连接挂入上下文，fn 及其内部 await 链均可取到

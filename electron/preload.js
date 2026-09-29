@@ -29,6 +29,7 @@
  *   systemParam    系统参数
  *   operationLog   操作日志
  *   message        站内消息
+ *   chat           聊天（chat:*，含 chat:push 实时推送订阅）
  *
  * 调用统一由 createInvoke 工厂封装，消除每个方法重复的箭头函数样板：
  *   - 约定：每个方法至多向主进程发送「一个 payload 对象」（无参方法发送 undefined）。
@@ -262,6 +263,27 @@ contextBridge.exposeInMainWorld('api', {
     unreadCount: createInvoke('message:unread-count'),
     markRead: createInvoke('message:mark-read'),
     markAllRead: createInvoke('message:mark-all-read')
+  },
+  // 聊天（chat:*，独立于 message:*；onPush 订阅主进程实时推送）
+  chat: {
+    listContacts: createInvoke('chat:list-contacts'),
+    listConversations: createInvoke('chat:list-conversations'),
+    open: createInvoke('chat:open'),
+    listMessages: createInvoke('chat:list-messages'),
+    send: createInvoke('chat:send'),
+    recall: createInvoke('chat:recall'),
+    markRead: createInvoke('chat:mark-read'),
+    deleteConversation: createInvoke('chat:delete-conversation'),
+    search: createInvoke('chat:search'),
+    unreadTotal: createInvoke('chat:unread-total'),
+    attachmentPreview: createInvoke('chat:attachment-preview'),
+    // 订阅主进程推送（chat:push）：返回取消订阅函数
+    onPush: (callback) => {
+      if (typeof callback !== 'function') return () => {}
+      const listener = (_evt, payload) => callback(payload)
+      ipcRenderer.on('chat:push', listener)
+      return () => ipcRenderer.removeListener('chat:push', listener)
+    }
   },
   // 数据总览（overview:*，仅超级管理员）
   overview: {
