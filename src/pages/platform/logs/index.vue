@@ -127,7 +127,7 @@ function openDetail(l) {
 function detailPreview(d) {
   if (d == null || d === '') return '—'
   const s = typeof d === 'string' ? d : JSON.stringify(d)
-  return s.length > 60 ? s.slice(0, 60) + '…' : s
+  return s.length > 30 ? s.slice(0, 30) + '…' : s
 }
 function fullDetail(d) {
   if (d == null || d === '') return '（无）'
@@ -161,7 +161,7 @@ onMounted(loadList)
 .tbl tbody tr:hover { background: #eef6ff; }
 .row-click { cursor: pointer; }
 .mono { font-family: Consolas, Monaco, monospace; }
-.detail { max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.detail { width: 1%; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pager { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; }
 .pager-info { font-size: 13px; color: #4e5969; }
 

@@ -86,6 +86,12 @@ const routes = [
         name: 'help',
         component: HelpView,
         meta: { title: '使用帮助' }
+      },
+      {
+        path: 'about',
+        name: 'about',
+        component: () => import('../pages/about/index.vue'),
+        meta: { title: '系统介绍' }
       }
     ]
   },
