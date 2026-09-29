@@ -72,9 +72,9 @@
     <!-- ===== 导师 ===== -->
     <template v-else-if="isMentor">
       <div class="stat-grid">
-        <div class="stat-card grad-blue"><div class="stat-icon">🎓</div><div class="stat-num">{{ mentorStats.students }}</div><div class="stat-label">名下学生</div></div>
+        <div class="stat-card grad-blue stat-link" @click="go('/students')"><div class="stat-icon">🎓</div><div class="stat-num">{{ mentorStats.students }}</div><div class="stat-label">名下学生 →</div></div>
         <div class="stat-card grad-orange stat-link" @click="go('/weekly-review')"><div class="stat-icon">📝</div><div class="stat-num">{{ mentorStats.pendingWeekly }}</div><div class="stat-label">待审周报 →</div></div>
-        <div class="stat-card grad-green"><div class="stat-icon">🏆</div><div class="stat-num">{{ mentorStats.pendingAch }}</div><div class="stat-label">待审成果</div></div>
+        <div class="stat-card grad-green stat-link" @click="go('/achievement')"><div class="stat-icon">🏆</div><div class="stat-num">{{ mentorStats.pendingAch }}</div><div class="stat-label">待审成果 →</div></div>
         <div class="stat-card grad-red stat-link" @click="goMeetingReports()"><div class="stat-icon">🗣️</div><div class="stat-num">{{ mentorStats.pendingReports }}</div><div class="stat-label">待审汇报 →</div></div>
       </div>
       <div v-if="!currentGroupId" class="card"><div class="state">请先在页头输入本组课题组ID 以查看公告</div></div>
@@ -95,8 +95,8 @@
     <!-- ===== 学生 ===== -->
     <template v-else-if="isStudent">
       <div class="stat-grid">
-        <div class="stat-card grad-blue"><div class="stat-icon">✅</div><div class="stat-num">{{ studentStats.todoTasks }}</div><div class="stat-label">待办 / 进行中任务</div></div>
-        <div class="stat-card grad-green"><div class="stat-icon">📝</div><div class="stat-num">{{ studentStats.weeklies }}</div><div class="stat-label">我的周报</div></div>
+        <div class="stat-card grad-blue stat-link" @click="go('/my-work')"><div class="stat-icon">✅</div><div class="stat-num">{{ studentStats.todoTasks }}</div><div class="stat-label">待办 / 进行中任务 →</div></div>
+        <div class="stat-card grad-green stat-link" @click="goResearchWeekly()"><div class="stat-icon">📝</div><div class="stat-num">{{ studentStats.weeklies }}</div><div class="stat-label">我的周报 →</div></div>
       </div>
       <div class="card">
         <h3 class="card-title">✅ 我的任务</h3>
@@ -155,6 +155,10 @@ function go(path) { router.push(path) }
 // 点击「待审汇报」：跳到组会管理页并自动定位到「组会汇报」页签
 function goMeetingReports() {
   router.push({ path: '/meeting', query: { tab: 'reports' } })
+}
+// 点击「我的周报」：跳到科研记录页并自动定位到「周报」页签
+function goResearchWeekly() {
+  router.push({ path: '/research-record', query: { tab: 'weekly' } })
 }
 // 点击任务条目：跳转到学生的「课题与任务」页并自动定位展开该任务
 function goTask(t) {
