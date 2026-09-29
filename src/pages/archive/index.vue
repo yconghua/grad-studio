@@ -22,17 +22,17 @@
           <tr><th>日期</th><th>类型</th><th>标题</th><th>说明</th><th>附件</th><th>上传时间</th><th style="width:120px">操作</th></tr>
         </thead>
         <tbody>
-          <tr v-for="r in records" :key="r.id">
+          <tr v-for="r in records" :key="r.id" class="row-clickable" @click="openDetail(r)">
             <td class="nowrap">{{ r.record_date || '—' }}</td>
             <td><span class="tag">{{ typeText(r.record_type) }}</span></td>
             <td>{{ r.title || '—' }}</td>
             <td class="content-cell">{{ r.content || '—' }}</td>
             <td>
-              <button v-if="r.attachment" class="link" @click="onOpenFile(r.attachment)">打开附件</button>
+              <button v-if="r.attachment" class="link" @click.stop="onOpenFile(r.attachment)">打开附件</button>
               <span v-else class="muted">—</span>
             </td>
             <td class="nowrap muted">{{ fmtTime(r.created_at) }}</td>
-            <td><button class="link danger" @click="onRemove(r)">删除</button></td>
+            <td @click.stop><button class="link danger" @click="onRemove(r)">删除</button></td>
           </tr>
         </tbody>
       </table>
@@ -99,6 +99,33 @@
         </div>
       </div>
     </div>
+    <!-- 档案详情弹窗：点击表格行弹出，展示档案完整内容 -->
+    <div v-if="detail.show" class="modal-mask" @click.self="detail.show = false">
+      <div class="modal-box wide detail-box">
+        <h3 class="modal-title">档案详情</h3>
+        <div class="detail">
+          <p class="detail-line"><b>日期：</b>{{ detail.row.record_date || '—' }}</p>
+          <p class="detail-line"><b>类型：</b>{{ typeText(detail.row.record_type) }}</p>
+          <p class="detail-line"><b>标题：</b>{{ detail.row.title || '—' }}</p>
+          <div class="detail-block">
+            <div class="detail-block-label">说明</div>
+            <div class="detail-block-body">{{ detail.row.content || '（未填写说明）' }}</div>
+          </div>
+          <p class="detail-line"><b>附件：</b>
+            <button v-if="detail.row.attachment" class="link" @click="onOpenFile(detail.row.attachment)">打开附件</button>
+            <span v-else>—</span>
+          </p>
+          <p class="detail-line"><b>上传时间：</b>{{ fmtTime(detail.row.created_at) }}</p>
+          <p v-if="detail.row.updated_at && detail.row.updated_at !== detail.row.created_at" class="detail-line">
+            <b>更新时间：</b>{{ fmtTime(detail.row.updated_at) }}
+          </p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="detail.show = false">关闭</button>
+          <button class="btn danger" @click="onDetailRemove">删除</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -121,6 +148,19 @@ const modal = ref({
 })
 
 const exportResult = ref({ show: false, counts: {} })
+
+// 档案详情弹窗（点击表格行弹出，只读展示完整内容）
+const detail = ref({ show: false, row: null })
+
+function openDetail(r) {
+  detail.value = { show: true, row: r }
+}
+
+async function onDetailRemove() {
+  const row = detail.value.row
+  detail.value.show = false
+  await onRemove(row)
+}
 
 async function load() {
   loading.value = true
@@ -238,6 +278,9 @@ load()
 }
 .btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
 .btn.primary { background: linear-gradient(135deg, #0d80e0, #19a558); border: none; color: #fff; font-weight: 600; }
+.btn.primary:hover { opacity: 0.92; color: #fff; }
+.btn.danger { color: #ea4335; border-color: #ea4335; }
+.btn.danger:hover { background: #ea4335; color: #fff; }
 .btn:disabled { opacity: 0.5; }
 
 .state { padding: 40px 0; text-align: center; color: #8a9099; font-size: 13px; }
@@ -251,6 +294,7 @@ load()
 .tbl td { padding: 10px 12px; border-bottom: 1px solid #eceff3; color: #1f2329; }
 .tbl tbody tr:nth-child(even) { background: #fafbfc; }
 .tbl tbody tr:hover { background: #eef6ff; }
+.row-clickable { cursor: pointer; }
 .nowrap { white-space: nowrap; }
 .muted { color: #8a9099; }
 .content-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -264,6 +308,7 @@ load()
   display: flex; align-items: center; justify-content: center; z-index: 100;
 }
 .modal-box { background: #fff; border-radius: 12px; padding: 24px; width: 460px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
+.modal-box.wide { width: 560px; max-height: 86vh; overflow-y: auto; }
 .modal-title { margin: 0 0 18px; font-size: 16px; color: #1f2329; }
 .form-item { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .form-label { font-size: 13px; color: #4e5969; }
@@ -286,4 +331,145 @@ load()
 }
 .export-item .num { font-size: 22px; font-weight: 700; color: #0d80e0; }
 .export-item span:last-child { font-size: 12px; color: #8a9099; }
+
+.detail { background: #fafbfc; border: 1px solid #eceff3; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.detail-line { margin: 0 0 8px; font-size: 13px; color: #4e5969; line-height: 1.7; }
+.detail-line:last-child { margin-bottom: 0; }
+.detail-block { margin-top: 14px; }
+.detail-block-label { font-size: 12px; font-weight: 600; color: #8a9099; margin-bottom: 6px; }
+.detail-block-body {
+  font-size: 13px; color: #1f2329; line-height: 1.8;
+  white-space: pre-wrap; word-break: break-word;
+  background: #fff; border: 1px solid #eceff3; border-radius: 8px; padding: 10px 12px;
+  max-height: 40vh; overflow-y: auto;
+}
+
+/* ===== 详情弹窗美化（仅 .detail-box 容器内生效，与组会管理/科研成果风格一致） ===== */
+.detail-box {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #eef1f5;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 35, 80, 0.22);
+  display: flex;
+  flex-direction: column;
+  max-height: 86vh;
+}
+.detail-box .modal-title {
+  margin: 0;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  color: #1f2329;
+  background: linear-gradient(135deg, #f2f8ff 0%, #f2faf6 100%);
+  border-bottom: 1px solid #eef1f5;
+  flex: 0 0 auto;
+}
+.detail-box .modal-title::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 4px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0d80e0, #19a558);
+}
+.detail-box .detail {
+  margin: 0;
+  padding: 20px 24px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+.detail-box .detail > .detail-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #eef1f5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.detail-box .detail > .detail-line:hover {
+  border-color: #cfe4f7;
+  box-shadow: 0 2px 8px rgba(13, 128, 224, 0.06);
+}
+.detail-box .detail > .detail-line:last-child { margin-bottom: 0; }
+.detail-box .detail-line b {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8a9099;
+  line-height: 1.7;
+}
+.detail-box .detail-line b::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  opacity: 0.75;
+}
+.detail-box .detail-block { margin-top: 14px; }
+.detail-box .detail-block-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8a9099;
+  margin-bottom: 8px;
+}
+.detail-box .detail-block-label::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  opacity: 0.75;
+}
+.detail-box .detail-block-body {
+  background: #fff;
+  border: 1px solid #eceff3;
+  border-radius: 8px;
+  padding: 12px 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+  color: #4e5969;
+  font-size: 13px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.detail-box .modal-actions {
+  margin: 0;
+  padding: 14px 24px;
+  background: #fafbfc;
+  border-top: 1px solid #eef1f5;
+  flex: 0 0 auto;
+}
+/* 首个按钮（关闭）升级为主按钮，删除保持红色 */
+.detail-box .modal-actions .btn:first-child {
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  min-width: 80px;
+}
+.detail-box .modal-actions .btn:first-child:hover {
+  opacity: 0.92;
+  color: #fff;
+  border-color: transparent;
+}
 </style>

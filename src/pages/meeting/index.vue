@@ -140,7 +140,7 @@
     </div>
     <!-- 组会详情弹窗（只读） -->
     <div v-if="meetingDetail.visible" class="modal-mask" @click.self="meetingDetail.visible = false">
-      <div class="modal-box">
+      <div class="modal-box detail-box">
         <h3 class="modal-title">组会详情</h3>
         <div v-if="meetingDetail.row" class="detail-grid">
           <div class="detail-item full"><span class="detail-label">主题</span><span class="detail-value">{{ meetingDetail.row.title }}</span></div>
@@ -160,7 +160,7 @@
 
     <!-- 组会汇报详情弹窗（只读） -->
     <div v-if="reportDetail.visible" class="modal-mask" @click.self="reportDetail.visible = false">
-      <div class="modal-box">
+      <div class="modal-box detail-box">
         <h3 class="modal-title">组会汇报详情</h3>
         <div v-if="reportDetail.row" class="detail-grid">
           <div class="detail-item full"><span class="detail-label">所属组会</span><span class="detail-value">{{ meetingTitleOf(reportDetail.row.meeting_id) }}</span></div>
@@ -449,4 +449,105 @@ watch(currentGroupId, () => {
 .detail-label { font-size: 12px; color: #8a9099; }
 .detail-value { font-size: 13px; color: #1f2329; }
 .detail-value.detail-text { white-space: pre-wrap; line-height: 1.6; }
+
+/* ===== 详情弹窗美化（仅 .detail-box 容器内生效） ===== */
+.detail-box {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #eef1f5;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 35, 80, 0.22);
+  display: flex;
+  flex-direction: column;
+  max-height: 86vh;
+}
+.detail-box .modal-title {
+  margin: 0;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  color: #1f2329;
+  background: linear-gradient(135deg, #f2f8ff 0%, #f2faf6 100%);
+  border-bottom: 1px solid #eef1f5;
+  flex: 0 0 auto;
+}
+.detail-box .modal-title::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 4px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0d80e0, #19a558);
+}
+.detail-box .detail-grid {
+  padding: 20px 24px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+.detail-box .detail-item {
+  background: #f8fafc;
+  border: 1px solid #eef1f5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.detail-box .detail-item:hover {
+  border-color: #cfe4f7;
+  box-shadow: 0 2px 8px rgba(13, 128, 224, 0.06);
+}
+.detail-box .detail-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #8a9099;
+}
+.detail-box .detail-label::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  opacity: 0.75;
+}
+.detail-box .detail-value {
+  font-size: 13px;
+  color: #1f2329;
+  line-height: 1.6;
+}
+.detail-box .detail-value.detail-text {
+  background: #fff;
+  border: 1px solid #eceff3;
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+  color: #4e5969;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.detail-box .modal-actions {
+  margin: 0;
+  padding: 14px 24px;
+  background: #fafbfc;
+  border-top: 1px solid #eef1f5;
+  flex: 0 0 auto;
+}
+.detail-box .modal-actions .btn {
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  min-width: 80px;
+}
+.detail-box .modal-actions .btn:hover {
+  opacity: 0.92;
+  color: #fff;
+  border-color: transparent;
+}
 </style>

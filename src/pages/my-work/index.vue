@@ -7,13 +7,19 @@
       </div>
     </div>
 
+    <!-- Tab 切换 -->
+    <div class="tabs">
+      <button class="tab" :class="{ active: tab === 'subject' }" @click="tab = 'subject'">📚 我的课题</button>
+      <button class="tab" :class="{ active: tab === 'task' }" @click="tab = 'task'">✅ 我的任务</button>
+    </div>
+
     <!-- 我的课题（学生只读） -->
-    <div class="card">
+    <div v-show="tab === 'subject'" class="card">
       <div class="sub-title">📚 我的课题</div>
       <div v-if="subjLoading" class="state">加载中…</div>
       <div v-else-if="!subjects.length" class="state">暂无本组的课题</div>
       <div v-else class="subject-list">
-        <div v-for="s in subjects" :key="s.id" class="subject-item">
+        <div v-for="s in subjects" :key="s.id" class="subject-item clickable" @click="openSubjectDetail(s)">
           <div class="subject-main">
             <span class="subject-name">{{ s.name }}</span>
             <span class="badge" :class="subjectStatusClass(s.status)">{{ subjectStatusText(s.status) }}</span>
@@ -21,7 +27,7 @@
           </div>
           <div class="subject-meta">
             <span>编号：{{ s.code || '—' }}</span>
-            <span>类型：{{ s.subject_type || '—' }}</span>
+            <span>类型：{{ subjectTypeText(s.subject_type) }}</span>
             <span>成员：{{ s.memberCount || 0 }} 人</span>
             <span>起止：{{ fmtDate(s.start_date) }} ~ {{ fmtDate(s.end_date) }}</span>
           </div>
@@ -30,7 +36,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div v-show="tab === 'task'" class="card">
       <div class="sub-title">✅ 我的任务</div>
       <div v-if="loading" class="state">加载中…</div>
       <div v-else-if="error" class="state error">{{ error }}</div>
@@ -82,6 +88,30 @@
       </div>
     </div>
 
+    <!-- 课题详情弹窗（只读，点击课题卡片弹出） -->
+    <div v-if="subjectDetail.visible" class="modal-mask" @click.self="subjectDetail.visible = false">
+      <div class="modal-box detail-box">
+        <h3 class="modal-title">课题详情</h3>
+        <div v-if="subjectDetail.row" class="detail-grid">
+          <div class="detail-item full"><span class="detail-label">课题名称</span><span class="detail-value">{{ subjectDetail.row.name }}</span></div>
+          <div class="detail-item"><span class="detail-label">编号</span><span class="detail-value">{{ subjectDetail.row.code || '—' }}</span></div>
+          <div class="detail-item"><span class="detail-label">类型</span><span class="detail-value">{{ subjectTypeText(subjectDetail.row.subject_type) }}</span></div>
+          <div class="detail-item"><span class="detail-label">状态</span><span class="detail-value"><span class="badge" :class="subjectStatusClass(subjectDetail.row.status)">{{ subjectStatusText(subjectDetail.row.status) }}</span></span></div>
+          <div class="detail-item"><span class="detail-label">负责人</span><span class="detail-value">{{ memberLabelOf(subjectDetail.row.leader_id) }}</span></div>
+          <div class="detail-item"><span class="detail-label">起止日期</span><span class="detail-value">{{ fmtDate(subjectDetail.row.start_date) }} ~ {{ fmtDate(subjectDetail.row.end_date) }}</span></div>
+          <div class="detail-item"><span class="detail-label">经费</span><span class="detail-value">{{ subjectDetail.row.funding || '—' }}</span></div>
+          <div class="detail-item"><span class="detail-label">来源</span><span class="detail-value">{{ subjectDetail.row.source || '—' }}</span></div>
+          <div class="detail-item"><span class="detail-label">成员数</span><span class="detail-value">{{ subjectDetail.row.memberCount || 0 }} 人</span></div>
+          <div class="detail-item full"><span class="detail-label">课题说明</span><span class="detail-value detail-text">{{ subjectDetail.row.description || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">备注</span><span class="detail-value detail-text">{{ subjectDetail.row.remark || '—' }}</span></div>
+          <div class="detail-item full"><span class="detail-label">创建时间</span><span class="detail-value">{{ fmtTime(subjectDetail.row.created_at) }}</span></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="subjectDetail.visible = false">关闭</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 提交进展弹窗 -->
     <div v-if="progModal.show" class="modal-mask" @click.self="progModal.show = false">
       <div class="modal-box">
@@ -110,7 +140,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { listMyTasks, submitTaskProgress, listTaskProgress, listSubjects, listSubjectMembers } from '../../api'
+import { listMyTasks, submitTaskProgress, listTaskProgress, listSubjects, listSubjectMembers, listMembers } from '../../api'
 import { useGroupContext } from '../../composables/useGroupContext'
 import { useSession } from '../../composables/useSession'
 
@@ -127,17 +157,48 @@ const expandedId = ref(null)
 const progressList = ref([])
 const progLoading = ref(false)
 
+// 页签：subject=我的课题，task=我的任务（支持 ?tab=task 参数直达任务页签）
+const tab = ref(route.query.tab === 'task' ? 'task' : 'subject')
+
 // ===== 我的课题（只读） =====
 const subjects = ref([])
 const subjLoading = ref(false)
+const members = ref([])
 const SUBJECT_STATUS_TEXT = { ongoing: '进行中', finished: '已结题', cancelled: '已取消' }
 function subjectStatusText(s) { return SUBJECT_STATUS_TEXT[s] || s || '—' }
 function subjectStatusClass(s) {
   return { ongoing: 'b-blue', finished: 'b-gray', cancelled: 'b-gray' }[s] || 'b-gray'
 }
+const SUBJECT_TYPE_TEXT = { national: '国家级', provincial: '省部级', school: '校级', enterprise: '横向', self: '自选' }
+function subjectTypeText(t) { return SUBJECT_TYPE_TEXT[t] || t || '—' }
 function fmtDate(v) {
   if (!v) return '—'
   return String(v).slice(0, 10)
+}
+
+// 组内成员显示名：有真实姓名显示「姓名（账号）」，无姓名仅显示账号
+function memberLabelOf(id) {
+  if (!id) return '—'
+  const m = members.value.find((x) => Number(x.id) === Number(id))
+  if (!m) return '#' + id
+  return m.real_name ? `${m.real_name}（${m.username}）` : m.username
+}
+
+async function loadMembers() {
+  const gid = currentGroupId.value
+  if (!gid) { members.value = []; return }
+  try {
+    const res = await listMembers({ group_id: gid })
+    if (res && res.success) members.value = res.members || []
+  } catch (e) {
+    members.value = []
+  }
+}
+
+// 课题详情弹窗（点击课题卡片弹出，只读展示完整信息）
+const subjectDetail = ref({ visible: false, row: null })
+function openSubjectDetail(s) {
+  subjectDetail.value = { visible: true, row: s }
 }
 
 async function loadSubjects() {
@@ -186,9 +247,10 @@ async function load() {
     const res = await listMyTasks()
     if (res && res.success) {
       tasks.value = res.data || []
-      // 携带 focus 参数进入时，自动定位并展开该任务（工作台点击跳转）
+      // 携带 focus 参数进入时，自动定位到任务页签并展开该任务（工作台点击跳转）
       const focus = Number(route.query.focus)
       if (focus) {
+        tab.value = 'task'
         const t = tasks.value.find((x) => x.id === focus)
         if (t) {
           expandedId.value = t.id
@@ -277,8 +339,11 @@ function fmtTime(t) {
 }
 
 load()
-// 课题组切换时刷新课题列表
-watch(currentGroupId, loadSubjects, { immediate: true })
+// 课题组切换时刷新课题列表与成员列表（成员列表用于详情弹窗显示负责人姓名）
+watch(currentGroupId, () => {
+  loadSubjects()
+  loadMembers()
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -293,6 +358,16 @@ watch(currentGroupId, loadSubjects, { immediate: true })
 .state { padding: 40px 0; text-align: center; color: #8a9099; font-size: 13px; }
 .state.error { color: #ea4335; }
 .mini-state { padding: 16px 0; text-align: center; color: #8a9099; font-size: 12px; }
+
+.tabs { display: flex; gap: 8px; }
+.tab {
+  padding: 9px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;
+  border: 1px solid #eceff3; background: #fff; color: #4e5969;
+}
+.tab.active {
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  border-color: transparent; color: #fff; font-weight: 600;
+}
 
 .task-list { display: flex; flex-direction: column; }
 .task-item { border: 1px solid #eceff3; border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
@@ -321,6 +396,14 @@ watch(currentGroupId, loadSubjects, { immediate: true })
 .sub-title { margin: 0 0 12px; font-size: 15px; font-weight: 600; color: #1f2329; }
 .subject-list { display: flex; flex-direction: column; gap: 10px; }
 .subject-item { border: 1px solid #eceff3; border-radius: 10px; padding: 12px 16px; }
+.subject-item.clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.subject-item.clickable:hover {
+  border-color: #cfe4f7;
+  box-shadow: 0 2px 8px rgba(13, 128, 224, 0.08);
+}
 .subject-main { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .subject-name { font-size: 14px; font-weight: 600; color: #1f2329; }
 .joined-tag { background: #e8f7ef; color: #19a558; font-size: 12px; padding: 2px 10px; border-radius: 999px; }
@@ -374,4 +457,111 @@ watch(currentGroupId, loadSubjects, { immediate: true })
 .form-item input:focus, .form-item textarea:focus { border-color: #0d80e0; }
 .form-error { color: #ea4335; font-size: 12px; margin: 0 0 10px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ===== 详情弹窗美化（仅 .detail-box 容器内生效，与组会管理/科研成果风格一致） ===== */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.detail-item { display: flex; flex-direction: column; gap: 4px; }
+.detail-item.full { grid-column: 1 / -1; }
+.detail-box {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #eef1f5;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 35, 80, 0.22);
+  width: 560px;
+  max-width: 92vw;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+.detail-box .modal-title {
+  margin: 0;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  color: #1f2329;
+  background: linear-gradient(135deg, #f2f8ff 0%, #f2faf6 100%);
+  border-bottom: 1px solid #eef1f5;
+  flex: 0 0 auto;
+}
+.detail-box .modal-title::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 4px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0d80e0, #19a558);
+}
+.detail-box .detail-grid {
+  padding: 20px 24px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+.detail-box .detail-item {
+  background: #f8fafc;
+  border: 1px solid #eef1f5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.detail-box .detail-item:hover {
+  border-color: #cfe4f7;
+  box-shadow: 0 2px 8px rgba(13, 128, 224, 0.06);
+}
+.detail-box .detail-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #8a9099;
+}
+.detail-box .detail-label::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  opacity: 0.75;
+}
+.detail-box .detail-value {
+  font-size: 13px;
+  color: #1f2329;
+  line-height: 1.6;
+}
+.detail-box .detail-value.detail-text {
+  background: #fff;
+  border: 1px solid #eceff3;
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+  color: #4e5969;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.detail-box .modal-actions {
+  margin: 0;
+  padding: 14px 24px;
+  background: #fafbfc;
+  border-top: 1px solid #eef1f5;
+  flex: 0 0 auto;
+}
+/* 首个按钮（关闭）升级为主按钮 */
+.detail-box .modal-actions .btn:first-child {
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  min-width: 80px;
+}
+.detail-box .modal-actions .btn:first-child:hover {
+  opacity: 0.92;
+  color: #fff;
+  border-color: transparent;
+}
 </style>

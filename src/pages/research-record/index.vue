@@ -25,10 +25,10 @@
       <div v-else-if="!logs.length" class="state">暂无科研日志，点击右上角「写日志」开始记录。</div>
       <table v-else class="tbl">
         <thead>
-          <tr><th>日期</th><th>标签</th><th>内容</th><th>创建时间</th><th style="width:140px">操作</th></tr>
+          <tr><th>日期</th><th>标签</th><th>内容</th><th>创建时间</th><th style="width:170px">操作</th></tr>
         </thead>
         <tbody>
-          <tr v-for="item in logs" :key="item.id">
+          <tr v-for="item in logs" :key="item.id" class="row-clickable" @click="openLogDetail(item)">
             <td class="nowrap">{{ item.log_date }}</td>
             <td>
               <span v-if="item.tags" class="tag">{{ item.tags }}</span>
@@ -36,7 +36,8 @@
             </td>
             <td class="content-cell">{{ item.content || '—' }}</td>
             <td class="nowrap muted">{{ fmtTime(item.created_at) }}</td>
-            <td>
+            <td @click.stop>
+              <button class="link" @click="openLogDetail(item)">查看</button>
               <button class="link" @click="openLogModal(item)">编辑</button>
               <button class="link danger" @click="onRemoveLog(item)">删除</button>
             </td>
@@ -55,13 +56,14 @@
           <tr><th>周次</th><th>本周工作</th><th>下周计划</th><th>状态</th><th>提交时间</th><th style="width:170px">操作</th></tr>
         </thead>
         <tbody>
-          <tr v-for="item in weeklies" :key="item.id" :class="{ 'row-focus': focusWeeklyId && item.id === focusWeeklyId }">
+          <tr v-for="item in weeklies" :key="item.id" :class="{ 'row-focus': focusWeeklyId && item.id === focusWeeklyId }" class="row-clickable" @click="openWeeklyDetail(item)">
             <td class="nowrap">{{ item.week_start }} ~ {{ item.week_end }}</td>
             <td class="content-cell">{{ item.work_content || '—' }}</td>
             <td class="content-cell">{{ item.plan_content || '—' }}</td>
             <td><span class="badge" :class="statusClass(item.status)">{{ statusText(item.status) }}</span></td>
             <td class="nowrap muted">{{ item.submitted_at ? fmtTime(item.submitted_at) : '—' }}</td>
-            <td>
+            <td @click.stop>
+              <button class="link" @click="openWeeklyDetail(item)">查看</button>
               <button v-if="item.status === 'draft'" class="link" @click="openWeeklyModal(item)">编辑</button>
               <button v-if="item.status === 'draft'" class="link primary-link" @click="onSubmitWeekly(item)">提交</button>
               <span v-else class="muted">已锁定</span>
@@ -69,14 +71,6 @@
           </tr>
         </tbody>
       </table>
-      <!-- 导师批阅意见：全部已批阅周报逐条展示，方便学生对照查看 -->
-      <div v-if="reviewedWeeklies.length" class="review-tip">
-        <div class="review-tip-title">导师批阅意见</div>
-        <div v-for="w in reviewedWeeklies" :key="w.id" class="review-item">
-          <span class="review-week">{{ w.week_start }} ~ {{ w.week_end }}</span>
-          <span class="review-text">{{ w.review_comment }}</span>
-        </div>
-      </div>
     </div>
 
     <!-- 日志弹窗 -->
@@ -102,6 +96,30 @@
           <button class="btn primary" :disabled="logModal.saving" @click="onSaveLog">
             {{ logModal.saving ? '保存中…' : '保存' }}
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 日志详情弹窗：点击表格行弹出，展示日志完整内容 -->
+    <div v-if="logDetail.show" class="modal-mask" @click.self="logDetail.show = false">
+      <div class="modal-box wide detail-box">
+        <h3 class="modal-title">科研日志详情</h3>
+        <div class="detail">
+          <p class="detail-line"><b>日期：</b>{{ logDetail.row.log_date }}</p>
+          <p class="detail-line"><b>标签：</b>{{ logDetail.row.tags || '—' }}</p>
+          <p class="detail-line"><b>创建时间：</b>{{ fmtTime(logDetail.row.created_at) }}</p>
+          <p v-if="logDetail.row.updated_at && logDetail.row.updated_at !== logDetail.row.created_at" class="detail-line">
+            <b>更新时间：</b>{{ fmtTime(logDetail.row.updated_at) }}
+          </p>
+          <div class="detail-block">
+            <div class="detail-block-label">日志内容</div>
+            <div class="detail-block-body">{{ logDetail.row.content || '—' }}</div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="logDetail.show = false">关闭</button>
+          <button class="btn" @click="onLogDetailEdit">编辑</button>
+          <button class="btn danger" @click="onLogDetailRemove">删除</button>
         </div>
       </div>
     </div>
@@ -144,12 +162,52 @@
         </div>
       </div>
     </div>
+    <!-- 周报详情弹窗：点击表格行弹出，展示周报完整内容与批阅意见 -->
+    <div v-if="weeklyDetail.show" class="modal-mask" @click.self="weeklyDetail.show = false">
+      <div class="modal-box wide detail-box">
+        <h3 class="modal-title">周报详情</h3>
+        <div class="detail">
+          <p class="detail-line"><b>周次：</b>{{ weeklyDetail.row.week_start }} ~ {{ weeklyDetail.row.week_end }}</p>
+          <p class="detail-line">
+            <b>状态：</b>
+            <span class="badge" :class="statusClass(weeklyDetail.row.status)">{{ statusText(weeklyDetail.row.status) }}</span>
+          </p>
+          <p class="detail-line"><b>提交时间：</b>{{ weeklyDetail.row.submitted_at ? fmtTime(weeklyDetail.row.submitted_at) : '—' }}</p>
+          <div class="detail-block">
+            <div class="detail-block-label">本周工作</div>
+            <div class="detail-block-body">{{ weeklyDetail.row.work_content || '—' }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">下周计划</div>
+            <div class="detail-block-body">{{ weeklyDetail.row.plan_content || '—' }}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">遇到的问题 / 求助</div>
+            <div class="detail-block-body">{{ weeklyDetail.row.problem_content || '—' }}</div>
+          </div>
+          <template v-if="weeklyDetail.row.status === 'reviewed'">
+            <div class="detail-block review-block">
+              <div class="detail-block-label">导师批阅意见</div>
+              <div class="detail-block-body">{{ weeklyDetail.row.review_comment || '（未填写）' }}</div>
+            </div>
+            <p class="detail-line"><b>批阅时间：</b>{{ weeklyDetail.row.reviewed_at ? fmtTime(weeklyDetail.row.reviewed_at) : '—' }}</p>
+          </template>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="weeklyDetail.show = false">关闭</button>
+          <template v-if="weeklyDetail.row.status === 'draft'">
+            <button class="btn" @click="onWeeklyDetailEdit">编辑</button>
+            <button class="btn primary" @click="onWeeklyDetailSubmit">提交</button>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   listMyResearchLogs, createResearchLog, updateResearchLog, removeResearchLog,
@@ -172,6 +230,25 @@ const logModal = ref({
   show: false, saving: false, error: '',
   form: { id: null, log_date: '', content: '', tags: '' }
 })
+
+// 日志详情弹窗（点击表格行弹出，只读展示完整内容）
+const logDetail = ref({ show: false, row: null })
+
+function openLogDetail(item) {
+  logDetail.value = { show: true, row: item }
+}
+
+function onLogDetailEdit() {
+  const row = logDetail.value.row
+  logDetail.value.show = false
+  openLogModal(row)
+}
+
+async function onLogDetailRemove() {
+  const row = logDetail.value.row
+  logDetail.value.show = false
+  await onRemoveLog(row)
+}
 
 async function loadLogs() {
   logLoading.value = true
@@ -230,15 +307,29 @@ const weeklies = ref([])
 const weeklyLoading = ref(false)
 const weeklyError = ref('')
 
-// 已批阅且有评语的周报列表（全部展示，便于对照查看）
-const reviewedWeeklies = computed(() =>
-  weeklies.value.filter((w) => w.status === 'reviewed' && w.review_comment)
-)
-
 const weeklyModal = ref({
   show: false, saving: false, error: '',
   form: { id: null, week_start: '', week_end: '', work_content: '', plan_content: '', problem_content: '' }
 })
+
+// 周报详情弹窗（点击表格行弹出，只读展示完整内容与批阅意见）
+const weeklyDetail = ref({ show: false, row: null })
+
+function openWeeklyDetail(item) {
+  weeklyDetail.value = { show: true, row: item }
+}
+
+function onWeeklyDetailEdit() {
+  const row = weeklyDetail.value.row
+  weeklyDetail.value.show = false
+  openWeeklyModal(row)
+}
+
+async function onWeeklyDetailSubmit() {
+  const row = weeklyDetail.value.row
+  weeklyDetail.value.show = false
+  await onSubmitWeekly(row)
+}
 
 async function loadWeekly() {
   weeklyLoading.value = true
@@ -373,6 +464,7 @@ loadWeekly()
 .tbl td { padding: 10px 12px; border-bottom: 1px solid #eceff3; color: #1f2329; }
 .tbl tbody tr:nth-child(even) { background: #fafbfc; }
 .tbl tbody tr:hover { background: #eef6ff; }
+.row-clickable { cursor: pointer; }
 .nowrap { white-space: nowrap; }
 .muted { color: #8a9099; }
 .content-cell {
@@ -391,12 +483,8 @@ loadWeekly()
 .link { background: none; border: none; color: #0d80e0; cursor: pointer; font-size: 13px; padding: 0 6px; }
 .link:hover { text-decoration: underline; }
 .link.danger { color: #ea4335; }
-.review-tip { margin-top: 12px; padding: 12px 14px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; font-size: 13px; color: #19a558; }
-.review-tip-title { font-weight: 600; margin-bottom: 8px; }
-.review-item { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px dashed #d9f0c0; }
-.review-item:last-child { border-bottom: none; }
-.review-week { flex: 0 0 auto; white-space: nowrap; color: #8a9099; }
-.review-text { color: #4e5969; line-height: 1.6; }
+.btn.danger { color: #ea4335; border-color: #ea4335; }
+.btn.danger:hover { background: #ea4335; color: #fff; }
 .row-focus { background: #fffbe6 !important; }
 
 .modal-mask {
@@ -423,4 +511,152 @@ loadWeekly()
 .char-count { align-self: flex-end; font-size: 12px; color: #8a9099; }
 .form-error { color: #ea4335; font-size: 12px; margin: 0 0 10px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+.detail { background: #fafbfc; border: 1px solid #eceff3; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.detail-line { margin: 0 0 8px; font-size: 13px; color: #4e5969; line-height: 1.7; }
+.detail-line:last-child { margin-bottom: 0; }
+.detail-block { margin-top: 14px; }
+.detail-block-label { font-size: 12px; font-weight: 600; color: #8a9099; margin-bottom: 6px; }
+.detail-block-body {
+  font-size: 13px; color: #1f2329; line-height: 1.8;
+  white-space: pre-wrap; word-break: break-word;
+  background: #fff; border: 1px solid #eceff3; border-radius: 8px; padding: 10px 12px;
+  max-height: 40vh; overflow-y: auto;
+}
+.review-block .detail-block-body { background: #f6ffed; border-color: #b7eb8f; color: #19a558; }
+
+/* ===== 详情弹窗美化（仅 .detail-box 容器内生效，与组会管理/科研成果风格一致） ===== */
+.detail-box {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #eef1f5;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 35, 80, 0.22);
+  display: flex;
+  flex-direction: column;
+  max-height: 86vh;
+}
+.detail-box .modal-title {
+  margin: 0;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  color: #1f2329;
+  background: linear-gradient(135deg, #f2f8ff 0%, #f2faf6 100%);
+  border-bottom: 1px solid #eef1f5;
+  flex: 0 0 auto;
+}
+.detail-box .modal-title::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 4px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0d80e0, #19a558);
+}
+.detail-box .detail {
+  margin: 0;
+  padding: 20px 24px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+.detail-box .detail > .detail-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #eef1f5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.detail-box .detail > .detail-line:hover {
+  border-color: #cfe4f7;
+  box-shadow: 0 2px 8px rgba(13, 128, 224, 0.06);
+}
+.detail-box .detail > .detail-line:last-child { margin-bottom: 0; }
+.detail-box .detail-line b {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8a9099;
+  line-height: 1.7;
+}
+.detail-box .detail-line b::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  opacity: 0.75;
+}
+.detail-box .detail-block { margin-top: 14px; }
+.detail-box .detail-block-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8a9099;
+  margin-bottom: 8px;
+}
+.detail-box .detail-block-label::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  opacity: 0.75;
+}
+.detail-box .detail-block-body {
+  background: #fff;
+  border: 1px solid #eceff3;
+  border-radius: 8px;
+  padding: 12px 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+  color: #4e5969;
+  font-size: 13px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+/* 批阅意见块保留绿色高亮 */
+.detail-box .review-block .detail-block-body {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #19a558;
+}
+.detail-box .modal-actions {
+  margin: 0;
+  padding: 14px 24px;
+  background: #fafbfc;
+  border-top: 1px solid #eef1f5;
+  flex: 0 0 auto;
+}
+/* 首个按钮（关闭）升级为主按钮，编辑/删除/提交保持各自样式 */
+.detail-box .modal-actions .btn:first-child {
+  background: linear-gradient(135deg, #0d80e0, #19a558);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  min-width: 80px;
+}
+.detail-box .modal-actions .btn:first-child:hover {
+  opacity: 0.92;
+  color: #fff;
+  border-color: transparent;
+}
 </style>
