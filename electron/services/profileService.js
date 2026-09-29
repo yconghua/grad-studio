@@ -44,4 +44,43 @@ async function update(payload) {
   }
 }
 
-module.exports = { get, update }
+// 超级管理员读取指定用户的档案
+async function getByAdmin(userId) {
+  if (!permission.isAdmin()) return { success: false, message: '仅超级管理员可操作' }
+  const targetId = Number(userId)
+  if (!targetId) return { success: false, message: '参数错误' }
+  try {
+    const profile = await userProfileRepository.findByUserId(targetId)
+    return { success: true, profile: profile || null }
+  } catch (err) {
+    console.error('[profileService.getByAdmin] 数据库异常:', err)
+    return { success: false, message: '读取档案失败，请稍后重试' }
+  }
+}
+
+// 超级管理员更新指定用户的档案；不存在则创建
+async function updateByAdmin(payload) {
+  if (!permission.isAdmin()) return { success: false, message: '仅超级管理员可操作' }
+  const targetId = Number(payload && payload.userId)
+  if (!targetId) return { success: false, message: '参数错误' }
+  try {
+    const data = userProfileRepository.pick(payload || {})
+    delete data.user_id // user_id 固定取参数 userId，禁止随 payload 伪造
+    const exist = await userProfileRepository.findByUserId(targetId)
+    if (exist) {
+      if (Object.keys(data).length) {
+        await userProfileRepository.update(exist.id, data)
+      }
+      const updated = await userProfileRepository.findByUserId(targetId)
+      return { success: true, message: '档案已保存', profile: updated }
+    }
+    const id = await userProfileRepository.create({ user_id: targetId, ...data })
+    const created = await userProfileRepository.findById(id)
+    return { success: true, message: '档案已创建', profile: created }
+  } catch (err) {
+    console.error('[profileService.updateByAdmin] 数据库异常:', err)
+    return { success: false, message: '保存失败，请稍后重试' }
+  }
+}
+
+module.exports = { get, update, getByAdmin, updateByAdmin }

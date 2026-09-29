@@ -186,6 +186,15 @@ export function updateProfile(payload) {
   return window.api.profile.update(payload)
 }
 
+// 超级管理员按用户读取 / 修改档案
+export function getProfileByAdmin(userId) {
+  return window.api.profile.getByAdmin({ userId })
+}
+
+export function updateProfileByAdmin(payload) {
+  return window.api.profile.updateByAdmin(payload)
+}
+
 // ===== 课题组管理（仅超级管理员；listMyGroups 登录用户可用） =====
 export function listGroups() {
   return window.api.group.list()

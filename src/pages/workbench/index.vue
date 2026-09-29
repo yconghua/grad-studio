@@ -49,7 +49,7 @@
         <div class="stat-grid">
           <div class="stat-card grad-blue stat-link" @click="go('/member')"><div class="stat-icon">👥</div><div class="stat-num">{{ stats.members }}</div><div class="stat-label">本组成员数 →</div></div>
           <div class="stat-card grad-green stat-link" @click="go('/notice')"><div class="stat-icon">📢</div><div class="stat-num">{{ stats.notices }}</div><div class="stat-label">组内公告 →</div></div>
-          <div class="stat-card grad-cyan stat-link" @click="go('/meeting')"><div class="stat-icon">📅</div><div class="stat-num">{{ stats.meetings }}</div><div class="stat-label">组会数 →</div></div>
+          <div class="stat-card grad-cyan stat-link" @click="go('/meeting-publish')"><div class="stat-icon">📅</div><div class="stat-num">{{ stats.meetings }}</div><div class="stat-label">组会数 →</div></div>
           <div class="stat-card grad-purple stat-link" @click="go('/subject')"><div class="stat-icon">🔬</div><div class="stat-num">{{ stats.subjects }}</div><div class="stat-label">课题数 →</div></div>
           <div class="stat-card grad-orange stat-link" @click="go('/knowledge')"><div class="stat-icon">📚</div><div class="stat-num">{{ stats.knowledge }}</div><div class="stat-label">知识库条目 →</div></div>
           <div class="stat-card grad-red stat-link" @click="go('/settings')"><div class="stat-icon">⚙️</div><div class="stat-num">—</div><div class="stat-label">课题组设置 →</div></div>

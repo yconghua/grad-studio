@@ -26,6 +26,26 @@ function register(ipcMain) {
       return { success: false, message: '操作失败，请稍后重试' }
     }
   })
+
+  // 超级管理员读取指定用户的档案
+  ipcMain.handle('profile:get-by-admin', async (_evt, payload) => {
+    try {
+      return await profileService.getByAdmin(payload && payload.userId)
+    } catch (err) {
+      console.error('[profile:get-by-admin] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
+
+  // 超级管理员更新指定用户的档案（不存在则创建）
+  ipcMain.handle('profile:update-by-admin', async (_evt, payload) => {
+    try {
+      return await profileService.updateByAdmin(payload)
+    } catch (err) {
+      console.error('[profile:update-by-admin] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
 }
 
 module.exports = { register }

@@ -103,7 +103,9 @@ contextBridge.exposeInMainWorld('api', {
   // 用户档案（profile:*）
   profile: {
     get: createInvoke('profile:get'),
-    update: createInvoke('profile:update')
+    update: createInvoke('profile:update'),
+    getByAdmin: createInvoke('profile:get-by-admin'),
+    updateByAdmin: createInvoke('profile:update-by-admin')
   },
   // 课题组管理（group:*）
   group: {

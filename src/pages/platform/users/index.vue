@@ -38,6 +38,7 @@
             <td><span class="dot" :class="'dot-' + u.status"></span>{{ statusLabel(u.status) }}</td>
             <td>{{ u.must_change_password ? '是' : '否' }}</td>
             <td class="ops">
+              <button class="link" @click="openProfile(u)">资料</button>
               <button class="link" @click="openEdit(u)">编辑</button>
               <button class="link danger" @click="askDelete(u)">删除</button>
             </td>
@@ -81,12 +82,90 @@
     </div>
 
     <!-- 删除确认 -->
-    <div v-if="deleting" class="modal-mask" @click.self="deleting = null">
+    <div v-if="deleting" class="modal-mask" @click.self="onMaskClick">
       <div class="modal-box">
         <p class="modal-text">确定删除账号「{{ deleting.username }}」吗？该操作为硬删除，不可恢复。</p>
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="deleting = null">取消</button>
-          <button class="btn btn-danger" @click="confirmDelete">删除</button>
+          <button class="btn btn-secondary" :disabled="deletingSubmit" @click="deleting = null">取消</button>
+          <button class="btn btn-danger" :disabled="deletingSubmit" @click="confirmDelete">{{ deletingSubmit ? '删除中…' : '删除' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 成员资料编辑弹窗（超级管理员） -->
+    <div v-if="profileVisible" class="modal-mask" @click.self="closeProfile">
+      <div class="modal-box profile-box">
+        <h3 class="modal-title">成员资料：{{ profileUsername }}</h3>
+        <div v-if="profileLoading" class="state">加载中…</div>
+        <div v-else>
+          <div class="profile-grid">
+            <div class="form-item">
+              <label>真实姓名</label>
+              <input v-model="profileForm.real_name" class="input" placeholder="未填写" />
+            </div>
+            <div class="form-item">
+              <label>性别</label>
+              <select v-model="profileForm.gender" class="input">
+                <option value="">未填写</option>
+                <option value="male">男</option>
+                <option value="female">女</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>学号 / 工号</label>
+              <input v-model="profileForm.student_no" class="input" placeholder="未填写" />
+            </div>
+            <div class="form-item">
+              <label>邮箱</label>
+              <input v-model="profileForm.email" class="input" placeholder="未填写" />
+            </div>
+            <div class="form-item">
+              <label>手机号</label>
+              <input v-model="profileForm.phone" class="input" placeholder="未填写" />
+            </div>
+            <div class="form-item">
+              <label>所属学院</label>
+              <input v-model="profileForm.college" class="input" placeholder="未填写" />
+            </div>
+            <div class="form-item">
+              <label>所属系 / 研究所</label>
+              <input v-model="profileForm.department" class="input" placeholder="未填写" />
+            </div>
+            <div class="form-item">
+              <label>专业 / 研究方向</label>
+              <input v-model="profileForm.major" class="input" placeholder="未填写" />
+            </div>
+            <div class="form-item">
+              <label>年级</label>
+              <input v-model="profileForm.grade" class="input" placeholder="如 2024 级" />
+            </div>
+            <div class="form-item">
+              <label>学位类型</label>
+              <select v-model="profileForm.degree_type" class="input">
+                <option value="">未填写</option>
+                <option value="master">硕士</option>
+                <option value="doctor">博士</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>组内职位</label>
+              <input v-model="profileForm.position" class="input" placeholder="未填写" />
+            </div>
+            <div class="form-item">
+              <label>入组日期</label>
+              <input v-model="profileForm.join_date" type="date" class="input" />
+            </div>
+          </div>
+          <div class="form-item">
+            <label>个人简介</label>
+            <textarea v-model="profileForm.bio" class="textarea" rows="3" placeholder="未填写"></textarea>
+          </div>
+          <p v-if="profileError" class="form-error">{{ profileError }}</p>
+          <p v-if="profileMsg" class="result-pwd">✅ {{ profileMsg }}</p>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" :disabled="profileSaving" @click="closeProfile">取消</button>
+            <button class="btn btn-primary" :disabled="profileSaving" @click="saveProfile">{{ profileSaving ? '保存中…' : '保存' }}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -123,7 +202,7 @@
 <script setup>
 import { dialogAlert, dialogConfirm } from '../../../composables/useDialog'
 import { ref, computed, onMounted } from 'vue'
-import { listUsers, createUser, updateUser, deleteUser, batchCreateUsers } from '../../../api'
+import { listUsers, createUser, updateUser, deleteUser, batchCreateUsers, getProfileByAdmin, updateProfileByAdmin } from '../../../api'
 
 const roleOptions = [
   { value: 'super_admin', label: '超级管理员' },
@@ -242,10 +321,16 @@ async function submitForm() {
 
 // 删除
 const deleting = ref(null)
+const deletingSubmit = ref(false)
 function askDelete(u) {
   deleting.value = u
 }
+function onMaskClick() {
+  if (!deletingSubmit.value) deleting.value = null
+}
 async function confirmDelete() {
+  if (deletingSubmit.value) return
+  deletingSubmit.value = true
   try {
     const res = await deleteUser(deleting.value.id)
     if (res && res.success) {
@@ -256,6 +341,81 @@ async function confirmDelete() {
     }
   } catch (e) {
     dialogAlert('网络异常')
+  } finally {
+    deletingSubmit.value = false
+  }
+}
+
+// 成员资料（超级管理员编辑指定用户档案）
+const profileVisible = ref(false)
+const profileLoading = ref(false)
+const profileSaving = ref(false)
+const profileError = ref('')
+const profileMsg = ref('')
+const profileTarget = ref(null)
+const profileUsername = ref('')
+const profileForm = ref({})
+
+function emptyProfile() {
+  return {
+    real_name: '', gender: '', student_no: '', email: '', phone: '',
+    college: '', department: '', major: '', grade: '', degree_type: '',
+    position: '', join_date: '', bio: ''
+  }
+}
+
+async function openProfile(u) {
+  profileTarget.value = u
+  profileUsername.value = u.username
+  profileForm.value = emptyProfile()
+  profileError.value = ''
+  profileMsg.value = ''
+  profileVisible.value = true
+  profileLoading.value = true
+  try {
+    const res = await getProfileByAdmin(u.id)
+    if (res && res.success) {
+      const p = res.profile || {}
+      const f = emptyProfile()
+      Object.keys(f).forEach((k) => {
+        f[k] = p[k] != null ? p[k] : ''
+      })
+      profileForm.value = f
+    } else {
+      profileError.value = (res && res.message) || '读取资料失败'
+    }
+  } catch (e) {
+    profileError.value = '网络异常'
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+function closeProfile() {
+  if (profileSaving.value) return
+  profileVisible.value = false
+}
+
+async function saveProfile() {
+  profileError.value = ''
+  profileMsg.value = ''
+  const payload = { userId: profileTarget.value.id }
+  Object.keys(profileForm.value).forEach((k) => {
+    const v = profileForm.value[k]
+    payload[k] = v === '' ? null : v
+  })
+  profileSaving.value = true
+  try {
+    const res = await updateProfileByAdmin(payload)
+    if (res && res.success) {
+      profileMsg.value = res.message || '已保存'
+    } else {
+      profileError.value = (res && res.message) || '保存失败'
+    }
+  } catch (e) {
+    profileError.value = '网络异常'
+  } finally {
+    profileSaving.value = false
   }
 }
 
@@ -465,6 +625,9 @@ onMounted(loadList)
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
 }
 .modal-box.wide { width: 640px; }
+.profile-box { width: 720px; max-height: 90vh; overflow: auto; }
+.profile-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+.profile-grid .form-item { margin-bottom: 12px; }
 .modal-title { margin: 0 0 16px; font-size: 16px; color: #1f2329; }
 .modal-text { font-size: 14px; color: #1f2329; margin: 0 0 20px; line-height: 1.6; }
 .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 18px; }
