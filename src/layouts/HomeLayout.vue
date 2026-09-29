@@ -95,7 +95,7 @@
                 <span v-if="msgUnread > 0" class="dropdown-msg-badge">{{ msgUnread > 99 ? '99+' : msgUnread }}</span>
               </RouterLink>
               <RouterLink class="dropdown-item" to="/help" @click="userMenuOpen = false">使用帮助</RouterLink>
-              <RouterLink class="dropdown-item" to="/about" @click="userMenuOpen = false">系统介绍</RouterLink>
+              <RouterLink class="dropdown-item" to="/app-settings" @click="userMenuOpen = false">设置</RouterLink>
               <div class="dropdown-item update-item" @click="onCheckUpdate">
                 <span>检查更新</span>
                 <span v-if="updateAvailable" class="update-dot" title="发现新版本"></span>

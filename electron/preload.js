@@ -96,6 +96,7 @@ contextBridge.exposeInMainWorld('api', {
     exportDb: createInvoke('sys:export-db'),
     openDevTools: createInvoke('sys:open-devtools'),
     checkForUpdates: createInvoke('sys:check-update'),
+    uninstall: createInvoke('sys:uninstall'),
     openExternal: createInvoke('sys:open-external'),
     pickAttachment: createInvoke('sys:pick-attachment'),
     openAttachment: createInvoke('sys:open-attachment')

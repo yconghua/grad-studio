@@ -145,6 +145,11 @@ export function checkForUpdates() {
   return window.api.sys.checkForUpdates()
 }
 
+// 卸载应用（启动 NSIS 卸载程序并退出；仅打包安装后可用）
+export function uninstallApp() {
+  return window.api.sys.uninstall()
+}
+
 // 用系统浏览器打开外部链接（仅放行 GitHub 域名）
 export function openExternal(url) {
   return window.api.sys.openExternal({ url })

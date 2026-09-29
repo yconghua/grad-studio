@@ -2,7 +2,7 @@
  * 路由层（IPC Layer）—— 系统管理相关路由（sys:* 前缀）
  *
  * 本模块负责「系统设置 / 数据库管理」两类前端能力：
- *   - 系统信息与运行环境：sys:info / sys:clear-cache / sys:user-data-path / sys:open-user-data-dir / sys:app-path / sys:open-app-dir / sys:open-devtools / sys:check-update
+ *   - 系统信息与运行环境：sys:info / sys:clear-cache / sys:user-data-path / sys:open-user-data-dir / sys:app-path / sys:open-app-dir / sys:open-devtools / sys:check-update / sys:uninstall
  *   - 数据库管理：sys:db-info / sys:tables-info / sys:db-connections / sys:switch-db / sys:add-db / sys:delete-db / sys:export-db
  * 路由只做转发与必要的登录态判定（sys:info 等需登录，sys:db-info 不要求登录供登录页展示），真正的业务落到 connectionService；
  * 系统名称 / 版本号来自 package.json（写活不硬编码）。不在此处写 SQL。
@@ -10,6 +10,7 @@
 const path = require('node:path')
 const os = require('node:os')
 const fs = require('node:fs')
+const { spawn } = require('node:child_process')
 const { app, session, shell, dialog, BrowserWindow } = require('electron')
 // 读取 package.json，供「系统管理」展示系统名称 / 版本号 / 发布日期
 const appPkg = require('../../package.json')
@@ -436,6 +437,32 @@ function register(ipcMain) {
     } catch (err) {
       console.error('[sys:delete-db] 未预期异常:', err)
       return { success: false, message: '删除失败，请稍后重试' }
+    }
+  })
+
+  // 卸载应用：启动安装器生成的 NSIS 卸载程序后退出；需登录。
+  // 卸载器（Uninstall grad_studio.exe）由安装包在安装时写入安装目录，开发模式（未打包）下不存在。
+  // 以 detached 方式启动后不随本进程退出而终止；用 app.exit 直接退出，绕开窗口关闭确认框。
+  ipcMain.handle('sys:uninstall', async () => {
+    if (!authService.getCurrentUser()) {
+      return { success: false, message: '未登录，请重新登录' }
+    }
+    if (!app.isPackaged) {
+      return { success: false, message: '开发模式下无法卸载，请使用打包安装后的版本' }
+    }
+    const uninstaller = path.join(path.dirname(app.getPath('exe')), 'Uninstall grad_studio.exe')
+    if (!fs.existsSync(uninstaller)) {
+      return { success: false, message: `未找到卸载程序：${uninstaller}` }
+    }
+    try {
+      const child = spawn(uninstaller, [], { detached: true, stdio: 'ignore' })
+      child.unref()
+      // 稍作延迟再退出，确保卸载程序已启动
+      setTimeout(() => app.exit(0), 500)
+      return { success: true, message: '正在启动卸载程序…' }
+    } catch (err) {
+      console.error('[sys:uninstall] 未预期异常:', err)
+      return { success: false, message: '启动卸载程序失败，请稍后重试' }
     }
   })
 }

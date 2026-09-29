@@ -2,8 +2,8 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2 class="page-title">ℹ️ 系统介绍</h2>
-        <p class="page-desc">系统基本信息、运行环境与当前数据库连接状态</p>
+        <h2 class="page-title">⚙️ 设置</h2>
+        <p class="page-desc">应用设置：系统信息、数据库状态、数据目录与卸载</p>
       </div>
     </div>
 
@@ -73,6 +73,21 @@
       </div>
       <div class="copyright">© 2026 grad-studio · MIT License</div>
     </div>
+
+    <!-- 卸载应用 -->
+    <div class="card card-danger">
+      <div class="card-head">
+        <h3 class="card-title">🗑️ 卸载 {{ appName }}</h3>
+        <span class="badge badge-danger">危险操作</span>
+      </div>
+      <p class="uninstall-tip">卸载将移除程序文件；数据库与本地数据保留在用户数据目录，不会被删除。如需彻底清除本地数据，请在卸载后手动删除数据目录。</p>
+      <div class="dir-actions">
+        <button class="btn btn-danger" :disabled="uninstalling" @click="onUninstall">
+          {{ uninstalling ? '正在启动卸载…' : '卸载 ' + appName }}
+        </button>
+        <span class="dir-tip">应用将退出并打开卸载向导，按提示完成即可。</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -84,10 +99,11 @@ import {
   getUserDataPath,
   getAppPath,
   openUserDataDir,
-  openExternal
+  openExternal,
+  uninstallApp
 } from '../../api'
 import { useAppName } from '../../composables/useAppName'
-import { dialogAlert } from '../../composables/useDialog'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 
 const { appName } = useAppName()
 
@@ -96,6 +112,7 @@ const dbInfo = ref({})
 const userDataPath = ref('')
 const appPath = ref('')
 const loading = ref(true)
+const uninstalling = ref(false)
 
 const techStack = ['Vue 3', 'Electron', 'MySQL', 'Ant Design Vue']
 const REPO_URL = 'https://github.com/yconghua/grad-studio'
@@ -164,6 +181,27 @@ async function onOpenRepo() {
   }
 }
 
+async function onUninstall() {
+  if (uninstalling.value) return
+  const ok = await dialogConfirm(
+    '卸载将移除程序文件；数据库与本地数据保留在用户数据目录，不会被删除。确定继续吗？',
+    '卸载 ' + appName.value
+  )
+  if (!ok) return
+  uninstalling.value = true
+  try {
+    const res = await uninstallApp()
+    if (!res || !res.success) {
+      dialogAlert((res && res.message) || '卸载失败，请稍后重试')
+      uninstalling.value = false
+    }
+    // 成功时应用即将退出，无需再提示
+  } catch (e) {
+    dialogAlert('卸载失败，请稍后重试')
+    uninstalling.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -172,8 +210,10 @@ onMounted(load)
 .page-title { margin: 0 0 4px; font-size: 18px; color: #1f2329; }
 .page-desc { margin: 0; font-size: 13px; color: #8a9099; }
 .card { background: #fff; border: 1px solid #eceff3; border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04); padding: 16px; }
+.card-danger { border-color: #f5c6c6; }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .card-title { margin: 0; font-size: 15px; color: #1f2329; }
+.card-danger .card-title { color: #c0341d; }
 .state { padding: 40px 0; text-align: center; color: #8a9099; font-size: 13px; }
 
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
@@ -185,7 +225,9 @@ onMounted(load)
 .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; }
 .badge-ok { background: #e8f7ee; color: #19a558; }
 .badge-err { background: #fdecec; color: #ea4335; }
+.badge-danger { background: #fdecec; color: #c0341d; }
 .db-error { margin: 10px 0 0; color: #ea4335; font-size: 12px; }
+.uninstall-tip { margin: 0 0 14px; font-size: 13px; line-height: 1.7; color: #7a1f1f; }
 
 .uptime { text-align: right; }
 .uptime-value { font-size: 26px; font-weight: 700; color: #0d80e0; line-height: 1.1; white-space: nowrap; }
@@ -193,6 +235,9 @@ onMounted(load)
 
 .btn { height: 34px; padding: 0 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid #dfe3e8; background: #fff; color: #1f2329; }
 .btn-secondary:hover { border-color: #0d80e0; color: #0d80e0; }
+.btn-danger { border-color: #c0341d; color: #c0341d; }
+.btn-danger:hover:not(:disabled) { background: #c0341d; color: #fff; }
+.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 .dir-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 .dir-tip { font-size: 12px; color: #8a9099; }
 
