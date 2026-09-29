@@ -15,7 +15,7 @@
  * 渲染层（Vue3）仍通过 preload 暴露的 window.api 与本进程通信，
  * 页面脚本拿不到 Node 能力（nodeIntegration:false + contextIsolation:true）。
  */
-const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeImage } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 // 连接服务：启动时调用 init() 加载连接清单并注入连接池
@@ -33,6 +33,8 @@ function resolveIcon() {
 }
 
 /** 创建主窗口：固定 1100×750，不可缩放、不可最大化、居中 */
+// 关闭确认标志：用户已确认退出后放行 close，避免二次弹窗；窗口销毁后重置，保证新窗口仍提示
+let isQuitting = false
 function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
@@ -48,6 +50,30 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
+    }
+  })
+
+  // 拦截标题栏 × / Alt+F4：登录页直接关闭；登录后的页面弹原生确认框，确认后再真正关闭
+  win.on('close', async (e) => {
+    if (isQuitting) return
+    // 登录页无会话可退出，直接放行不提示（hash 路由：#/login）
+    if (win.webContents.getURL().includes('#/login')) return
+    e.preventDefault()
+    // 自定义弹窗图标：复用应用图标（build/icon.ico），缺失时由系统默认展示
+    const iconPath = resolveIcon()
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'question',
+      icon: iconPath ? nativeImage.createFromPath(iconPath) : undefined,
+      title: '确认退出',
+      message: '确定要退出 grad.studio 吗？',
+      detail: '退出后需重新打开应用才能继续使用。',
+      buttons: ['取消', '退出'],
+      defaultId: 0,
+      cancelId: 0
+    })
+    if (response === 1) {
+      isQuitting = true
+      win.destroy() // 直接销毁，不再次触发 close 事件，避免循环弹窗
     }
   })
 
@@ -91,6 +117,8 @@ function createWindow() {
 
   win.on('closed', () => {
     // 仅单窗口应用，关闭即清空引用
+    // 窗口销毁后重置关闭确认标志，macOS 经 activate 重建的新窗口仍会弹出确认
+    isQuitting = false
   })
 }
 

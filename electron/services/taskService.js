@@ -79,7 +79,7 @@ async function create(payload) {
   }
 }
 
-// task:update —— 仅组管 / 导师
+// task:update —— 仅组管 / 导师；含验收 / 打回动作（面向执行人的状态流转通知）
 async function update(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
   if (!permission.isManager()) return { success: false, message: '无权限：仅课题组管理员与导师可编辑任务' }
@@ -105,7 +105,28 @@ async function update(payload) {
         })
       }
     }
-    await taskRepository.update(id, payload || {})
+    const nextStatus = payload && payload.status
+    const statusChanged = nextStatus && nextStatus !== task.status
+    // 管理侧验收 / 打回：置完成时间，并通知执行人结果
+    if (statusChanged) {
+      const patch = { ...(payload || {}) }
+      if (nextStatus === 'completed') patch.completed_at = new Date()
+      if (nextStatus === 'completed' || (task.status === 'pending_review' && nextStatus === 'in_progress')) {
+        messageService.sendMessage({
+          receiverId: task.assignee_id,
+          msgType: 'task',
+          title: nextStatus === 'completed' ? '任务已验收通过' : '任务已被打回',
+          content: nextStatus === 'completed'
+            ? `任务「${String(task.title).trim()}」已验收通过`
+            : `任务「${String(task.title).trim()}」被打回，请按意见继续完善`,
+          refType: 'task',
+          refId: id
+        })
+      }
+      await taskRepository.update(id, patch)
+    } else {
+      await taskRepository.update(id, payload || {})
+    }
     operationLogService.writeLog({
       action: 'updateTask',
       targetType: 'task',
@@ -169,7 +190,16 @@ async function progressSubmit(payload) {
     if (task.assignee_id !== permission.currentUserId()) {
       return { success: false, message: '只能提交本人任务的进展' }
     }
+    // 已完成 / 已取消的任务不再接受进展提交，防止「状态已完成但进度被改低」的状态矛盾
+    if (task.status === 'completed' || task.status === 'cancelled') {
+      return { success: false, message: task.status === 'completed' ? '任务已验收完成，不能继续提交进展' : '任务已取消，不能提交进展' }
+    }
     const pct = clampPercent(body.progress_percent)
+    // 进度只允许前进，不允许把进度改低（待验收状态提交未满进度属「继续完善」，允许回退到进行中）
+    const currentPct = Number(task.progress_percent) || 0
+    if (pct < currentPct && task.status !== 'pending_review') {
+      return { success: false, message: `进度不能低于当前进度（${currentPct}%）` }
+    }
     // 写入一条进展记录
     await taskProgressRepository.create({
       task_id: body.task_id,
@@ -178,12 +208,14 @@ async function progressSubmit(payload) {
       progress_percent: pct,
       attachment: body.attachment
     })
-    // 回写任务进度快照与状态流转
+    // 回写任务进度快照与状态流转：满进度进入「待验收」，由组管 / 导师验收后才算完成
     const patch = { progress_percent: pct }
     if (pct >= 100) {
-      patch.status = 'completed'
-      patch.completed_at = new Date()
+      patch.status = 'pending_review'
     } else if (task.status === 'todo') {
+      patch.status = 'in_progress'
+    } else if (task.status === 'pending_review') {
+      // 待验收后提交未满进度：回到进行中，避免「待验收 + 进度不足」的矛盾
       patch.status = 'in_progress'
     }
     await taskRepository.update(body.task_id, patch)
@@ -197,8 +229,8 @@ async function progressSubmit(payload) {
     messageService.sendMessage({
       receiverId: task.assigner_id,
       msgType: 'task',
-      title: pct >= 100 ? '任务已完成' : '任务进展更新',
-      content: `任务「${String(task.title).trim()}」进度更新至 ${pct}%`,
+      title: pct >= 100 ? '任务待验收' : '任务进展更新',
+      content: `任务「${String(task.title).trim()}」进度更新至 ${pct}%${pct >= 100 ? '，请验收' : ''}`,
       refType: 'task',
       refId: body.task_id
     })

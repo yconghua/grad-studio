@@ -277,7 +277,7 @@ export function removeNotice(id) {
   return window.api.notice.remove({ id })
 }
 
-// ===== 学位节点与记录（组管 / 导师） =====
+// ===== 学位节点与记录（导师维护；组管服务端权限兼容） =====
 export function listDegreeNodes(groupId) {
   return window.api.degree.listNodes({ group_id: groupId })
 }
@@ -453,7 +453,7 @@ export function listAllAchievements(payload) {
   return window.api.achievement.listAll(payload)
 }
 
-// 论文投稿跟踪（学生本人传空；管理员传 { group_id } 看全组）
+// 论文投稿跟踪（学生本人传空；导师传 { group_id } 看全组）
 export function listPapers(options) {
   return window.api.paper.list(options || {})
 }

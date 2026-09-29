@@ -1,7 +1,10 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2 class="page-title">🎓 我的学生</h2>
+      <div class="header-left">
+        <h2 class="page-title">🎓 我的学生</h2>
+        <p class="page-desc">查看名下学生的培养与科研情况，绑定 / 解除指导关系（仅导师）。</p>
+      </div>
       <div class="ph-right">
         <button class="btn btn-primary" @click="openBind">＋ 绑定学生</button>
       </div>
@@ -201,7 +204,9 @@ onMounted(() => {
 
 <style scoped>
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { font-size: 18px; font-weight: 600; color: #1f2329; margin: 0; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .ph-right { display: flex; align-items: center; gap: 10px; }
 
 .card {

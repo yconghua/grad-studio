@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="page-head card">
-      <div>
+      <div class="header-left">
         <h2 class="page-title">📖 课题组知识库</h2>
         <p class="page-desc">组内共享资料目录与文件，学生只读，组管 / 导师可维护。</p>
       </div>
@@ -265,8 +265,9 @@ watch(currentGroupId, () => loadTree(), { immediate: true })
   border: 1px solid #eceff3; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .page-head { display: flex; justify-content: space-between; align-items: center; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .head-actions { display: flex; gap: 12px; align-items: center; }
 
 .btn {

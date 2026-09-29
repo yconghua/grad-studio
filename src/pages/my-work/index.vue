@@ -1,13 +1,37 @@
 <template>
   <div class="page">
     <div class="page-head card">
-      <div>
-        <h2 class="page-title">📋 我的任务</h2>
-        <p class="page-desc">导师 / 组管下发给我的课题任务，可在此更新进展。</p>
+      <div class="header-left">
+        <h2 class="page-title">📋 课题与任务</h2>
+        <p class="page-desc">我的课题、导师下发给我的任务，可在此更新进展。</p>
+      </div>
+    </div>
+
+    <!-- 我的课题（学生只读） -->
+    <div class="card">
+      <div class="sub-title">📚 我的课题</div>
+      <div v-if="subjLoading" class="state">加载中…</div>
+      <div v-else-if="!subjects.length" class="state">暂无本组的课题</div>
+      <div v-else class="subject-list">
+        <div v-for="s in subjects" :key="s.id" class="subject-item">
+          <div class="subject-main">
+            <span class="subject-name">{{ s.name }}</span>
+            <span class="badge" :class="subjectStatusClass(s.status)">{{ subjectStatusText(s.status) }}</span>
+            <span v-if="s.joined" class="joined-tag">我参与</span>
+          </div>
+          <div class="subject-meta">
+            <span>编号：{{ s.code || '—' }}</span>
+            <span>类型：{{ s.subject_type || '—' }}</span>
+            <span>成员：{{ s.memberCount || 0 }} 人</span>
+            <span>起止：{{ fmtDate(s.start_date) }} ~ {{ fmtDate(s.end_date) }}</span>
+          </div>
+          <p class="subject-desc">{{ s.description || '（无说明）' }}</p>
+        </div>
       </div>
     </div>
 
     <div class="card">
+      <div class="sub-title">✅ 我的任务</div>
       <div v-if="loading" class="state">加载中…</div>
       <div v-else-if="error" class="state error">{{ error }}</div>
       <div v-else-if="!tasks.length" class="state">暂无指派给我的任务。</div>
@@ -68,7 +92,7 @@
           <textarea rows="5" v-model="progModal.form.content" placeholder="本次完成了什么、遇到什么问题"></textarea>
         </label>
         <label class="form-item">
-          <span class="form-label">当前进度（0-100）</span>
+          <span class="form-label">当前进度（0-100）<em class="form-hint">{{ progHint }}</em></span>
           <input type="number" min="0" max="100" v-model.number="progModal.form.progress_percent" />
         </label>
         <p v-if="progModal.error" class="form-error">{{ progModal.error }}</p>
@@ -84,11 +108,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { listMyTasks, submitTaskProgress, listTaskProgress } from '../../api'
+import { listMyTasks, submitTaskProgress, listTaskProgress, listSubjects, listSubjectMembers } from '../../api'
+import { useGroupContext } from '../../composables/useGroupContext'
+import { useSession } from '../../composables/useSession'
 
 const route = useRoute()
+const { currentGroupId } = useGroupContext()
+const { getSessionUser } = useSession()
+const currentUser = getSessionUser()
+const currentUserId = currentUser && currentUser.id ? Number(currentUser.id) : 0
+
 const tasks = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -96,9 +127,56 @@ const expandedId = ref(null)
 const progressList = ref([])
 const progLoading = ref(false)
 
+// ===== 我的课题（只读） =====
+const subjects = ref([])
+const subjLoading = ref(false)
+const SUBJECT_STATUS_TEXT = { ongoing: '进行中', finished: '已结题', cancelled: '已取消' }
+function subjectStatusText(s) { return SUBJECT_STATUS_TEXT[s] || s || '—' }
+function subjectStatusClass(s) {
+  return { ongoing: 'b-blue', finished: 'b-gray', cancelled: 'b-gray' }[s] || 'b-gray'
+}
+function fmtDate(v) {
+  if (!v) return '—'
+  return String(v).slice(0, 10)
+}
+
+async function loadSubjects() {
+  const gid = currentGroupId.value
+  if (!gid) { subjects.value = []; return }
+  subjLoading.value = true
+  try {
+    const res = await listSubjects(gid)
+    const list = (res && res.success ? res.data : []) || []
+    // 并行取每个课题的成员，标注「我参与」与成员数（课题数量有限，可接受）
+    const enriched = await Promise.all(list.map(async (s) => {
+      try {
+        const mr = await listSubjectMembers(s.id)
+        const mems = (mr && mr.success ? mr.data : []) || []
+        return { ...s, memberCount: mems.length, joined: currentUserId > 0 && mems.some((x) => Number(x.user_id) === currentUserId) }
+      } catch (e) {
+        return { ...s, memberCount: 0, joined: false }
+      }
+    }))
+    subjects.value = enriched
+  } catch (e) {
+    subjects.value = []
+  } finally {
+    subjLoading.value = false
+  }
+}
+
 const progModal = ref({
   show: false, saving: false, error: '', task: null,
   form: { task_id: null, content: '', progress_percent: 0 }
+})
+
+// 进度输入提示：进行中不可低于当前进度；待验收提交未满进度将回到进行中
+const progHint = computed(() => {
+  const t = progModal.value.task
+  if (!t) return ''
+  const cur = Number(t.progress_percent) || 0
+  if (t.status === 'pending_review') return `当前 ${cur}%，提交未满进度将回到进行中`
+  return `当前 ${cur}%，不能低于当前进度`
 })
 
 async function load() {
@@ -160,6 +238,12 @@ async function onSubmitProgress() {
   if (f.progress_percent == null || Number.isNaN(f.progress_percent)) {
     progModal.value.error = '请填写进度百分比'; return
   }
+  // 进行中任务不允许把进度改低（与服务端校验一致，先拦截给出明确提示）
+  const task = progModal.value.task
+  const cur = Number(task && task.progress_percent) || 0
+  if (task && task.status !== 'pending_review' && f.progress_percent < cur) {
+    progModal.value.error = `进度不能低于当前进度（${cur}%）`; return
+  }
   progModal.value.saving = true
   progModal.value.error = ''
   try {
@@ -179,10 +263,10 @@ async function onSubmitProgress() {
 }
 
 function statusText(s) {
-  return { todo: '待办', in_progress: '进行中', completed: '已完成', cancelled: '已取消' }[s] || s
+  return { todo: '待办', in_progress: '进行中', pending_review: '待验收', completed: '已完成', cancelled: '已取消' }[s] || s
 }
 function statusClass(s) {
-  return { todo: 'b-gray', in_progress: 'b-blue', completed: 'b-green', cancelled: 'b-gray' }[s] || 'b-gray'
+  return { todo: 'b-gray', in_progress: 'b-blue', pending_review: 'b-orange', completed: 'b-green', cancelled: 'b-gray' }[s] || 'b-gray'
 }
 function priText(p) {
   return { high: '高', medium: '中', low: '低' }[p] || '中'
@@ -193,6 +277,8 @@ function fmtTime(t) {
 }
 
 load()
+// 课题组切换时刷新课题列表
+watch(currentGroupId, loadSubjects, { immediate: true })
 </script>
 
 <style scoped>
@@ -201,8 +287,9 @@ load()
   background: #fff; border-radius: 12px; padding: 18px 20px;
   border: 1px solid #eceff3; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .state { padding: 40px 0; text-align: center; color: #8a9099; font-size: 13px; }
 .state.error { color: #ea4335; }
 .mini-state { padding: 16px 0; text-align: center; color: #8a9099; font-size: 12px; }
@@ -229,6 +316,16 @@ load()
 .b-gray { background: #f2f3f5; color: #4e5969; }
 .b-blue { background: #e6f4ff; color: #0d80e0; }
 .b-green { background: #e8f7ef; color: #19a558; }
+.b-orange { background: #fff5e6; color: #e8890c; }
+
+.sub-title { margin: 0 0 12px; font-size: 15px; font-weight: 600; color: #1f2329; }
+.subject-list { display: flex; flex-direction: column; gap: 10px; }
+.subject-item { border: 1px solid #eceff3; border-radius: 10px; padding: 12px 16px; }
+.subject-main { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.subject-name { font-size: 14px; font-weight: 600; color: #1f2329; }
+.joined-tag { background: #e8f7ef; color: #19a558; font-size: 12px; padding: 2px 10px; border-radius: 999px; }
+.subject-meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #8a9099; }
+.subject-desc { margin: 6px 0 0; font-size: 13px; color: #4e5969; line-height: 1.6; }
 
 .progress { display: flex; align-items: center; gap: 6px; }
 .bar { width: 90px; height: 6px; background: #eceff3; border-radius: 3px; overflow: hidden; }
@@ -269,6 +366,7 @@ load()
 .modal-sub { margin: 0 0 16px; font-size: 13px; color: #8a9099; }
 .form-item { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .form-label { font-size: 13px; color: #4e5969; }
+.form-hint { font-style: normal; color: #8a9099; font-size: 12px; margin-left: 8px; }
 .form-item input, .form-item textarea {
   padding: 8px 10px; border: 1px solid #dfe3e8; border-radius: 8px;
   font-size: 13px; outline: none; font-family: inherit; resize: vertical;

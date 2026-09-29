@@ -1,7 +1,10 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2 class="page-title">👥 成员管理</h2>
+      <div class="header-left">
+        <h2 class="page-title">👥 成员管理</h2>
+        <p class="page-desc">管理本课题组成员：添加、编辑、移除与筛选。</p>
+      </div>
       <div class="ph-right">
         <button class="btn btn-primary" @click="openAdd">＋ 添加成员</button>
       </div>
@@ -14,37 +17,58 @@
       <div v-else-if="errorMsg" class="error-block">{{ errorMsg }}</div>
       <div v-else-if="!members.length" class="empty-block"><p>📭 暂无成员，点击右上角「添加成员」</p></div>
 
-      <table v-else class="data-table">
-        <thead>
-          <tr>
-            <th>账号</th>
-            <th>全局角色</th>
-            <th>组内角色</th>
-            <th>状态</th>
-            <th>入组时间</th>
-            <th>备注</th>
-            <th class="col-actions">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="m in members" :key="m.id">
-            <td>{{ m.username || ('#' + m.user_id) }}</td>
-            <td>{{ roleText(m.user_role) }}</td>
-            <td>
-              <span class="tag" :class="'tag-' + m.role_in_group">{{ roleInGroupText(m.role_in_group) }}</span>
-            </td>
-            <td>
-              <span class="status" :class="'status-' + m.status">{{ statusText(m.status) }}</span>
-            </td>
-            <td>{{ fmtTime(m.joined_at) }}</td>
-            <td class="cell-remark">{{ m.remark || '-' }}</td>
-            <td class="col-actions">
-              <button class="btn btn-ghost" @click="openEdit(m)">编辑</button>
-              <button class="btn btn-danger" @click="askRemove(m)">移除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <template v-else>
+        <div class="filter-bar">
+          <input v-model="keyword" class="search-input" type="text" placeholder="搜索账号 / 备注" />
+          <select v-model="filterRole" class="filter-select">
+            <option value="">全部角色</option>
+            <option value="group_admin">课题组管理员</option>
+            <option value="mentor">导师</option>
+            <option value="student">学生</option>
+          </select>
+          <select v-model="filterStatus" class="filter-select">
+            <option value="">全部状态</option>
+            <option value="active">在组</option>
+            <option value="left">已离组</option>
+            <option value="disabled">已禁用</option>
+          </select>
+          <span v-if="filteredMembers.length !== members.length" class="filter-count">
+            匹配 {{ filteredMembers.length }} / {{ members.length }} 条
+          </span>
+        </div>
+        <div v-if="!filteredMembers.length" class="empty-block"><p>没有符合筛选条件的成员</p></div>
+        <table v-else class="data-table">
+          <thead>
+            <tr>
+              <th>账号</th>
+              <th>全局角色</th>
+              <th>组内角色</th>
+              <th>状态</th>
+              <th>入组时间</th>
+              <th>备注</th>
+              <th class="col-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="m in filteredMembers" :key="m.id">
+              <td>{{ m.username || ('#' + m.user_id) }}</td>
+              <td>{{ roleText(m.user_role) }}</td>
+              <td>
+                <span class="tag" :class="'tag-' + m.role_in_group">{{ roleInGroupText(m.role_in_group) }}</span>
+              </td>
+              <td>
+                <span class="status" :class="'status-' + m.status">{{ statusText(m.status) }}</span>
+              </td>
+              <td>{{ fmtTime(m.joined_at) }}</td>
+              <td class="cell-remark">{{ m.remark || '-' }}</td>
+              <td class="col-actions">
+                <button class="btn btn-ghost" @click="openEdit(m)">编辑</button>
+                <button class="btn btn-danger" @click="askRemove(m)">移除</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </div>
 
     <!-- 添加成员 -->
@@ -134,6 +158,24 @@ const allUsers = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
 
+// 筛选：关键词（账号 / 备注）+ 组内角色 + 状态
+const keyword = ref('')
+const filterRole = ref('')
+const filterStatus = ref('')
+const filteredMembers = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  return members.value.filter((m) => {
+    if (filterRole.value && m.role_in_group !== filterRole.value) return false
+    if (filterStatus.value && m.status !== filterStatus.value) return false
+    if (kw) {
+      const name = (m.username || '').toLowerCase()
+      const remark = (m.remark || '').toLowerCase()
+      if (!name.includes(kw) && !remark.includes(kw)) return false
+    }
+    return true
+  })
+})
+
 const addVisible = ref(false)
 const addForm = ref({ user_id: null, remark: '' })
 const addError = ref('')
@@ -146,8 +188,8 @@ const saving = ref(false)
 const removeTarget = ref(null)
 const removing = ref(false)
 
-const ROLE_TEXT = { super_admin: '超级管理员', group_admin: '组管理员', mentor: '导师', student: '学生' }
-const RIG_TEXT = { group_admin: '组管理员', mentor: '导师', student: '学生' }
+const ROLE_TEXT = { super_admin: '超级管理员', group_admin: '课题组管理员', mentor: '导师', student: '学生' }
+const RIG_TEXT = { group_admin: '课题组管理员', mentor: '导师', student: '学生' }
 const STATUS_TEXT = { active: '在组', left: '已离组', disabled: '已禁用' }
 
 function roleText(r) { return ROLE_TEXT[r] || r || '-' }
@@ -286,13 +328,29 @@ onMounted(() => {
 
 <style scoped>
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { font-size: 18px; font-weight: 600; color: #1f2329; margin: 0; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .ph-right { display: flex; align-items: center; gap: 10px; }
 
 .card {
   background: #fff; border: 1px solid #eceff3; border-radius: 12px;
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04); overflow: hidden;
 }
+.filter-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid #eceff3;
+}
+.search-input {
+  flex: 0 0 220px; border: 1px solid #dfe3e8; border-radius: 8px;
+  padding: 7px 10px; font-size: 13px; outline: none; color: #1f2329; background: #fff;
+}
+.search-input:focus, .filter-select:focus { border-color: #0d80e0; }
+.filter-select {
+  flex: 0 0 112px; border: 1px solid #dfe3e8; border-radius: 8px;
+  padding: 7px 8px; font-size: 13px; outline: none; color: #1f2329; background: #fff;
+}
+.filter-count { margin-left: auto; font-size: 12px; color: #8a9099; }
 .empty-block { padding: 48px 20px; text-align: center; color: #8a9099; font-size: 14px; }
 .error-block { padding: 24px; text-align: center; color: #ea4335; font-size: 14px; }
 

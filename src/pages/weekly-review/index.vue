@@ -1,9 +1,9 @@
 <template>
   <div class="page">
     <div class="page-head card">
-      <div>
+      <div class="header-left">
         <h2 class="page-title">📋 周报批阅</h2>
-        <p class="page-desc">批阅学生提交的周报（组管可见管理组学生，导师可见名下学生）。</p>
+        <p class="page-desc">批阅学生提交的周报（仅导师可见名下学生的周报，提交后学生将收到站内通知）。</p>
       </div>
       <div class="head-actions">
         <select v-model="statusFilter" class="filter-select" @change="load">
@@ -168,8 +168,9 @@ load()
   border: 1px solid #eceff3; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .page-head { display: flex; justify-content: space-between; align-items: center; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .head-actions { display: flex; gap: 10px; align-items: center; }
 .filter-select {
   height: 34px; padding: 0 10px; border: 1px solid #dfe3e8; border-radius: 8px;

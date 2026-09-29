@@ -40,7 +40,7 @@ const { isSuperAdmin, isGroupAdmin } = useRole()
 const show = computed(() => isSuperAdmin || isGroupAdmin)
 
 // 组内角色文案（listMine / member 返回的 role_in_group）
-const ROLE_TEXT = { group_admin: '管理员', mentor: '导师', student: '学生' }
+const ROLE_TEXT = { group_admin: '课题组管理员', mentor: '导师', student: '学生' }
 function roleText(r) {
   return ROLE_TEXT[r] || r
 }

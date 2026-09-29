@@ -1,7 +1,10 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2 class="page-title">📢 课题组公告</h2>
+      <div class="header-left">
+        <h2 class="page-title">📢 课题组公告</h2>
+        <p class="page-desc">组内公告发布与查看（课题组管理员可发布 / 编辑 / 置顶，导师与学生可查看）。</p>
+      </div>
       <div class="ph-right">
         <span v-if="loaded && unreadCount > 0" class="unread-badge">未读 {{ unreadCount }}</span>
         <button v-if="isGroupAdmin" class="btn btn-primary" @click="openCreate">＋ 发布公告</button>
@@ -284,7 +287,9 @@ onMounted(() => {
 
 <style scoped>
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { font-size: 18px; font-weight: 600; color: #1f2329; margin: 0; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .ph-right { display: flex; align-items: center; gap: 10px; }
 .unread-badge {
   background: #ea4335; color: #fff; font-size: 12px;

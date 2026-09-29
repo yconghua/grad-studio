@@ -25,12 +25,14 @@ import {
  * roles：该项对哪些角色可见；null / 缺省 = 全部四类角色可见。
  * 各角色过滤后的菜单顺序与角色描述完全一致：
  *   - 超级管理员：工作台 / 用户管理 / 课题组管理 / 系统配置 / 系统操作日志 / 帮助文档
- *   - 课题组管理员：工作台 / 课题组公告 / 成员管理 / 学位节点管理 / 组会管理 / 课题管理 / 任务管理 / 周报批阅 / 科研成果 / 课题组知识库 / 课题组设置
+ *   - 课题组管理员：工作台 / 课题组公告 / 成员管理 / 课题组设置 / 课题管理 / 组会发布 / 课题组知识库
+ *     （组管仅承担组级行政事务；学位节点 / 任务 / 周报 / 成果等学术指导职责由导师承担）
  *   - 导师：工作台 / 课题组公告 / 我的学生 / 学位节点管理 / 组会管理 / 课题管理 / 任务管理 / 周报批阅 / 科研成果 / 课题组知识库
- *   - 学生：工作台 / 课题组公告 / 组会管理 / 科研记录 / 课题与任务 / 科研成果 / 文献与笔记 / 科研档案 / 课题组知识库 / AI科研助手
+ *   - 学生：工作台 / 课题组公告 / 组会管理 / 科研记录 / 学位进度 / 课题与任务 / 科研成果 / 文献与笔记 / 科研档案 / 课题组知识库 / AI科研助手
  */
 export const navItems = [
   // ===== 全角色通用（高频前置） =====
+  // 工作台：全角色可见（组管工作台按职责展示本组运营概览）
   { key: 'workbench', title: '工作台', icon: 'DashboardOutlined', roles: null },
   // 课题组公告：组管 / 导师 / 学生可见（超管为平台运维角色，不参与组内业务）；
   // 组管拥有新增/编辑/删除/置顶，导师与学生仅查看（前端按角色控制操作按钮）
@@ -43,22 +45,27 @@ export const navItems = [
   // ===== 导师专属 =====
   { key: 'students', title: '我的学生', icon: 'UserSwitchOutlined', roles: [ROLE_MENTOR] },
 
-  // ===== 课题组管理员 + 导师（组内管理角色） =====
-  { key: 'degree', title: '学位节点管理', icon: 'ScheduleOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
+  // ===== 导师专属（学术指导职责，组管不承担） =====
+  { key: 'degree', title: '学位节点管理', icon: 'ScheduleOutlined', roles: [ROLE_MENTOR] },
   { key: 'subject', title: '课题管理', icon: 'ExperimentOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
-  { key: 'task', title: '任务管理', icon: 'CheckSquareOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
-  { key: 'weekly-review', title: '周报批阅', icon: 'FileTextOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR] },
+  // 组会发布：组管专属（发布 / 维护组会通知与列表）；导师 / 学生走「组会管理」页
+  { key: 'meeting-publish', title: '组会发布', icon: 'CalendarOutlined', roles: [ROLE_GROUP_ADMIN] },
+  { key: 'task', title: '任务管理', icon: 'CheckSquareOutlined', roles: [ROLE_MENTOR] },
+  { key: 'weekly-review', title: '周报批阅', icon: 'FileTextOutlined', roles: [ROLE_MENTOR] },
 
   // ===== 学生专属 =====
   { key: 'research-record', title: '科研记录', icon: 'EditOutlined', roles: [ROLE_STUDENT] },
+  { key: 'degree-progress', title: '学位进度', icon: 'ScheduleOutlined', roles: [ROLE_STUDENT] },
   { key: 'my-work', title: '课题与任务', icon: 'ProjectOutlined', roles: [ROLE_STUDENT] },
   { key: 'literature', title: '文献与笔记', icon: 'ReadOutlined', roles: [ROLE_STUDENT] },
   { key: 'archive', title: '科研档案', icon: 'FolderOpenOutlined', roles: [ROLE_STUDENT] },
   { key: 'ai-assistant', title: 'AI科研助手', icon: 'RobotOutlined', roles: [ROLE_STUDENT] },
 
   // ===== 组管 / 导师 / 学生（组内业务，超管不参与） =====
-  { key: 'meeting', title: '组会管理', icon: 'CalendarOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
-  { key: 'achievement', title: '科研成果', icon: 'TrophyOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
+  // 组会管理：导师审阅汇报 / 学生提交汇报（组管走独立的「组会发布」页）
+  { key: 'meeting', title: '组会管理', icon: 'CalendarOutlined', roles: [ROLE_MENTOR, ROLE_STUDENT] },
+  // 科研成果：导师审核 / 学生申报（组管不承担学术审核）
+  { key: 'achievement', title: '科研成果', icon: 'TrophyOutlined', roles: [ROLE_MENTOR, ROLE_STUDENT] },
   { key: 'knowledge', title: '课题组知识库', icon: 'BookOutlined', roles: [ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT] },
 
   // ===== 导师 / 学生未加入课题组的兜底菜单 =====
@@ -91,6 +98,15 @@ export function visibleNavItems(role, inGroup = true) {
     if (!isGroupUser) return true
     return item.noGroupOnly ? !inGroup : inGroup
   })
+}
+
+// 角色默认落地页：取该角色第一个可见菜单的路径；未入组导师/学生走 noGroupOnly 测试页，其余（含组管）落工作台
+export function firstNavPathForRole(role, inGroup = true) {
+  const first = visibleNavItems(role, inGroup)[0]
+  if (!first) return defaultNavPath
+  return first.key.indexOf('platform-') === 0
+    ? '/platform/' + first.key.replace('platform-', '')
+    : '/' + first.key
 }
 
 // 未加入课题组的导师/学生落地页（noGroupOnly 菜单项对应路径）

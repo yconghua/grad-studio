@@ -2,7 +2,7 @@
   <div class="page">
     <!-- 页头 -->
     <div class="page-head card">
-      <div>
+      <div class="header-left">
         <h2 class="page-title">📝 科研记录</h2>
         <p class="page-desc">维护个人科研日志与每周周报，周报提交后不可再编辑。</p>
       </div>
@@ -335,8 +335,9 @@ loadWeekly()
   border: 1px solid #eceff3; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .page-head { display: flex; justify-content: space-between; align-items: center; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .head-actions { display: flex; gap: 10px; }
 
 .btn {
@@ -406,7 +407,7 @@ loadWeekly()
   background: #fff; border-radius: 12px; padding: 24px; width: 420px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.18);
 }
-.modal-box.wide { width: 560px; }
+.modal-box.wide { width: 560px; max-height: 86vh; overflow-y: auto; }
 .modal-title { margin: 0 0 18px; font-size: 16px; color: #1f2329; }
 .form-item { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .form-row { display: flex; gap: 14px; }
@@ -416,6 +417,7 @@ loadWeekly()
 .form-item input, .form-item textarea {
   padding: 8px 10px; border: 1px solid #dfe3e8; border-radius: 8px;
   font-size: 13px; outline: none; font-family: inherit; resize: vertical;
+  max-height: 320px; /* 拖拽上限，避免输入框把弹窗撑得超出窗口高度 */
 }
 .form-item input:focus, .form-item textarea:focus { border-color: #0d80e0; }
 .char-count { align-self: flex-end; font-size: 12px; color: #8a9099; }

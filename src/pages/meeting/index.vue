@@ -3,9 +3,9 @@
     <div class="header-card">
       <div class="header-left">
         <h2 class="page-title">📅 组会管理</h2>
+        <p class="page-desc">组会列表查看，学生提交汇报、导师审阅。</p>
       </div>
       <div class="header-right">
-        <button v-if="isGroupAdmin" class="btn btn-primary" @click="openMeetingModal()">＋ 新增组会</button>
         <button v-if="isStudent" class="btn btn-primary" @click="openReportModal()">📝 提交组会汇报</button>
       </div>
     </div>
@@ -24,13 +24,12 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>主题</th>
-              <th>类型</th>
-              <th>时间</th>
-              <th>地点</th>
-              <th>主持人</th>
-              <th>状态</th>
-              <th v-if="isGroupAdmin">操作</th>
+              <th style="width:20%">主题</th>
+              <th style="width:9%">类型</th>
+              <th style="width:24%">时间</th>
+              <th style="width:12%">地点</th>
+              <th style="width:13%">主持人</th>
+              <th style="width:9%">状态</th>
             </tr>
           </thead>
           <tbody>
@@ -39,12 +38,8 @@
               <td>{{ typeText(m.meeting_type) }}</td>
               <td class="cell-time">{{ fmtDT(m.start_time) }} ~ {{ fmtDT(m.end_time) }}</td>
               <td>{{ m.location || '—' }}</td>
-              <td>{{ nameOf(m.host_id) }}</td>
+              <td class="cell-name">{{ nameOf(m.host_id) }}</td>
               <td><span :class="['status-tag', 'st-' + m.status]">{{ statusText(m.status) }}</span></td>
-              <td v-if="isGroupAdmin" @click.stop>
-                <button class="btn btn-mini" @click="openMeetingModal(m)">编辑</button>
-                <button class="btn btn-mini btn-danger" @click="onRemoveMeeting(m)">删除</button>
-              </td>
             </tr>
           </tbody>
         </table>
@@ -57,21 +52,21 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>组会主题</th>
-              <th>汇报学生</th>
-              <th>汇报主题</th>
-              <th>内容</th>
-              <th>状态</th>
-              <th>审阅意见</th>
-              <th>提交时间</th>
-              <th v-if="isManager">操作</th>
+              <th style="width:15%">组会主题</th>
+              <th style="width:11%">汇报学生</th>
+              <th style="width:13%">汇报主题</th>
+              <th style="width:17%">内容</th>
+              <th style="width:8%">状态</th>
+              <th style="width:13%">审阅意见</th>
+              <th style="width:9%">提交时间</th>
+              <th v-if="isManager" style="width:14%">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in reports" :key="r.id" @click="openReportDetail(r)" style="cursor:pointer">
               <td class="cell-title">{{ meetingTitleOf(r.meeting_id) }}</td>
-              <td>{{ nameOf(r.student_id) }}</td>
-              <td>{{ r.topic || '—' }}</td>
+              <td class="cell-name">{{ nameOf(r.student_id) }}</td>
+              <td class="cell-topic">{{ r.topic || '—' }}</td>
               <td class="cell-desc">{{ r.content || '—' }}</td>
               <td><span :class="['status-tag', 'st-' + r.status]">{{ reportStatusText(r.status) }}</span></td>
               <td class="cell-desc">{{ r.review_comment || '—' }}</td>
@@ -88,67 +83,6 @@
         </table>
       </div>
     </template>
-
-    <!-- 组会新增/编辑弹窗 -->
-    <div v-if="meetingModal.visible" class="modal-mask" @click.self="meetingModal.visible = false">
-      <div class="modal-box">
-        <h3 class="modal-title">{{ meetingModal.form.id ? '编辑组会' : '新增组会' }}</h3>
-        <div class="form-grid">
-          <label class="form-item full">
-            <span class="form-label">主题 *</span>
-            <input v-model="meetingModal.form.title" type="text" placeholder="组会主题" />
-          </label>
-          <label class="form-item">
-            <span class="form-label">类型</span>
-            <select v-model="meetingModal.form.meeting_type">
-              <option value="regular">常规组会</option>
-              <option value="seminar">专题研讨</option>
-              <option value="thesis">开题答辩</option>
-              <option value="other">其他</option>
-            </select>
-          </label>
-          <label class="form-item">
-            <span class="form-label">状态</span>
-            <select v-model="meetingModal.form.status">
-              <option value="draft">草稿</option>
-              <option value="published">已发布</option>
-              <option value="finished">已结束</option>
-              <option value="cancelled">已取消</option>
-            </select>
-          </label>
-          <label class="form-item">
-            <span class="form-label">开始时间</span>
-            <input v-model="meetingModal.form.start_time" type="datetime-local" />
-          </label>
-          <label class="form-item">
-            <span class="form-label">结束时间</span>
-            <input v-model="meetingModal.form.end_time" type="datetime-local" />
-          </label>
-          <label class="form-item full">
-            <span class="form-label">地点</span>
-            <input v-model="meetingModal.form.location" type="text" placeholder="线下地址或线上会议链接" />
-          </label>
-          <label class="form-item full">
-            <span class="form-label">主持人</span>
-            <select v-model="meetingModal.form.host_id">
-              <option :value="0">未指定</option>
-              <option v-for="m in hostOptions" :key="m.id" :value="m.id">{{ memberLabel(m) }}</option>
-            </select>
-          </label>
-          <label class="form-item full">
-            <span class="form-label">议程 / 议题</span>
-            <textarea v-model="meetingModal.form.agenda" rows="3" placeholder="议程说明"></textarea>
-          </label>
-        </div>
-        <p v-if="meetingModal.error" class="form-error">{{ meetingModal.error }}</p>
-        <div class="modal-actions">
-          <button class="btn" @click="meetingModal.visible = false">取消</button>
-          <button class="btn btn-primary" :disabled="meetingModal.saving" @click="onSaveMeeting">
-            {{ meetingModal.saving ? '保存中…' : '保存' }}
-          </button>
-        </div>
-      </div>
-    </div>
 
     <!-- 学生提交汇报弹窗 -->
     <div v-if="reportModal.visible" class="modal-mask" @click.self="reportModal.visible = false">
@@ -247,18 +181,20 @@
 </template>
 
 <script setup>
-import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { dialogAlert } from '../../composables/useDialog'
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useGroupContext } from '../../composables/useGroupContext'
 import { useRole } from '../../composables/useRole'
 import {
-  listMeetings, createMeeting, updateMeeting, removeMeeting,
+  listMeetings,
   listMeetingReports, submitMeetingReport, reviewMeetingReport,
   listMembers
 } from '../../api'
 
 const { currentGroupId, loadGroups } = useGroupContext()
-const { isGroupAdmin, isManager, isStudent } = useRole()
+const { isManager, isStudent } = useRole()
+const route = useRoute()
 
 const tab = ref('meetings')
 const meetings = ref([])
@@ -282,8 +218,6 @@ function reportStatusText(s) { return REPORT_STATUS_TEXT[s] || s || '—' }
 function memberLabel(m) {
   return m.real_name ? m.real_name + '（' + m.username + '）' : m.username
 }
-// 主持人候选：仅当前课题组的导师 / 学生（课题组管理员不可作为主持人）
-const hostOptions = computed(() => members.value.filter((m) => m.role !== 'group_admin'))
 function nameOf(id) {
   const m = members.value.find((x) => x.id === Number(id))
   return m ? memberLabel(m) : (id ? ('#' + id) : '—')
@@ -335,64 +269,6 @@ function switchTab(t) {
 
 // 学生提交汇报时，可选组会仅限「已发布」状态（草稿 / 已取消不可提交）
 const publishableMeetings = computed(() => meetings.value.filter((m) => m.status === 'published'))
-
-// ===== 组会弹窗 =====
-const emptyMeetingForm = () => ({
-  id: null, title: '', meeting_type: 'regular', location: '',
-  start_time: '', end_time: '', host_id: 0, agenda: '', status: 'draft'
-})
-const meetingModal = ref({ visible: false, saving: false, error: '', form: emptyMeetingForm() })
-
-function toLocal(v) { return v ? String(v).replace(' ', 'T').slice(0, 16) : '' }
-function fromLocal(v) { return v ? v.replace('T', ' ') + (v.length === 16 ? ':00' : '') : '' }
-
-function openMeetingModal(row) {
-  if (row) {
-    meetingModal.value.form = {
-      id: row.id, title: row.title, meeting_type: row.meeting_type || 'regular',
-      location: row.location || '', start_time: toLocal(row.start_time), end_time: toLocal(row.end_time),
-      host_id: row.host_id || 0, agenda: row.agenda || '', status: row.status || 'draft'
-    }
-  } else {
-    meetingModal.value.form = emptyMeetingForm()
-  }
-  meetingModal.value.error = ''
-  meetingModal.value.visible = true
-}
-
-async function onSaveMeeting() {
-  const f = meetingModal.value.form
-  if (!f.title.trim()) { meetingModal.value.error = '组会主题不能为空'; return }
-  meetingModal.value.saving = true
-  meetingModal.value.error = ''
-  const payload = {
-    group_id: currentGroupId.value,
-    title: f.title.trim(), meeting_type: f.meeting_type, location: f.location,
-    start_time: fromLocal(f.start_time), end_time: fromLocal(f.end_time),
-    host_id: Number(f.host_id) || 0, agenda: f.agenda, status: f.status
-  }
-  try {
-    const res = f.id ? await updateMeeting({ id: f.id, ...payload }) : await createMeeting(payload)
-    if (res && res.success) {
-      meetingModal.value.visible = false
-      loadMeetings()
-      if (res.message) dialogAlert(res.message)
-    } else {
-      meetingModal.value.error = (res && res.message) || '保存失败'
-    }
-  } catch (e) {
-    meetingModal.value.error = '保存失败，请稍后重试'
-  } finally {
-    meetingModal.value.saving = false
-  }
-}
-
-async function onRemoveMeeting(row) {
-  if (!await dialogConfirm(`确认删除组会「${row.title}」？`)) return
-  const res = await removeMeeting(row.id)
-  if (res && res.success) loadMeetings()
-  else dialogAlert((res && res.message) || '删除失败')
-}
 
 // ===== 提交汇报弹窗 =====
 const reportModal = ref({ visible: false, saving: false, error: '', form: { meeting_id: 0, topic: '', content: '', file_path: '' } })
@@ -466,6 +342,11 @@ onMounted(() => {
   loadGroups()
   loadMembers()
   loadMeetings()
+  // 工作台「待审汇报」跳转：携带 tab=reports 直达组会汇报页签
+  if (route.query.tab === 'reports') {
+    tab.value = 'reports'
+    loadReports()
+  }
 })
 watch(currentGroupId, () => {
   loadMeetings()
@@ -479,8 +360,9 @@ watch(currentGroupId, () => {
   background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;
   box-shadow: 0 2px 8px rgba(15, 35, 80, 0.05);
 }
-.header-left { display: flex; align-items: center; gap: 16px; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .header-right { display: flex; gap: 10px; }
 
 .tab-bar { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -496,17 +378,23 @@ watch(currentGroupId, () => {
   background: #fff; border-radius: 12px; padding: 8px;
   box-shadow: 0 2px 8px rgba(15, 35, 80, 0.05); overflow-x: auto;
 }
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  table-layout: fixed; /* 固定布局：列宽按百分比分配，总宽=容器宽，不出现横向滚动条 */
+}
 .data-table th {
   background: #f7f9fc; text-align: left; padding: 10px 12px; color: #4e5969;
   font-weight: 600; border-bottom: 1px solid #eceff3; white-space: nowrap;
 }
-.data-table td { padding: 10px 12px; border-bottom: 1px solid #eceff3; color: #1f2329; }
+.data-table td {
+  padding: 10px 12px; border-bottom: 1px solid #eceff3; color: #1f2329;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .data-table tbody tr:nth-child(even) { background: #fafbfc; }
 .data-table tbody tr:hover { background: #eef6ff; }
 .cell-title { font-weight: 600; }
 .cell-time { color: #8a9099; white-space: nowrap; }
-.cell-desc { max-width: 240px; color: #4e5969; }
+.cell-desc { color: #4e5969; }
 
 .status-tag {
   display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px;

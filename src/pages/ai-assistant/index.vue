@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="page-head card">
-      <div>
+      <div class="header-left">
         <h2 class="page-title">🤖 AI 科研助手</h2>
         <p class="page-desc">辅助论文写作、实验设计与文献综述（当前为前端演示界面）。</p>
       </div>
@@ -99,8 +99,9 @@ function onSend() {
   background: #fff; border-radius: 12px; padding: 18px 20px;
   border: 1px solid #eceff3; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 
 .body { display: flex; gap: 16px; flex: 1; min-height: 0; }
 .tpl-col { flex: 0 0 260px; display: flex; flex-direction: column; }

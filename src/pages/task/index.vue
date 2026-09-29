@@ -3,6 +3,7 @@
     <div class="header-card">
       <div class="header-left">
         <h2 class="page-title">📋 任务管理</h2>
+        <p class="page-desc">向名下学生下发科研任务、跟踪进展并验收（仅导师）。</p>
       </div>
       <div class="header-right">
         <button class="btn btn-primary" @click="openTaskModal()">＋ 新增任务</button>
@@ -42,6 +43,10 @@
               </td>
               <td class="cell-time">{{ fmtDT(t.deadline) }}</td>
               <td @click.stop>
+                <template v-if="t.status === 'pending_review'">
+                  <button class="btn btn-mini btn-primary" @click="onAcceptTask(t)">通过验收</button>
+                  <button class="btn btn-mini btn-danger" @click="onRejectTask(t)">打回</button>
+                </template>
                 <button class="btn btn-mini" @click="openTaskModal(t)">编辑</button>
                 <button class="btn btn-mini btn-danger" @click="onRemoveTask(t)">删除</button>
               </td>
@@ -107,6 +112,7 @@
             <select v-model="taskModal.form.status">
               <option value="todo">待办</option>
               <option value="in_progress">进行中</option>
+              <option value="pending_review">待验收</option>
               <option value="completed">已完成</option>
               <option value="cancelled">已取消</option>
             </select>
@@ -162,7 +168,7 @@ const loadingProgress = ref(false)
 const expandedId = ref(null)
 
 const PRIORITY_TEXT = { high: '高', medium: '中', low: '低' }
-const STATUS_TEXT = { todo: '待办', in_progress: '进行中', completed: '已完成', cancelled: '已取消' }
+const STATUS_TEXT = { todo: '待办', in_progress: '进行中', pending_review: '待验收', completed: '已完成', cancelled: '已取消' }
 
 function fmtDT(v) {
   if (!v) return '—'
@@ -174,7 +180,7 @@ function statusText(s) { return STATUS_TEXT[s] || s || '—' }
 function memberLabel(m) {
   return m.real_name ? m.real_name + '（' + m.username + '）' : m.username
 }
-// 执行人候选：仅学生（导师/组管不接受任务派发）
+// 执行人候选：仅学生（导师不接受任务派发）
 const assigneeOptions = computed(() => members.value.filter((m) => m.role === 'student'))
 function nameOf(id) {
   const m = members.value.find((x) => x.id === Number(id))
@@ -289,6 +295,21 @@ async function onRemoveTask(row) {
   else dialogAlert((res && res.message) || '删除失败')
 }
 
+// ===== 待验收任务的快捷验收 / 打回 =====
+async function onAcceptTask(row) {
+  if (!await dialogConfirm(`确认验收通过任务「${row.title}」？`)) return
+  const res = await updateTask({ id: row.id, status: 'completed', progress_percent: row.progress_percent || 100 })
+  if (res && res.success) loadTasks()
+  else dialogAlert((res && res.message) || '验收失败')
+}
+
+async function onRejectTask(row) {
+  if (!await dialogConfirm(`确认打回任务「${row.title}」？打回后学生可继续完善。`)) return
+  const res = await updateTask({ id: row.id, status: 'in_progress' })
+  if (res && res.success) loadTasks()
+  else dialogAlert((res && res.message) || '打回失败')
+}
+
 onMounted(() => {
   loadGroups()
 })
@@ -304,8 +325,9 @@ watch(currentGroupId, () => {
   background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;
   box-shadow: 0 2px 8px rgba(15, 35, 80, 0.05);
 }
-.header-left { display: flex; align-items: center; gap: 16px; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 
 .card {
   background: #fff; border-radius: 12px; padding: 8px;
@@ -348,6 +370,7 @@ watch(currentGroupId, () => {
 }
 .st-todo { background: #f0f2f5; color: #8a9099; }
 .st-in_progress { background: #e8f0fb; color: #0d80e0; }
+.st-pending_review { background: #fff5e6; color: #e8890c; }
 .st-completed { background: #e8f7ee; color: #19a558; }
 .st-cancelled { background: #fdecea; color: #ea4335; }
 .pri-tag { font-size: 12px; }

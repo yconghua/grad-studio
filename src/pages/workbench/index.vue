@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="page-head">
-      <div>
+      <div class="header-left">
         <h2 class="page-title">🏠 工作台</h2>
         <p class="page-desc">{{ greeting }}</p>
       </div>
@@ -47,10 +47,12 @@
       <div v-if="!currentGroupId" class="card"><div class="state">请先在页头选择 / 输入课题组ID</div></div>
       <template v-else>
         <div class="stat-grid">
-          <div class="stat-card grad-blue"><div class="stat-icon">👥</div><div class="stat-num">{{ stats.members }}</div><div class="stat-label">本组成员数</div></div>
-          <div class="stat-card grad-green"><div class="stat-icon">📅</div><div class="stat-num">{{ stats.meetings }}</div><div class="stat-label">组会数</div></div>
-          <div class="stat-card grad-purple"><div class="stat-icon">✅</div><div class="stat-num">{{ stats.tasks }}</div><div class="stat-label">任务总数</div></div>
-          <div class="stat-card grad-orange"><div class="stat-icon">🏆</div><div class="stat-num">{{ stats.pendingAch }}</div><div class="stat-label">待审成果</div></div>
+          <div class="stat-card grad-blue stat-link" @click="go('/member')"><div class="stat-icon">👥</div><div class="stat-num">{{ stats.members }}</div><div class="stat-label">本组成员数 →</div></div>
+          <div class="stat-card grad-green stat-link" @click="go('/notice')"><div class="stat-icon">📢</div><div class="stat-num">{{ stats.notices }}</div><div class="stat-label">组内公告 →</div></div>
+          <div class="stat-card grad-cyan stat-link" @click="go('/meeting')"><div class="stat-icon">📅</div><div class="stat-num">{{ stats.meetings }}</div><div class="stat-label">组会数 →</div></div>
+          <div class="stat-card grad-purple stat-link" @click="go('/subject')"><div class="stat-icon">🔬</div><div class="stat-num">{{ stats.subjects }}</div><div class="stat-label">课题数 →</div></div>
+          <div class="stat-card grad-orange stat-link" @click="go('/knowledge')"><div class="stat-icon">📚</div><div class="stat-num">{{ stats.knowledge }}</div><div class="stat-label">知识库条目 →</div></div>
+          <div class="stat-card grad-red stat-link" @click="go('/settings')"><div class="stat-icon">⚙️</div><div class="stat-num">—</div><div class="stat-label">课题组设置 →</div></div>
         </div>
         <div class="card">
           <h3 class="card-title">📢 最近公告</h3>
@@ -73,6 +75,7 @@
         <div class="stat-card grad-blue"><div class="stat-icon">🎓</div><div class="stat-num">{{ mentorStats.students }}</div><div class="stat-label">名下学生</div></div>
         <div class="stat-card grad-orange stat-link" @click="go('/weekly-review')"><div class="stat-icon">📝</div><div class="stat-num">{{ mentorStats.pendingWeekly }}</div><div class="stat-label">待审周报 →</div></div>
         <div class="stat-card grad-green"><div class="stat-icon">🏆</div><div class="stat-num">{{ mentorStats.pendingAch }}</div><div class="stat-label">待审成果</div></div>
+        <div class="stat-card grad-red stat-link" @click="goMeetingReports()"><div class="stat-icon">🗣️</div><div class="stat-num">{{ mentorStats.pendingReports }}</div><div class="stat-label">待审汇报 →</div></div>
       </div>
       <div v-if="!currentGroupId" class="card"><div class="state">请先在页头输入本组课题组ID 以查看公告</div></div>
       <div v-else class="card">
@@ -132,8 +135,9 @@ import { useGroupContext } from '../../composables/useGroupContext'
 import GroupSelector from '../../components/GroupSelector.vue'
 import {
   listUsers, listGroups, listOperationLogs,
-  listMembersByGroup, listMeetings, listTasks, listAllAchievements, listNotices,
-  listStudents, listAllWeeklyReports, listMyTasks, listMyWeeklyReports
+  listMembersByGroup, listMeetings, listNotices, listSubjects, listKnowledge,
+  listStudents, listAllWeeklyReports, listMyTasks, listMyWeeklyReports,
+  listAllAchievements, listMeetingReports
 } from '../../api'
 
 const router = useRouter()
@@ -148,12 +152,16 @@ const greeting = computed(() => {
 })
 
 function go(path) { router.push(path) }
+// 点击「待审汇报」：跳到组会管理页并自动定位到「组会汇报」页签
+function goMeetingReports() {
+  router.push({ path: '/meeting', query: { tab: 'reports' } })
+}
 // 点击任务条目：跳转到学生的「课题与任务」页并自动定位展开该任务
 function goTask(t) {
   router.push({ path: '/my-work', query: { focus: t.id } })
 }
 function statusText(s) {
-  return { todo: '待办', in_progress: '进行中', completed: '已完成' }[s] || s
+  return { todo: '待办', in_progress: '进行中', pending_review: '待验收', completed: '已完成' }[s] || s
 }
 
 // ===== 超管 =====
@@ -177,8 +185,8 @@ async function loadAdmin() {
   }
 }
 
-// ===== 组管 =====
-const stats = ref({ members: 0, meetings: 0, tasks: 0, pendingAch: 0 })
+// ===== 组管（按组管职责：成员 / 公告 / 组会 / 课题 / 知识库 / 设置） =====
+const stats = ref({ members: 0, notices: 0, meetings: 0, subjects: 0, knowledge: 0 })
 const notices = ref([])
 const loadingGroup = ref(false)
 async function loadGroup() {
@@ -186,18 +194,19 @@ async function loadGroup() {
   if (!gid) return
   loadingGroup.value = true
   try {
-    const [m, mt, t, a, n] = await Promise.all([
+    const [m, n, mt, s, k] = await Promise.all([
       listMembersByGroup(gid),
+      listNotices(gid),
       listMeetings(gid),
-      listTasks({ group_id: gid }),
-      listAllAchievements({ status: 'pending', group_id: gid }),
-      listNotices(gid)
+      listSubjects(gid),
+      listKnowledge(gid)
     ])
     stats.value = {
       members: (m && m.success ? m.members : []).length,
+      notices: (n && n.success ? n.notices : []).length,
       meetings: (mt && mt.success ? mt.data : []).length,
-      tasks: (t && t.success ? t.data : []).length,
-      pendingAch: (a && a.success ? a.data : []).length
+      subjects: (s && s.success ? s.data : []).length,
+      knowledge: (k && k.success ? k.data : []).length
     }
     notices.value = (n && n.success ? n.notices : []).slice(0, 3)
   } finally {
@@ -206,23 +215,25 @@ async function loadGroup() {
 }
 
 // ===== 导师 =====
-const mentorStats = ref({ students: 0, pendingWeekly: 0, pendingAch: 0 })
+const mentorStats = ref({ students: 0, pendingWeekly: 0, pendingAch: 0, pendingReports: 0 })
 const mentorNotices = ref([])
 const loadingMentor = ref(false)
 async function loadMentor() {
   loadingMentor.value = true
   try {
     const gid = currentGroupId.value
-    const [s, w, a] = await Promise.all([
+    const [s, w, a, r] = await Promise.all([
       listStudents(),
       listAllWeeklyReports({}),
-      gid ? listAllAchievements({ status: 'pending', group_id: gid }) : Promise.resolve({ success: false, data: [] })
+      gid ? listAllAchievements({ status: 'pending', group_id: gid }) : Promise.resolve({ success: false, data: [] }),
+      gid ? listMeetingReports({ group_id: gid }) : Promise.resolve({ success: false, data: [] })
     ])
     const allWeekly = (w && w.success ? w.data : [])
     mentorStats.value = {
       students: (s && s.success ? s.students : []).length,
       pendingWeekly: allWeekly.filter((x) => x.status === 'submitted').length,
-      pendingAch: (a && a.success ? a.data : []).length
+      pendingAch: (a && a.success ? a.data : []).length,
+      pendingReports: (r && r.success ? r.data : []).filter((x) => x.status === 'pending').length
     }
     if (currentGroupId.value) {
       const n = await listNotices(currentGroupId.value)
@@ -282,9 +293,10 @@ onMounted(() => {
 
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 16px; }
-.page-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.page-head { display: flex; justify-content: space-between; align-items: center; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .card { background: #fff; border: 1px solid #eceff3; border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04); padding: 18px 20px; }
 .card-title { margin: 0 0 12px; font-size: 15px; color: #1f2329; }
 
@@ -295,6 +307,8 @@ onMounted(() => {
 .grad-green { background: linear-gradient(135deg, #19a558, #4cc77f); }
 .grad-orange { background: linear-gradient(135deg, #f5a623, #f7c948); }
 .grad-purple { background: linear-gradient(135deg, #7c5cff, #a78bfa); }
+.grad-cyan { background: linear-gradient(135deg, #0fb2b0, #4cd4d2); }
+.grad-red { background: linear-gradient(135deg, #e36a5e, #f0938a); }
 .stat-icon { font-size: 22px; }
 .stat-num { font-size: 30px; font-weight: 700; line-height: 1.3; }
 .stat-label { font-size: 13px; opacity: 0.92; }
@@ -321,5 +335,6 @@ onMounted(() => {
 .status-chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; }
 .st-todo { background: #f2f3f5; color: #4e5969; }
 .st-in_progress { background: #e6f4ff; color: #0d80e0; }
+.st-pending_review { background: #fff5e6; color: #e8890c; }
 .st-completed { background: #e8f7ee; color: #19a558; }
 </style>

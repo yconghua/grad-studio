@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="page-head">
-      <div>
+      <div class="header-left">
         <h2 class="page-title">❓ 帮助文档</h2>
         <p class="page-desc">{{ appName }}使用说明（仅超级管理员可见）</p>
       </div>
@@ -22,11 +22,12 @@
         </thead>
         <tbody>
           <tr><td>平台账号 / 课题组 / 系统参数 / 操作日志维护</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
-          <tr><td>本组成员增删、师生关系绑定</td><td>—</td><td>✅</td><td>部分（仅本人名下）</td><td>—</td></tr>
-          <tr><td>发布公告、创建组会、下发任务、配置课题组</td><td>—</td><td>✅</td><td>部分（任务可下发给自己学生）</td><td>—</td></tr>
-          <tr><td>批阅周报、审核科研成果</td><td>—</td><td>✅</td><td>✅</td><td>—</td></tr>
-          <tr><td>查看名下学生、课题与知识库</td><td>—</td><td>✅</td><td>✅</td><td>—</td></tr>
-          <tr><td>提交任务进展、撰写周报、申报成果、记录科研日志与文献</td><td>—</td><td>—</td><td>—</td><td>✅</td></tr>
+          <tr><td>本组成员增删</td><td>—</td><td>✅</td><td>—</td><td>—</td></tr>
+          <tr><td>绑定 / 解除名下学生</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+          <tr><td>发布公告、创建组会、配置课题组</td><td>—</td><td>✅</td><td>—</td><td>—</td></tr>
+          <tr><td>下发任务、批阅周报、审核成果、审阅组会汇报</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+          <tr><td>管理课题与知识库</td><td>—</td><td>✅</td><td>✅</td><td>—</td></tr>
+          <tr><td>提交任务进展、撰写周报、申报成果、记录科研日志与文献、提交组会汇报</td><td>—</td><td>—</td><td>—</td><td>✅</td></tr>
         </tbody>
       </table>
     </div>
@@ -65,9 +66,10 @@ const { appName } = useAppName()
 
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 16px; }
-.page-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.page-head { display: flex; justify-content: space-between; align-items: center; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .card { background: #fff; border: 1px solid #eceff3; border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04); padding: 18px 20px; }
 .card-title { margin: 0 0 12px; font-size: 15px; color: #1f2329; }
 .text { font-size: 13px; color: #4e5969; line-height: 1.8; margin: 0; }

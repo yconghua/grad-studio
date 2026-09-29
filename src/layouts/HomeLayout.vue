@@ -90,6 +90,10 @@
             <div v-if="userMenuOpen" class="user-dropdown" @click.stop>
               <RouterLink class="dropdown-item" to="/profile" @click="userMenuOpen = false">个人资料</RouterLink>
               <RouterLink class="dropdown-item" to="/profile/password" @click="userMenuOpen = false">修改密码</RouterLink>
+              <RouterLink class="dropdown-item msg-entry" :class="{ 'msg-has-badge': msgUnread > 0 }" to="/my-messages" @click="userMenuOpen = false">
+                <span class="msg-label">我的消息</span>
+                <span v-if="msgUnread > 0" class="dropdown-msg-badge">{{ msgUnread > 99 ? '99+' : msgUnread }}</span>
+              </RouterLink>
               <RouterLink class="dropdown-item" to="/help" @click="userMenuOpen = false">使用帮助</RouterLink>
               <div class="dropdown-item update-item" @click="onCheckUpdate">
                 <span>检查更新</span>
@@ -311,7 +315,7 @@ async function onMarkAllRead() {
 const REF_ROUTE_MAP = { notice: '/notice', task: '/task', achievement: '/achievement', weekly: '/research-record' }
 
 // 消息跳转目标：按消息类型与当前角色分流。
-// - task 消息：学生跳「课题与任务」（带 focus 定位任务），组管/导师跳「任务管理」；
+// - task 消息：学生跳「课题与任务」（带 focus 定位任务），导师跳「任务管理」（组管无任务页，不跳转）；
 // - weekly 消息：跳「科研记录」并带 tab=weekly + focus，直达被批阅的周报。
 function msgTarget(m) {
   if (m.ref_type === 'task') {
@@ -319,7 +323,8 @@ function msgTarget(m) {
     if (role === 'student') {
       return { path: '/my-work', query: m.ref_id ? { focus: m.ref_id } : {} }
     }
-    return '/task'
+    if (role === 'mentor') return '/task'
+    return null
   }
   if (m.ref_type === 'weekly') {
     return { path: '/research-record', query: { tab: 'weekly', ...(m.ref_id ? { focus: m.ref_id } : {}) } }
@@ -546,8 +551,15 @@ function onNoticeUnreadChanged() {
   fetchMsgUnread()
 }
 
+// 「我的消息」页已读操作（全部已读/单条已读）后刷新铃铛与公告角标
+function onMessagesReadChanged() {
+  fetchMsgUnread()
+  fetchNoticeUnread()
+}
+
 watch(currentGroupId, () => { fetchNoticeUnread() })
 window.addEventListener('notice-unread-changed', onNoticeUnreadChanged)
+window.addEventListener('messages-read-changed', onMessagesReadChanged)
 
 onMounted(() => {
   document.addEventListener('click', onDocClick)
@@ -563,6 +575,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
   window.removeEventListener('notice-unread-changed', onNoticeUnreadChanged)
+  window.removeEventListener('messages-read-changed', onMessagesReadChanged)
   if (msgTimer) clearInterval(msgTimer)
   if (searchTimer) clearTimeout(searchTimer)
 })
@@ -678,7 +691,7 @@ onUnmounted(() => {
 .user-caret { font-size: 11px; color: #8a9099; transition: transform 0.2s; }
 .user-caret.open { transform: rotate(180deg); }
 .user-dropdown {
-  position: absolute; top: 42px; right: 0; min-width: 150px;
+  position: absolute; top: 42px; right: 0;
   background: #fff; border: 1px solid #eceff3; border-radius: 10px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14); padding: 6px; z-index: 400;
 }
@@ -691,6 +704,15 @@ onUnmounted(() => {
 .dropdown-item:hover { background: #f5f8ff; color: #0d80e0; }
 .dropdown-item.danger:hover { background: #fff1f0; color: #ea4335; }
 .dropdown-item.update-item { display: flex; align-items: center; justify-content: space-between; }
+.dropdown-item.msg-entry { display: flex; align-items: center; justify-content: space-between; }
+.dropdown-item.msg-entry .msg-label { white-space: nowrap; flex-shrink: 0; }
+/* 有未读徽章时给该行最小宽度，保证「我的消息」文字与数字完整显示不被挤压 */
+.dropdown-item.msg-entry.msg-has-badge { min-width: 120px; }
+.dropdown-msg-badge {
+  min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px;
+  border-radius: 999px; background: #ea4335; color: #fff;
+  font-size: 10px; text-align: center; flex-shrink: 0; box-sizing: content-box;
+}
 .update-dot { width: 8px; height: 8px; border-radius: 50%; background: #ea4335; flex-shrink: 0; }
 .dropdown-divider { height: 1px; background: #eceff3; margin: 5px 0; }
 .menu-fade-enter-active, .menu-fade-leave-active { transition: opacity 0.15s, transform 0.15s; }

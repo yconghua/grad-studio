@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="page-head card">
-      <div>
+      <div class="header-left">
         <h2 class="page-title">📚 文献与笔记</h2>
         <p class="page-desc">管理个人文献库，选中文献后在右侧记录阅读笔记。</p>
       </div>
@@ -45,7 +45,7 @@
       <div class="card note-col">
         <template v-if="selected">
           <div class="note-head">
-            <div>
+            <div class="note-info">
               <h3 class="note-title">{{ selected.title }}</h3>
               <p class="note-sub">{{ selected.authors }} · {{ selected.source }} · {{ selected.year }}</p>
             </div>
@@ -138,7 +138,7 @@
 
     <!-- 笔记弹窗 -->
     <div v-if="noteModal.show" class="modal-mask" @click.self="noteModal.show = false">
-      <div class="modal-box">
+      <div class="modal-box note-box">
         <h3 class="modal-title">{{ noteModal.form.id ? '编辑笔记' : '写笔记' }}</h3>
         <label class="form-item">
           <span class="form-label">笔记内容 <i>*</i></span>
@@ -332,8 +332,9 @@ loadLiterature()
   border: 1px solid #eceff3; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .page-head { display: flex; justify-content: space-between; align-items: center; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .head-actions { display: flex; gap: 10px; align-items: center; }
 .search {
   height: 34px; padding: 0 12px; border: 1px solid #dfe3e8; border-radius: 8px;
@@ -370,8 +371,11 @@ loadLiterature()
 .t-blue { background: #e6f4ff; color: #0d80e0; }
 .t-green { background: #e8f7ef; color: #19a558; }
 
-.note-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
-.note-title { margin: 0; font-size: 15px; color: #1f2329; }
+.note-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+/* 标题区占满剩余空间可换行；按钮固定不收缩、文字不换行，保证「＋ 写笔记」恒为一行 */
+.note-info { flex: 1 1 auto; min-width: 0; }
+.note-head .btn { flex-shrink: 0; white-space: nowrap; }
+.note-title { margin: 0; font-size: 15px; color: #1f2329; overflow-wrap: break-word; }
 .note-sub { margin: 4px 0 0; font-size: 12px; color: #8a9099; }
 .note-list { display: flex; flex-direction: column; gap: 10px; }
 .note-item { border: 1px solid #eceff3; border-radius: 10px; padding: 12px 14px; background: #fafbfc; }
@@ -391,6 +395,9 @@ loadLiterature()
 }
 .modal-box { background: #fff; border-radius: 12px; padding: 24px; width: 460px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
 .modal-box.wide { width: 600px; max-height: 86vh; overflow-y: auto; }
+/* 笔记弹窗：容器高度不超过 86vh，输入框拖拽上限 320px，弹窗不会超出程序窗口 */
+.note-box { max-height: 86vh; overflow-y: auto; }
+.note-box textarea { max-height: 320px; }
 .modal-title { margin: 0 0 18px; font-size: 16px; color: #1f2329; }
 .form-item { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .form-row { display: flex; gap: 14px; }

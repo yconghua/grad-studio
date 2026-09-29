@@ -96,6 +96,22 @@ async function submit(payload = {}) {
       return { success: false, message: '仅草稿状态的周报可提交' }
     }
     const affected = await weeklyReportRepository.submit(id, studentId)
+    // 站内通知：告知学生的导师「周报待批阅」，形成「提交 → 导师知晓」闭环
+    try {
+      const mentorRel = await mentorStudentRepository.findByStudent(studentId)
+      if (mentorRel && mentorRel.mentor_id) {
+        messageService.sendMessage({
+          receiverId: mentorRel.mentor_id,
+          msgType: 'weekly',
+          title: '周报待批阅',
+          content: `学生提交了周报${record.title ? `「${String(record.title).trim()}」` : ''}，请批阅`,
+          refType: 'weekly',
+          refId: id
+        })
+      }
+    } catch (err) {
+      console.error('[weeklyService.submit] 通知发送失败:', err)
+    }
     return { success: true, data: { affected }, message: '周报已提交' }
   } catch (err) {
     console.error('[weeklyService.submit] 数据库异常:', err)

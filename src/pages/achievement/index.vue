@@ -3,6 +3,7 @@
     <div class="header-card">
       <div class="header-left">
         <h2 class="page-title">🏆 科研成果</h2>
+        <p class="page-desc">学生申报科研成果与论文投稿，导师审核归档。</p>
       </div>
       <div class="header-right">
         <button v-if="tab === 'ach' && !isManager" class="btn btn-primary" @click="openAchModal()">
@@ -523,8 +524,9 @@ onMounted(() => {
   background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;
   box-shadow: 0 2px 8px rgba(15, 35, 80, 0.05);
 }
-.header-left { display: flex; align-items: center; gap: 16px; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 
 .tab-bar { display: flex; gap: 8px; margin-bottom: 12px; }
 .tab-btn {

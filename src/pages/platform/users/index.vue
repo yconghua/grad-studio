@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="page-head">
-      <div>
+      <div class="header-left">
         <h2 class="page-title">👤 用户管理</h2>
         <p class="page-desc">维护平台全部登录账号（仅超级管理员可见）</p>
       </div>
@@ -401,9 +401,10 @@ onMounted(loadList)
 
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 16px; }
-.page-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.page-head { display: flex; justify-content: space-between; align-items: center; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: #8a9099; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .head-actions { display: flex; gap: 10px; }
 
 .card {

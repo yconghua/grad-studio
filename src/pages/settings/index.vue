@@ -1,7 +1,10 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2 class="page-title">⚙️ 课题组设置</h2>
+      <div class="header-left">
+        <h2 class="page-title">⚙️ 课题组设置</h2>
+        <p class="page-desc">维护课题组基本信息与配置项（仅课题组管理员）。</p>
+      </div>
       <div class="ph-right">
         <button class="btn btn-primary" :disabled="saving" @click="onSave">
           {{ saving ? '保存中…' : '保存全部配置' }}
@@ -146,7 +149,9 @@ onMounted(() => {
 
 <style scoped>
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { font-size: 18px; font-weight: 600; color: #1f2329; margin: 0; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 .ph-right { display: flex; align-items: center; gap: 10px; }
 
 .card {

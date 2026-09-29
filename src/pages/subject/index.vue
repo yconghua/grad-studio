@@ -3,6 +3,7 @@
     <div class="header-card">
       <div class="header-left">
         <h2 class="page-title">🔬 课题管理</h2>
+        <p class="page-desc">管理本课题组研究课题与成员（课题组管理员、导师可维护）。</p>
       </div>
       <div class="header-right">
         <button class="btn btn-primary" @click="openSubjectModal()">＋ 新增课题</button>
@@ -339,8 +340,9 @@ watch(currentGroupId, () => {
   background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;
   box-shadow: 0 2px 8px rgba(15, 35, 80, 0.05);
 }
-.header-left { display: flex; align-items: center; gap: 16px; }
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
 .page-title { margin: 0; font-size: 18px; color: #1f2329; }
+.page-desc { margin: 0 0 3px; font-size: 13px; color: #8a9099; }
 
 .card {
   background: #fff; border-radius: 12px; padding: 8px;

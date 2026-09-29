@@ -1,7 +1,8 @@
 /**
  * 学位服务（Service Layer）—— 学位节点定义 + 学生学位记录
  *
- * 权限：仅课题组管理员（group_admin）与导师（mentor）可读写。
+ * 权限：节点与记录的管理（增删改）仅课题组管理员（group_admin）与导师（mentor）；
+ *   节点列表与本人记录对学生开放只读（学生可查看自己的培养进度）。
  * 节点 / 记录均按 group_id 隔离；学生记录以 (student_id, node_id) 唯一 upsert。
  * 导师只能查看 / 维护名下学生（mentor_student 关系）的学位记录，组管可维护全组。
  */
@@ -10,7 +11,7 @@ const degreeNodeRepository = require('../db/repositories/degreeNodeRepository')
 const studentDegreeRepository = require('../db/repositories/studentDegreeRepository')
 const mentorStudentRepository = require('../db/repositories/mentorStudentRepository')
 const operationLogService = require('./operationLogService')
-const { ROLE_MENTOR } = require('../../shared/constants')
+const { ROLE_MENTOR, ROLE_STUDENT } = require('../../shared/constants')
 
 // 学位模块管理角色：组管 / 导师
 function canManage() {
@@ -25,9 +26,9 @@ async function mentorStudentIds() {
 }
 
 // degree:list-nodes —— 按 group_id 列出学位节点（node_order 升序）
+// 登录即可：组管 / 导师用于维护，学生用于查看自己的培养节点定义
 async function listNodes(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
-  if (!canManage()) return { success: false, message: '无权限：仅课题组管理员与导师可查看学位节点' }
   const groupId = payload && payload.group_id
   if (!groupId) return { success: false, message: '缺少课题组标识（group_id）' }
   try {
@@ -85,18 +86,28 @@ async function removeNode(payload) {
 }
 
 // degree:list-records —— 按 group_id 列出学生学位记录，可按 student_id 过滤。
-// 导师仅能看到名下学生的记录；组管看全组。
+// 学生仅可查看本人记录（强制 student_id = 当前用户）；导师仅能看到名下学生的记录；组管看全组。
 async function listRecords(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
-  if (!canManage()) return { success: false, message: '无权限：仅课题组管理员与导师可查看学位记录' }
   const groupId = payload && payload.group_id
   if (!groupId) return { success: false, message: '缺少课题组标识（group_id）' }
   try {
+    if (permission.currentRole() === ROLE_STUDENT) {
+      // 学生只读：仅本人记录，忽略传入的 student_id 防止越权查看他人
+      const data = await studentDegreeRepository.listByGroup(groupId, permission.currentUserId())
+      return { success: true, data }
+    }
+    if (!canManage()) return { success: false, message: '无权限：仅课题组管理员与导师可查看学位记录' }
     const ids = await mentorStudentIds()
     if (ids) {
       // 导师：指定学生不在名下时拒绝；不指定则只看名下学生
       if (payload.student_id && !ids.has(Number(payload.student_id))) {
         return { success: false, message: '无权限：只能查看名下学生的学位记录' }
+      }
+      // 指定学生时仅返回该学生的记录，避免混入名下其他学生的记录
+      if (payload.student_id) {
+        const data = await studentDegreeRepository.listByGroup(groupId, payload.student_id)
+        return { success: true, data }
       }
       const data = await studentDegreeRepository.listByStudents(groupId, [...ids])
       return { success: true, data }

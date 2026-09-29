@@ -70,6 +70,12 @@ const routes = [
         meta: { title: '个人资料' }
       },
       {
+        path: 'my-messages',
+        name: 'my-messages',
+        component: () => import('../pages/my-messages/index.vue'),
+        meta: { title: '我的消息' }
+      },
+      {
         path: 'profile/password',
         name: 'profile-password',
         component: ProfilePasswordView,
@@ -101,10 +107,11 @@ async function checkBackendSession() {
   }
 }
 
-// 登录后落地页：未加入任何课题组的导师/学生 → 测试内容页，其余角色 → 工作台
+// 登录后落地页：未加入课题组的导师/学生 → 测试内容页；其余（含课题组管理员）→ 工作台
 async function resolveDefaultPath() {
   const u = getSessionUser()
-  if (u && (u.role === ROLE_MENTOR || u.role === ROLE_STUDENT)) {
+  if (!u) return defaultNavPath
+  if (u.role === ROLE_MENTOR || u.role === ROLE_STUDENT) {
     await loadGroups()
     if (groups.value.length === 0) return noGroupOnlyNavPath
   }
@@ -137,16 +144,16 @@ router.beforeEach(async (to) => {
       return '/force-password'
     }
   }
-  // 角色权限：meta.roles 数组与当前角色不匹配 → 打回默认首页
+  // 角色权限：meta.roles 数组与当前角色不匹配 → 打回该角色默认落地页
   const roles = to.meta && to.meta.roles
   if (Array.isArray(roles) && roles.length) {
     const u = getSessionUser()
     const r = u && u.role
     if (!r || !isRoleAllowed(roles, r)) {
-      return defaultNavPath
+      return await resolveDefaultPath()
     }
   }
-  // 未加入课题组的导师/学生：工作台非其默认落地页，改跳测试内容页
+  // 默认落地页非工作台的角色（未入组导师学生）：访问工作台时改跳各自落地页
   const home = await resolveDefaultPath()
   if (to.path === defaultNavPath && home !== defaultNavPath) {
     return home
