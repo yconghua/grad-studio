@@ -164,14 +164,14 @@ function register(ipcMain) {
     return updateService.quitAndInstall()
   })
 
-  // 打开外部链接（仅允许 GitHub 域名）：供用户需要时手动前往 Release 下载页兜底；需登录。
-  // 白名单校验：只放行 github.com 的 https 链接，避免被用于任意外链跳转。
+  // 打开外部链接（仅允许 GitHub 域名与已配置更新镜像域名）：供用户需要时手动前往 Release 下载页兜底；需登录。
+  // 白名单校验由 updateService.isAllowedExternalUrl 统一提供（与更新通道配置同源），避免被用于任意外链跳转。
   ipcMain.handle('sys:open-external', async (_evt, payload) => {
     if (!authService.getCurrentUser()) {
       return { success: false, message: '未登录，请重新登录' }
     }
     const url = payload && payload.url
-    if (!url || typeof url !== 'string' || !/^https:\/\/github\.com\//i.test(url)) {
+    if (!updateService.isAllowedExternalUrl(url)) {
       return { success: false, message: '链接不合法' }
     }
     try {

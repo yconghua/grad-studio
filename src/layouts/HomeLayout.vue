@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="home-layout">
     <!-- 顶部全局导航：品牌 + 全局搜索框 + 消息铃铛 + 头像下拉菜单 -->
     <header class="home-header">
@@ -536,6 +536,7 @@ const updateSpeed = ref(0) // bytes/s
 const updateEta = ref(null) // 剩余秒数
 const updateTransferred = ref(0)
 const updateTotal = ref(0)
+const updateSource = ref('') // 当前更新源名称（官方源/镜像源）
 const updateDialogVisible = ref(false) // 更新实时状态弹窗是否可见
 let updateChecking = false
 let updateReadyAsked = false // 防止 downloaded 事件与 checkUpdate 返回并发触发两次确认弹窗
@@ -551,7 +552,8 @@ const updateSnapshot = computed(() => ({
   speed: updateSpeed.value,
   eta: updateEta.value,
   transferred: updateTransferred.value,
-  total: updateTotal.value
+  total: updateTotal.value,
+  source: updateSource.value
 }))
 
 // 红点提示文案：下载中 / 已就绪 / 发现新版本
@@ -589,6 +591,7 @@ function handleUpdateState(payload) {
   updateEta.value = payload.eta != null ? payload.eta : null
   updateTransferred.value = payload.transferred || 0
   updateTotal.value = payload.total || 0
+  if (payload.source) updateSource.value = payload.source
   if (payload.status === 'available' || payload.status === 'downloading') {
     updateAvailable.value = true
   } else if (payload.status === 'error') {

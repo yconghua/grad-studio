@@ -9,6 +9,9 @@
         <span class="status-text">{{ statusText }}</span>
       </div>
 
+      <!-- 当前更新源 -->
+      <div v-if="source" class="source-line">更新源：{{ source }}</div>
+
       <!-- 下载进度 -->
       <div v-if="status === 'downloading'" class="progress-area">
         <div class="progress-track">
@@ -58,6 +61,7 @@ const speed = ref(0)
 const eta = ref(null)
 const transferred = ref(0)
 const total = ref(0)
+const source = ref('')
 let offUpdateState = null
 
 function apply(p) {
@@ -70,6 +74,7 @@ function apply(p) {
   eta.value = p.eta != null ? Number(p.eta) : null
   transferred.value = Number(p.transferred) || 0
   total.value = Number(p.total) || 0
+  if (p.source) source.value = p.source
 }
 
 function handleState(payload) {
@@ -162,6 +167,7 @@ function fmtEta(sec) {
 .status-icon.st-downloaded, .status-icon.st-idle { background: #19a558; }
 .status-icon.st-error { background: #ea4335; }
 .status-text { font-size: 14px; color: #1f2329; }
+.source-line { font-size: 12px; color: #86909c; margin-bottom: 12px; }
 
 .progress-area { margin: 8px 0 4px; }
 .progress-track {
