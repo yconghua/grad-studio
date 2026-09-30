@@ -789,8 +789,8 @@ onUnmounted(() => {
 .user-caret { font-size: 11px; color: #8a9099; transition: transform 0.2s; }
 .user-caret.open { transform: rotate(180deg); }
 .user-dropdown {
-  /* 同时设定 left/right 使下拉框宽度与头像+账号芯片一致，min-width 防止短用户名时菜单过窄 */
-  position: absolute; top: 42px; left: 0; right: 0; min-width: 160px;
+  /* 固定宽度 + 右对齐：宽度不随用户名长度伸缩，右侧对齐头像芯片，徽章/红点不会挤出右边界 */
+  position: absolute; top: 42px; right: 0; max-width: 145px;
   background: #fff; border: 1px solid #eceff3; border-radius: 10px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14); padding: 6px; z-index: 400;
 }
