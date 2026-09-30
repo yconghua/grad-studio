@@ -14,6 +14,9 @@
  *     组内关联数据（导师-学生关系、学位记录、任务与进展、组会汇报、课题成员、
  *     成员记录本身）。该成员的个人数据（周报 / 日志 / 文献 / 成果 / 档案）
  *     与账号保留（成员只是离组，账号仍可登录使用）。
+ *   - resetPersonalDataTx(userId)：学生 / 导师重新入组时（含替换课题组）在入组事务内
+ *     软删其名下个人数据（周报 / 日志 / 文献 / 笔记 / 成果 / 论文 / 档案），
+ *     实现「入组即新人」——移除时保留的旧组历史不随成员身份恢复而复活。
  *
  * 说明：系统约束「学生 / 导师账号仅属于一个课题组」（memberService.add 校验），
  * 故按 user_id 单字段软删即等价于组内清理，不会误伤其他组；
@@ -103,6 +106,26 @@ async function softRemoveMemberTx({ userGroupId, groupId, userId }) {
 }
 
 /**
+ * 重新入组重置个人数据（事务内执行体，不自行开启事务）：
+ * 学生 / 导师重新加入（或替换）课题组时调用，软删其名下个人数据，
+ * 保证「入组即新人」——移除时保留的周报 / 日志 / 文献 / 成果 / 论文 / 档案不随身份恢复复活。
+ * 组管账号不调用（可属多组，清理会误伤其跨组数据）。
+ * @param {{ userId: number }} param
+ * @returns {Promise<Object>} counts 各表软删行数
+ */
+async function resetPersonalDataTx({ userId }) {
+  const c = {}
+  c.weeklyReports = await weeklyReportRepository.softDeleteByField('student_id', userId)
+  c.researchLogs = await researchLogRepository.softDeleteByField('student_id', userId)
+  c.literatures = await literatureRepository.softDeleteByField('user_id', userId)
+  c.literatureNotes = await literatureNoteRepository.softDeleteByField('user_id', userId)
+  c.achievements = await achievementRepository.softDeleteByField('user_id', userId)
+  c.papers = await paperRepository.softDeleteByField('user_id', userId)
+  c.archives = await archiveRecordRepository.softDeleteByField('user_id', userId)
+  return c
+}
+
+/**
  * 移除成员：事务内软删成员记录本身 + 该成员在本组的组内关联数据。
  * @param {{ userGroupId: number, groupId: number, userId: number }} param
  *        userGroupId 成员记录 id（user_group 表）；groupId / userId 用于组内关联清理
@@ -121,5 +144,6 @@ async function softRemoveMember({ userGroupId, groupId, userId }) {
 module.exports = {
   softDeleteUser,
   softRemoveMemberTx,
-  softRemoveMember
+  softRemoveMember,
+  resetPersonalDataTx
 }

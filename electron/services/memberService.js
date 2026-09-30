@@ -3,6 +3,7 @@
  *
  * 组管理员维护本组成员：列表 / 添加 / 改角色状态 / 移除。
  * 列表联 user 表取 username / role；唯一索引 (user_id, group_id) 防重复入组。
+ * 学生 / 导师重新入组（或替换课题组）按新人处理：入组事务内清空其名下历史个人数据。
  */
 const permission = require('./permission')
 const userGroupRepository = require('../db/repositories/userGroupRepository')
@@ -51,12 +52,12 @@ async function add(payload) {
         return { success: false, message: `${who}已属于课题组「${other.group_name || ('#' + other.group_id)}」，${who}不能重复加入` }
       }
     }
-    const id = await addOrRestoreMembership(user_id, group_id, role, payload && payload.remark)
+    const { id, reset } = await addOrRestoreMembership(user_id, group_id, role, payload && payload.remark)
     operationLogService.writeLog({
       action: 'addMember',
       targetType: 'user_group',
       targetId: id,
-      detail: `添加成员 ${user_id} 至课题组 ${group_id}（角色 ${role}）`
+      detail: `添加成员 ${user_id} 至课题组 ${group_id}（角色 ${role}${reset && Object.values(reset).some((v) => v > 0) ? '，入组清空历史个人数据 ' + JSON.stringify(reset) : ''}）`
     })
     return { success: true, message: '成员已添加', id }
   } catch (err) {
@@ -149,12 +150,12 @@ async function adminAdd(payload) {
         return { success: false, message: `${who}已属于课题组「${other.group_name || ('#' + other.group_id)}」，请使用「替换课题组」操作` }
       }
     }
-    const id = await addOrRestoreMembership(user_id, group_id, role, payload && payload.remark)
+    const { id, reset } = await addOrRestoreMembership(user_id, group_id, role, payload && payload.remark)
     operationLogService.writeLog({
       action: 'addMember',
       targetType: 'user_group',
       targetId: id,
-      detail: `超级管理员将用户 ${user_id}（${targetUser.username}）加入课题组 ${group_id}（角色 ${role}）`
+      detail: `超级管理员将用户 ${user_id}（${targetUser.username}）加入课题组 ${group_id}（角色 ${role}${reset && Object.values(reset).some((v) => v > 0) ? '，入组清空历史个人数据 ' + JSON.stringify(reset) : ''}）`
     })
     return { success: true, message: '已加入课题组', id }
   } catch (err) {
@@ -208,7 +209,7 @@ async function adminReplace(payload) {
     // 当前在组记录（导师 / 学生仅一个组，排除新组后即为旧组）
     const old = await userGroupRepository.findActiveInOtherGroup(user_id, group_id)
     const role = targetUser.role === 'mentor' ? 'mentor' : 'student'
-    const id = await runTransaction(async () => {
+    const { id, reset } = await runTransaction(async () => {
       if (old) {
         await userCascadeService.softRemoveMemberTx({
           userGroupId: old.id,
@@ -216,13 +217,13 @@ async function adminReplace(payload) {
           userId: user_id
         })
       }
-      return await addOrRestoreMembership(user_id, group_id, role, payload && payload.remark)
+      return await addOrRestoreMembershipTx(user_id, group_id, role, payload && payload.remark)
     })
     operationLogService.writeLog({
       action: 'replaceGroup',
       targetType: 'user_group',
       targetId: id,
-      detail: `超级管理员将用户 ${user_id}（${targetUser.username}）由课题组 ${old ? old.group_id : '无'} 替换至课题组 ${group_id}（角色 ${role}）`
+      detail: `超级管理员将用户 ${user_id}（${targetUser.username}）由课题组 ${old ? old.group_id : '无'} 替换至课题组 ${group_id}（角色 ${role}${reset && Object.values(reset).some((v) => v > 0) ? '，入组清空历史个人数据 ' + JSON.stringify(reset) : ''}）`
     })
     return { success: true, message: '已替换课题组', id }
   } catch (err) {
@@ -231,9 +232,12 @@ async function adminReplace(payload) {
   }
 }
 
-// 写入归属记录：存在软删 / 离组旧记录时恢复为在组（唯一索引对软删记录仍生效，直接新建会撞唯一键），否则新建
-async function addOrRestoreMembership(userId, groupId, role, remark) {
+// 写入归属记录（事务内执行体）：存在软删 / 离组旧记录时恢复为在组（唯一索引对软删记录仍生效，直接新建会撞唯一键），否则新建。
+// 学生 / 导师入组即新人：同一事务内软删其名下个人数据（周报 / 日志 / 文献 / 笔记 / 成果 / 论文 / 档案），
+// 避免移除时保留的个人数据随成员身份恢复而复活；组管可属多组，不清理。返回 { id, reset }（reset 为清理行数或 null）。
+async function addOrRestoreMembershipTx(userId, groupId, role, remark) {
   const any = await userGroupRepository.findAnyByUserAndGroup(userId, groupId)
+  let id
   if (any) {
     await userGroupRepository.restore(any.id, {
       role_in_group: role,
@@ -242,11 +246,22 @@ async function addOrRestoreMembership(userId, groupId, role, remark) {
       left_at: null,
       remark: remark || undefined
     })
-    return any.id
+    id = any.id
+  } else {
+    const data = userGroupRepository.pick({ user_id: userId, group_id: groupId, role_in_group: role, remark })
+    data.joined_at = new Date()
+    id = await userGroupRepository.create(data)
   }
-  const data = userGroupRepository.pick({ user_id: userId, group_id: groupId, role_in_group: role, remark })
-  data.joined_at = new Date()
-  return await userGroupRepository.create(data)
+  let reset = null
+  if (role === 'student' || role === 'mentor') {
+    reset = await userCascadeService.resetPersonalDataTx({ userId })
+  }
+  return { id, reset }
+}
+
+// 非事务入口：包一层事务（adminReplace 已在事务内，直接调用 addOrRestoreMembershipTx 避免嵌套事务）
+async function addOrRestoreMembership(userId, groupId, role, remark) {
+  return await runTransaction(() => addOrRestoreMembershipTx(userId, groupId, role, remark))
 }
 
 module.exports = { list, add, update, remove, adminAdd, adminRemove, adminReplace }
