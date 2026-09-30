@@ -11,10 +11,6 @@
     <div class="card">
       <div class="card-head">
         <h3 class="card-title">🖥️ 系统信息</h3>
-        <div class="uptime">
-          <div class="uptime-value">{{ uptimeText || '—' }}</div>
-          <div class="uptime-label">已连续运行</div>
-        </div>
       </div>
       <div v-if="loading" class="state">加载中…</div>
       <div v-else class="info-grid">
@@ -71,7 +67,7 @@
         <span class="info-label">项目仓库</span>
         <button class="link" @click="onOpenRepo">github.com/yconghua/grad-studio ↗</button>
       </div>
-      <div class="copyright">© 2026 grad-studio · MIT License</div>
+      <div class="license-row"><span class="info-label">版权</span><span class="info-value">© 2026 grad-studio · MIT License</span></div>
     </div>
 
     <!-- 卸载应用 -->
@@ -92,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import {
   getSysInfo,
   getDbInfo,
@@ -116,24 +112,6 @@ const uninstalling = ref(false)
 
 const techStack = ['Vue 3', 'Electron', 'MySQL', 'Ant Design Vue']
 const REPO_URL = 'https://github.com/yconghua/grad-studio'
-
-// 已连续运行时长：由主进程返回的启动时间实时计算，异常输入兜底为空
-const uptimeText = computed(() => calcRuntime(sysInfo.value.startedAt))
-
-function calcRuntime(startedAt) {
-  if (!startedAt) return ''
-  const start = new Date(startedAt)
-  if (isNaN(start.getTime())) return ''
-  const ms = Date.now() - start.getTime()
-  if (ms < 0) return ''
-  const totalMinutes = Math.floor(ms / 60000)
-  const days = Math.floor(totalMinutes / 1440)
-  const hours = Math.floor((totalMinutes % 1440) / 60)
-  const minutes = totalMinutes % 60
-  if (days > 0) return `${days} 天 ${hours} 小时`
-  if (hours > 0) return `${hours} 小时 ${minutes} 分钟`
-  return `${minutes} 分钟`
-}
 
 function formatTime(ts) {
   if (!ts) return '—'
@@ -229,10 +207,6 @@ onMounted(load)
 .db-error { margin: 10px 0 0; color: #ea4335; font-size: 12px; }
 .uninstall-tip { margin: 0 0 14px; font-size: 13px; line-height: 1.7; color: #7a1f1f; }
 
-.uptime { text-align: right; }
-.uptime-value { font-size: 26px; font-weight: 700; color: #0d80e0; line-height: 1.1; white-space: nowrap; }
-.uptime-label { font-size: 12px; color: #8a9099; margin-top: 2px; }
-
 .btn { height: 34px; padding: 0 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid #dfe3e8; background: #fff; color: #1f2329; }
 .btn-secondary:hover { border-color: #0d80e0; color: #0d80e0; }
 .btn-danger { border-color: #c0341d; color: #c0341d; }
@@ -246,5 +220,4 @@ onMounted(load)
 .license-row { display: flex; gap: 10px; font-size: 13px; line-height: 1.9; }
 .link { background: none; border: none; color: #0d80e0; cursor: pointer; font-size: 13px; padding: 0; }
 .link:hover { text-decoration: underline; }
-.copyright { margin-top: 16px; text-align: center; font-size: 12px; color: #b8bec4; }
 </style>
