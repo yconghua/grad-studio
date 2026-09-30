@@ -147,6 +147,15 @@
         </div>
       </div>
     </div>
+
+    <!-- 检查更新实时状态弹窗：点击检查更新立即弹出，状态随 update:state 实时刷新 -->
+    <UpdateDialog
+      v-if="updateDialogVisible"
+      :snapshot="updateSnapshot"
+      @close="updateDialogVisible = false"
+      @retry="onUpdateRetry"
+      @install="onUpdateInstall"
+    />
   </div>
 </template>
 
@@ -180,6 +189,7 @@ import { visibleNavItems } from '../config/navConfig'
 import { useSession } from '../composables/useSession'
 import { useGroupContext } from '../composables/useGroupContext'
 import { useAppName } from '../composables/useAppName'
+import UpdateDialog from '../components/UpdateDialog.vue'
 import logoUrl from '../assets/logo.ico'
 
 const { clearSession, getSessionUser } = useSession()
@@ -498,15 +508,33 @@ watch(searchKeyword, (kw) => {
 
 // ===== 顶部：检查更新（应用内自动下载/安装）=====
 // 主进程 electron-updater 驱动：发现新版本自动后台下载，状态经 onUpdateState 推送；
-// 下载完成后弹确认，用户确认后静默安装到首次安装目录并自动重启。
+// 点击「检查更新」立即弹出 UpdateDialog 实时状态窗；弹窗关闭时，下载完成/出错仍由下方逻辑兜底提示。
 const updateAvailable = ref(false)
 const updateStatus = ref('idle') // idle | checking | available | downloading | downloaded | installing | error
 const updateProgress = ref(0)
 const updateLatest = ref('')
+const updateMessage = ref('')
+const updateSpeed = ref(0) // bytes/s
+const updateEta = ref(null) // 剩余秒数
+const updateTransferred = ref(0)
+const updateTotal = ref(0)
+const updateDialogVisible = ref(false) // 更新实时状态弹窗是否可见
 let updateChecking = false
 let updateReadyAsked = false // 防止 downloaded 事件与 checkUpdate 返回并发触发两次确认弹窗
 let updateErrorNotified = false // 下载中途出错只提示一次，避免事件重复触发弹窗
 let offUpdateState = null
+
+// 弹窗初始快照：打开瞬间把当前状态一次性传给弹窗（此后弹窗自订阅实时刷新）
+const updateSnapshot = computed(() => ({
+  status: updateStatus.value,
+  progress: updateProgress.value,
+  latest: updateLatest.value,
+  message: updateMessage.value,
+  speed: updateSpeed.value,
+  eta: updateEta.value,
+  transferred: updateTransferred.value,
+  total: updateTotal.value
+}))
 
 // 红点提示文案：下载中 / 已就绪 / 发现新版本
 const updateDotTitle = computed(() => {
@@ -531,23 +559,29 @@ async function askInstallNow() {
   }
 }
 
-// 订阅主进程更新状态：下载进度实时展示，下载完成/出错弹窗反馈
+// 订阅主进程更新状态：实时展示进度/速度/剩余时间；弹窗打开时由弹窗内展示，
+// 弹窗关闭时下载完成/出错仍兜底提示
 function handleUpdateState(payload) {
   if (!payload) return
   updateStatus.value = payload.status || 'idle'
   updateProgress.value = payload.progress || 0
   if (payload.latest) updateLatest.value = payload.latest
+  if (payload.message) updateMessage.value = payload.message
+  updateSpeed.value = payload.speed || 0
+  updateEta.value = payload.eta != null ? payload.eta : null
+  updateTransferred.value = payload.transferred || 0
+  updateTotal.value = payload.total || 0
   if (payload.status === 'available' || payload.status === 'downloading') {
     updateAvailable.value = true
   } else if (payload.status === 'error') {
     updateAvailable.value = false
-    if (!updateErrorNotified) {
+    if (!updateDialogVisible.value && !updateErrorNotified) {
       updateErrorNotified = true
       dialogAlert(`更新失败：${payload.message || '未知错误'}`)
     }
   } else if (payload.status === 'downloaded') {
     updateAvailable.value = true
-    askInstallNow()
+    if (!updateDialogVisible.value) askInstallNow()
   }
 }
 
@@ -560,22 +594,23 @@ async function checkUpdate(silent = false) {
     const res = await checkForUpdates()
     if (!res || !res.success) {
       updateAvailable.value = false
-      if (!silent) dialogAlert((res && res.message) || '检查更新失败')
+      // 弹窗打开时错误已在弹窗内展示，不再重复弹系统提示
+      if (!silent && !updateDialogVisible.value) dialogAlert((res && res.message) || '检查更新失败')
       return
     }
     if (res.hasUpdate) {
       updateAvailable.value = true
       if (res.latest) updateLatest.value = res.latest
       // 下载完成提示统一由 update:state 的 downloaded 分支处理；
-      // 若订阅尚未建立（下载瞬间完成），这里兜底询问一次
-      if (!updateReadyAsked) askInstallNow()
+      // 弹窗未打开且订阅尚未建立（下载瞬间完成）时，这里兜底询问一次
+      if (!updateDialogVisible.value && !updateReadyAsked) askInstallNow()
     } else {
       updateAvailable.value = false
-      if (!silent) dialogAlert(`当前已是最新版本 v${res.current}`)
+      if (!silent && !updateDialogVisible.value) dialogAlert(`当前已是最新版本 v${res.current}`)
     }
   } catch (e) {
     updateAvailable.value = false
-    if (!silent) dialogAlert('检查更新失败，请检查网络后重试')
+    if (!silent && !updateDialogVisible.value) dialogAlert('检查更新失败，请检查网络后重试')
   } finally {
     updateChecking = false
   }
@@ -583,11 +618,23 @@ async function checkUpdate(silent = false) {
 
 function onCheckUpdate() {
   userMenuOpen.value = false
+  // 立即弹出实时状态窗，不等待检查结果；状态随后续 update:state 推送实时刷新
+  updateDialogVisible.value = true
   if (updateStatus.value === 'downloaded') {
-    askInstallNow()
-    return
+    return // 弹窗内显示安装按钮，无需重复检查
   }
   checkUpdate(false)
+}
+
+// 弹窗内「重试」：重新发起检查更新
+function onUpdateRetry() {
+  checkUpdate(false)
+}
+
+// 弹窗内「立即安装」：直接触发静默安装并重启（弹窗内已确认，不再二次确认）
+async function onUpdateInstall() {
+  const r = await installUpdate()
+  if (!r || !r.success) dialogAlert((r && r.message) || '启动安装失败')
 }
 
 // ===== 退出登录 =====

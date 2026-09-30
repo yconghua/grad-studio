@@ -21,7 +21,11 @@ const state = {
   status: 'idle', // idle | checking | available | downloading | downloaded | installing | error
   latest: '',
   progress: 0, // 0-100，保留一位小数
-  message: ''
+  message: '',
+  speed: 0, // 下载速度 bytes/s（download-progress 实时值，非下载态为 0）
+  eta: null, // 剩余秒数（按当前速度推算，速度未知时为 null）
+  transferred: 0, // 已下载字节
+  total: 0 // 总字节
 }
 
 let initialized = false
@@ -47,28 +51,55 @@ function init() {
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = false
   autoUpdater.allowPrerelease = false
-  autoUpdater.on('checking-for-update', () => setState({ status: 'checking', message: '' }))
+  // 检查 / 错误等非下载态：清空上一次下载的速度与进度信息，避免界面残留旧值
+  autoUpdater.on('checking-for-update', () =>
+    setState({ status: 'checking', message: '', progress: 0, speed: 0, eta: null, transferred: 0, total: 0 })
+  )
   autoUpdater.on('update-available', (info) =>
     setState({ status: 'available', latest: String((info && info.version) || '') })
   )
-  autoUpdater.on('update-not-available', () => setState({ status: 'idle', latest: '' }))
-  autoUpdater.on('download-progress', (p) =>
+  autoUpdater.on('update-not-available', () =>
+    setState({ status: 'idle', latest: '', progress: 0, speed: 0, eta: null, transferred: 0, total: 0 })
+  )
+  autoUpdater.on('download-progress', (p) => {
+    const speed = Number((p && p.bytesPerSecond) || 0)
+    const total = Number((p && p.total) || 0)
+    const transferred = Number((p && p.transferred) || 0)
+    const remain = Math.max(0, total - transferred)
+    const eta = speed > 0 ? Math.ceil(remain / speed) : null
     setState({
       status: 'downloading',
-      progress: Math.round(((p && p.percent) || 0) * 10) / 10
+      progress: Math.round(((p && p.percent) || 0) * 10) / 10,
+      speed,
+      eta,
+      transferred,
+      total
+    })
+  })
+  autoUpdater.on('update-downloaded', (info) =>
+    setState({
+      status: 'downloaded',
+      latest: String((info && info.version) || state.latest),
+      progress: 100,
+      speed: 0,
+      eta: 0
     })
   )
-  autoUpdater.on('update-downloaded', (info) =>
-    setState({ status: 'downloaded', latest: String((info && info.version) || state.latest) })
-  )
   autoUpdater.on('error', (err) =>
-    setState({ status: 'error', message: (err && err.message) || String(err) })
+    setState({
+      status: 'error',
+      message: (err && err.message) || String(err),
+      speed: 0,
+      eta: null
+    })
   )
 }
 
 // 检查更新（autoDownload=true 时，有新版会一路自动下载，Promise 在下载完成后 resolve）
 async function checkForUpdates() {
   if (!app.isPackaged) {
+    // 开发模式同样推进状态机，前端实时状态窗可正常展示失败原因
+    setState({ status: 'error', message: '开发模式下不支持自动更新，请使用打包安装后的版本', speed: 0, eta: null })
     return { success: false, message: '开发模式下不支持自动更新，请使用打包安装后的版本' }
   }
   init()
