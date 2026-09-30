@@ -2,7 +2,7 @@
  * 路由层（IPC Layer）—— 系统管理相关路由（sys:* 前缀）
  *
  * 本模块负责「系统设置 / 数据库管理」两类前端能力：
- *   - 系统信息与运行环境：sys:info / sys:clear-cache / sys:user-data-path / sys:open-user-data-dir / sys:app-path / sys:open-app-dir / sys:open-devtools / sys:check-update / sys:uninstall
+ *   - 系统信息与运行环境：sys:info / sys:clear-cache / sys:user-data-path / sys:open-user-data-dir / sys:app-path / sys:open-app-dir / sys:open-devtools / sys:check-update / sys:update-install / sys:uninstall
  *   - 数据库管理：sys:db-info / sys:tables-info / sys:db-connections / sys:switch-db / sys:add-db / sys:delete-db / sys:export-db
  * 路由只做转发与必要的登录态判定（sys:info 等需登录，sys:db-info 不要求登录供登录页展示），真正的业务落到 connectionService；
  * 系统名称 / 版本号来自 package.json（写活不硬编码）。不在此处写 SQL。
@@ -17,35 +17,16 @@ const appPkg = require('../../package.json')
 const connectionService = require('../services/connectionService')
 const authService = require('../services/authService')
 const systemParamRepository = require('../db/repositories/systemParamRepository')
+const updateService = require('../services/updateService')
 
 const DEFAULT_APP_NAME = '课题组科研管理平台'
 
 // 应用启动时间戳：模块加载时机≈主进程启动，供「运行时长」计算
 const STARTED_AT = Date.now()
 
-// ===== 手动检查更新（版本更新源配置）=====
-// 框架源码会分发给使用者各自发布：把下面 owner/repo 改成自己的 GitHub 仓库即可，
-// 「系统管理 → 关于 → 版本号（检查更新）」会指向该仓库的 GitHub Releases。
-// 注意：
-//   1. 该仓库必须为【公开】仓库——检查更新通过 GitHub 匿名只读 API 拉取最新 Release，
-//      私有仓库匿名访问会返回 404（如需私有仓库支持，需另行扩展携带 Token 的请求头）；
-//   2. 发布新版本前，先把 package.json 的 version 升上去再推送 main，触发自动打包发版。
-const UPDATE_REPO = 'yconghua/grad-studio'
-// 请求超时兜底：国内直连 GitHub 不稳定，超时即返回「检查失败」，不阻塞界面
-const UPDATE_TIMEOUT_MS = 8000
-
-// 语义化版本三段比较：a > b 返回 1，a < b 返回 -1，相等返回 0。
-// 不能直接用字符串比较（如 '3.10.10' < '3.10.5' 会误判）；容忍可选的 v 前缀（如 v3.10.5）。
-function compareVersions(a, b) {
-  const pa = String(a).replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0)
-  const pb = String(b).replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0)
-  const len = Math.max(pa.length, pb.length)
-  for (let i = 0; i < len; i++) {
-    const diff = (pa[i] || 0) - (pb[i] || 0)
-    if (diff !== 0) return diff > 0 ? 1 : -1
-  }
-  return 0
-}
+// ===== 自动更新 =====
+// 更新源（GitHub Releases）配置在 package.json 的 build.publish（owner/repo），
+// 由 electron-updater 统一驱动检查、下载、安装，路由见 sys:check-update / sys:update-install。
 
 // 注册所有 sys:* 路由。ipcMain 由 main.js 传入。
 function register(ipcMain) {
@@ -166,59 +147,24 @@ function register(ipcMain) {
     return { success: true, message: '控制台已打开' }
   })
 
-  // 手动检查更新：查 GitHub Releases 最新版，与本地版本号（package.json）对比；需登录。
-  // 只读请求公网 API，不做任何下载 / 执行；渲染层拿结果后自行引导用户去下载页。
+  // 检查更新并自动下载：由 electron-updater 驱动，更新源为 package.json build.publish 的 GitHub 仓库。
+  // 发现新版本时后台自动下载；下载进度 / 完成 / 出错通过 update:state 事件推送给渲染层。
   ipcMain.handle('sys:check-update', async () => {
     if (!authService.getCurrentUser()) {
       return { success: false, message: '未登录，请重新登录' }
     }
-    const current = appPkg.version
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), UPDATE_TIMEOUT_MS)
-    try {
-      const res = await fetch(
-        `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`,
-        {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'grad-studio-update-check',
-            Accept: 'application/vnd.github+json'
-          }
-        }
-      )
-      if (res.status === 404) {
-        // 常见原因：仓库为私有（匿名 API 不可见）或尚未发布过任何 Release
-        return {
-          success: false,
-          message: '更新源不可用（HTTP 404）：请确认仓库已设为公开，且已发布过 GitHub Release'
-        }
-      }
-      if (!res.ok) {
-        return { success: false, message: `检查失败（服务器返回 ${res.status}），请稍后重试` }
-      }
-      const data = await res.json()
-      // GitHub 自动打的 tag 形如 v3.10.5，去掉前缀 v 再比较
-      const latest = String(data.tag_name || '').replace(/^v/i, '')
-      const hasUpdate = Boolean(latest) && compareVersions(latest, current) > 0
-      return {
-        success: true,
-        hasUpdate,
-        current,
-        latest,
-        // 变更说明来自公网，前端只做纯文本渲染（不 v-html），此处已截断长度
-        notes: String(data.body || '').slice(0, 2000),
-        url: data.html_url || `https://github.com/${UPDATE_REPO}/releases/latest`
-      }
-    } catch (err) {
-      const reason =
-        err && err.name === 'AbortError' ? '请求超时' : err && err.message ? err.message : '网络异常'
-      return { success: false, message: `检查失败：${reason}` }
-    } finally {
-      clearTimeout(timer)
-    }
+    return await updateService.checkForUpdates()
   })
 
-  // 打开外部链接（仅允许 GitHub 域名）：供「检查更新 → 前往下载页」用系统浏览器打开；需登录。
+  // 下载完成后安装并重启：静默安装到首次安装目录（NSIS 安装器从注册表恢复原安装位置），装完自动拉起新版本。
+  ipcMain.handle('sys:update-install', async () => {
+    if (!authService.getCurrentUser()) {
+      return { success: false, message: '未登录，请重新登录' }
+    }
+    return updateService.quitAndInstall()
+  })
+
+  // 打开外部链接（仅允许 GitHub 域名）：供用户需要时手动前往 Release 下载页兜底；需登录。
   // 白名单校验：只放行 github.com 的 https 链接，避免被用于任意外链跳转。
   ipcMain.handle('sys:open-external', async (_evt, payload) => {
     if (!authService.getCurrentUser()) {

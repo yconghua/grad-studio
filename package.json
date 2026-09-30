@@ -19,6 +19,7 @@
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
     "bcryptjs": "^2.4.3",
+    "electron-updater": "^6.3.9",
     "mysql2": "^3.11.0",
     "vue": "^3.4.27",
     "vue-router": "^4.3.2"
@@ -35,6 +36,11 @@
     "appId": "com.grad.studio",
     "productName": "grad_studio",
     "icon": "build/icon.ico",
+    "publish": {
+      "provider": "github",
+      "owner": "yconghua",
+      "repo": "grad-studio"
+    },
     "files": [
       "electron/**/*",
       "shared/**/*",

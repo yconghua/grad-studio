@@ -140,9 +140,19 @@ export function openDevTools() {
   return window.api.sys.openDevTools()
 }
 
-// 手动检查更新（GitHub Releases）
+// 检查更新（发现新版本后由主进程自动下载）
 export function checkForUpdates() {
   return window.api.sys.checkForUpdates()
+}
+
+// 下载完成后重启并安装更新
+export function installUpdate() {
+  return window.api.sys.installUpdate()
+}
+
+// 订阅更新状态推送（下载进度 / 下载完成 / 出错），返回取消订阅函数
+export function onUpdateState(callback) {
+  return window.api.sys.onUpdateState(callback)
 }
 
 // 卸载应用（启动 NSIS 卸载程序并退出；仅打包安装后可用）

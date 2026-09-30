@@ -96,8 +96,16 @@ contextBridge.exposeInMainWorld('api', {
     exportDb: createInvoke('sys:export-db'),
     openDevTools: createInvoke('sys:open-devtools'),
     checkForUpdates: createInvoke('sys:check-update'),
+    installUpdate: createInvoke('sys:update-install'),
     uninstall: createInvoke('sys:uninstall'),
     openExternal: createInvoke('sys:open-external'),
+    // 订阅主进程更新状态推送（update:state）：返回取消订阅函数
+    onUpdateState: (callback) => {
+      if (typeof callback !== 'function') return () => {}
+      const listener = (_evt, payload) => callback(payload)
+      ipcRenderer.on('update:state', listener)
+      return () => ipcRenderer.removeListener('update:state', listener)
+    },
     pickAttachment: createInvoke('sys:pick-attachment'),
     openAttachment: createInvoke('sys:open-attachment')
   },

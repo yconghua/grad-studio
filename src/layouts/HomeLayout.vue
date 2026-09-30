@@ -97,8 +97,10 @@
               <RouterLink class="dropdown-item" to="/help" @click="userMenuOpen = false">使用帮助</RouterLink>
               <RouterLink class="dropdown-item" to="/app-settings" @click="userMenuOpen = false">设置</RouterLink>
               <div class="dropdown-item update-item" @click="onCheckUpdate">
-                <span>检查更新</span>
-                <span v-if="updateAvailable" class="update-dot" title="发现新版本"></span>
+                <span v-if="updateStatus === 'downloading'">更新下载中 {{ updateProgress }}%</span>
+                <span v-else-if="updateStatus === 'downloaded'">立即重启安装新版本</span>
+                <span v-else>检查更新</span>
+                <span v-if="updateAvailable" class="update-dot" :title="updateDotTitle"></span>
               </div>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item danger" @click="onLogout">退出登录</button>
@@ -168,7 +170,8 @@ import {
   getNoticeUnreadCount,
   globalSearch,
   checkForUpdates,
-  openExternal,
+  installUpdate,
+  onUpdateState,
   getChatUnreadTotal,
   onChatPush
 } from '../api'
@@ -493,14 +496,66 @@ watch(searchKeyword, (kw) => {
   }, 300)
 })
 
-// ===== 顶部：检查更新（GitHub Releases）=====
+// ===== 顶部：检查更新（应用内自动下载/安装）=====
+// 主进程 electron-updater 驱动：发现新版本自动后台下载，状态经 onUpdateState 推送；
+// 下载完成后弹确认，用户确认后静默安装到首次安装目录并自动重启。
 const updateAvailable = ref(false)
+const updateStatus = ref('idle') // idle | checking | available | downloading | downloaded | installing | error
+const updateProgress = ref(0)
+const updateLatest = ref('')
 let updateChecking = false
+let updateReadyAsked = false // 防止 downloaded 事件与 checkUpdate 返回并发触发两次确认弹窗
+let updateErrorNotified = false // 下载中途出错只提示一次，避免事件重复触发弹窗
+let offUpdateState = null
+
+// 红点提示文案：下载中 / 已就绪 / 发现新版本
+const updateDotTitle = computed(() => {
+  if (updateStatus.value === 'downloading') return `更新下载中 ${updateProgress.value}%`
+  if (updateStatus.value === 'downloaded') return '新版本已就绪，点击安装'
+  return '发现新版本'
+})
+
+// 下载完成后的确认安装（用户取消后可再次触发）
+async function askInstallNow() {
+  if (updateReadyAsked) return
+  updateReadyAsked = true
+  const go = await dialogConfirm(
+    `新版本 v${updateLatest.value || ''} 已下载完成，是否立即重启并安装？`,
+    '更新就绪'
+  )
+  if (go) {
+    const r = await installUpdate()
+    if (!r || !r.success) dialogAlert((r && r.message) || '启动安装失败')
+  } else {
+    updateReadyAsked = false
+  }
+}
+
+// 订阅主进程更新状态：下载进度实时展示，下载完成/出错弹窗反馈
+function handleUpdateState(payload) {
+  if (!payload) return
+  updateStatus.value = payload.status || 'idle'
+  updateProgress.value = payload.progress || 0
+  if (payload.latest) updateLatest.value = payload.latest
+  if (payload.status === 'available' || payload.status === 'downloading') {
+    updateAvailable.value = true
+  } else if (payload.status === 'error') {
+    updateAvailable.value = false
+    if (!updateErrorNotified) {
+      updateErrorNotified = true
+      dialogAlert(`更新失败：${payload.message || '未知错误'}`)
+    }
+  } else if (payload.status === 'downloaded') {
+    updateAvailable.value = true
+    askInstallNow()
+  }
+}
 
 // 检查更新：silent=true 为启动静默检查（失败不打扰），手动点击时给完整反馈
 async function checkUpdate(silent = false) {
   if (updateChecking) return
   updateChecking = true
+  updateErrorNotified = false
   try {
     const res = await checkForUpdates()
     if (!res || !res.success) {
@@ -510,18 +565,10 @@ async function checkUpdate(silent = false) {
     }
     if (res.hasUpdate) {
       updateAvailable.value = true
-      const go = await dialogConfirm(
-        `发现新版本 v${res.latest}（当前 v${res.current}），是否前往 GitHub 下载更新？`,
-        '发现新版本'
-      )
-      if (go) {
-        try {
-          const opened = await openExternal(res.url || `https://github.com/yconghua/grad-studio/releases/latest`)
-          if (!opened || !opened.success) dialogAlert((opened && opened.message) || '打开下载页失败')
-        } catch (e) {
-          dialogAlert('打开下载页失败')
-        }
-      }
+      if (res.latest) updateLatest.value = res.latest
+      // 下载完成提示统一由 update:state 的 downloaded 分支处理；
+      // 若订阅尚未建立（下载瞬间完成），这里兜底询问一次
+      if (!updateReadyAsked) askInstallNow()
     } else {
       updateAvailable.value = false
       if (!silent) dialogAlert(`当前已是最新版本 v${res.current}`)
@@ -536,6 +583,10 @@ async function checkUpdate(silent = false) {
 
 function onCheckUpdate() {
   userMenuOpen.value = false
+  if (updateStatus.value === 'downloaded') {
+    askInstallNow()
+    return
+  }
   checkUpdate(false)
 }
 
@@ -611,6 +662,8 @@ onMounted(() => {
   }, 60000)
   // 订阅聊天实时推送（仅导师/学生角色有 chat 菜单；其他角色推送体为空，忽略即可）
   offChatPush = onChatPush(onChatPushPayload)
+  // 订阅更新状态推送（下载进度 / 下载完成 / 出错）
+  offUpdateState = onUpdateState(handleUpdateState)
   // 启动后延迟静默检查一次更新，避免与登录后的数据加载抢网络
   setTimeout(() => { checkUpdate(true) }, 2000)
 })
@@ -620,6 +673,7 @@ onUnmounted(() => {
   window.removeEventListener('messages-read-changed', onMessagesReadChanged)
   window.removeEventListener('chat-unread-changed', onChatUnreadChanged)
   if (offChatPush) offChatPush()
+  if (offUpdateState) offUpdateState()
   if (msgTimer) clearInterval(msgTimer)
   if (searchTimer) clearTimeout(searchTimer)
 })
