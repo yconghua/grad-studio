@@ -46,6 +46,36 @@ function register(ipcMain) {
       return { success: false, message: '操作失败，请稍后重试' }
     }
   })
+
+  // 超级管理员：将用户加入课题组（组管可多组；导师/学生单组）
+  ipcMain.handle('member:adminAdd', async (_evt, payload) => {
+    try {
+      return await memberService.adminAdd(payload)
+    } catch (err) {
+      console.error('[member:adminAdd] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
+
+  // 超级管理员：将用户移出课题组
+  ipcMain.handle('member:adminRemove', async (_evt, payload) => {
+    try {
+      return await memberService.adminRemove(payload)
+    } catch (err) {
+      console.error('[member:adminRemove] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
+
+  // 超级管理员：导师/学生原子替换课题组
+  ipcMain.handle('member:adminReplace', async (_evt, payload) => {
+    try {
+      return await memberService.adminReplace(payload)
+    } catch (err) {
+      console.error('[member:adminReplace] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
 }
 
 module.exports = { register }

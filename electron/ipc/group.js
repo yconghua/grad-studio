@@ -17,6 +17,16 @@ function register(ipcMain) {
     }
   })
 
+  // 查看任意用户所属课题组（仅超级管理员，成员资料用）
+  ipcMain.handle('group:listByUser', async (_evt, payload) => {
+    try {
+      return await groupService.listByUser(payload && payload.userId)
+    } catch (err) {
+      console.error('[group:listByUser] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
+
   // 课题组列表
   ipcMain.handle('group:list', async (_evt, payload) => {
     try {

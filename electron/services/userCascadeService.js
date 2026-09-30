@@ -80,6 +80,29 @@ async function softDeleteUser(userId) {
 }
 
 /**
+ * 移除成员（事务内执行体）：软删成员记录本身 + 该成员在本组的组内关联数据。
+ * 不自行开启事务，由调用方提供 runTransaction 上下文（支持在替换组等场景并入同一事务）。
+ * @param {{ userGroupId: number, groupId: number, userId: number }} param
+ *        userGroupId 成员记录 id（user_group 表）；groupId / userId 用于组内关联清理
+ * @returns {Promise<Object>} counts 各表软删行数
+ */
+async function softRemoveMemberTx({ userGroupId, groupId, userId }) {
+  const c = {}
+  c.userGroup = await userGroupRepository.delete(userGroupId)
+  // 该成员在组内作为导师 / 学生的指导关系一并软删（学生 / 导师仅属一个组，单字段即组内范围）
+  c.mentorRelations = await mentorStudentRepository.softDeleteByField('mentor_id', userId)
+  c.studentRelations = await mentorStudentRepository.softDeleteByField('student_id', userId)
+  c.degreeRecords = await studentDegreeRepository.softDeleteByField('student_id', userId)
+  // 指派给该成员的任务与进展（学生 / 导师仅属一个组，单字段即组内范围）
+  c.tasks = await taskRepository.softDeleteByField('assignee_id', userId)
+  c.taskProgress = await taskProgressRepository.softDeleteByField('user_id', userId)
+  // 该成员在本组组会 / 课题下的关联（显式经 group_id 子查询限定）
+  c.meetingReports = await meetingReportRepository.softDeleteByGroupStudent(groupId, userId)
+  c.subjectMembers = await subjectMemberRepository.softDeleteByGroupUser(groupId, userId)
+  return c
+}
+
+/**
  * 移除成员：事务内软删成员记录本身 + 该成员在本组的组内关联数据。
  * @param {{ userGroupId: number, groupId: number, userId: number }} param
  *        userGroupId 成员记录 id（user_group 表）；groupId / userId 用于组内关联清理
@@ -87,21 +110,7 @@ async function softDeleteUser(userId) {
  */
 async function softRemoveMember({ userGroupId, groupId, userId }) {
   try {
-    const counts = await runTransaction(async () => {
-      const c = {}
-      c.userGroup = await userGroupRepository.delete(userGroupId)
-      // 该成员在组内作为导师 / 学生的指导关系一并软删（学生 / 导师仅属一个组，单字段即组内范围）
-      c.mentorRelations = await mentorStudentRepository.softDeleteByField('mentor_id', userId)
-      c.studentRelations = await mentorStudentRepository.softDeleteByField('student_id', userId)
-      c.degreeRecords = await studentDegreeRepository.softDeleteByField('student_id', userId)
-      // 指派给该成员的任务与进展（学生 / 导师仅属一个组，单字段即组内范围）
-      c.tasks = await taskRepository.softDeleteByField('assignee_id', userId)
-      c.taskProgress = await taskProgressRepository.softDeleteByField('user_id', userId)
-      // 该成员在本组组会 / 课题下的关联（显式经 group_id 子查询限定）
-      c.meetingReports = await meetingReportRepository.softDeleteByGroupStudent(groupId, userId)
-      c.subjectMembers = await subjectMemberRepository.softDeleteByGroupUser(groupId, userId)
-      return c
-    })
+    const counts = await runTransaction(() => softRemoveMemberTx({ userGroupId, groupId, userId }))
     return { success: true, message: '已移除', data: { counts } }
   } catch (err) {
     console.error('[userCascadeService.softRemoveMember] 级联软删失败:', err)
@@ -111,5 +120,6 @@ async function softRemoveMember({ userGroupId, groupId, userId }) {
 
 module.exports = {
   softDeleteUser,
+  softRemoveMemberTx,
   softRemoveMember
 }

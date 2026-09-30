@@ -82,13 +82,51 @@ class UserGroupRepository extends BaseRepository {
   }
 
   /**
+   * 按 (user_id, group_id) 查任意记录（含软删）。
+   * 唯一索引 (user_id, group_id) 对软删记录仍生效，重复入组 / 替换回原组时需先识别旧记录并恢复。
+   * @param {number} userId
+   * @param {number} groupId
+   * @returns {Object|null}
+   */
+  async findAnyByUserAndGroup(userId, groupId) {
+    const sql = `SELECT ${cols(SAFE_COLUMNS)}, \`ug\`.\`is_deleted\` FROM \`user_group\` AS \`ug\`
+      WHERE \`ug\`.\`user_id\` = ? AND \`ug\`.\`group_id\` = ? LIMIT 1`
+    const [rows] = await this._execute(sql, [userId, groupId], 'findAnyByUserAndGroup')
+    return rows[0] || null
+  }
+
+  /**
+   * 恢复软删记录为在组状态：is_deleted 置 0，并按需重置组内角色 / 状态 / 入组时间 / 离组时间 / 备注。
+   * 仅处理业务字段白名单，不接收任意列。
+   * @param {number} id 记录主键
+   * @param {Object} data 可含 role_in_group / status / joined_at / left_at / remark
+   * @returns {number} 受影响行数
+   */
+  async restore(id, data) {
+    const sets = []
+    const params = []
+    const allowed = ['role_in_group', 'status', 'joined_at', 'left_at', 'remark']
+    for (const k of allowed) {
+      if (data[k] !== undefined) {
+        sets.push(`\`${k}\` = ?`)
+        params.push(data[k] === '' ? null : data[k])
+      }
+    }
+    sets.push('`is_deleted` = 0')
+    params.push(id)
+    const sql = `UPDATE \`user_group\` SET ${sets.join(', ')} WHERE \`id\` = ?`
+    const [result] = await this._execute(sql, params, 'restore')
+    return result.affectedRows
+  }
+
+  /**
    * 按用户列出所属课题组（联 group 表取组信息，含组内角色）。
    * 仅返回用户「在组中」且「课题组可用」的记录：ug.status = active、group 未软删且未停用。
    * @param {number} userId
    * @returns {Object[]}
    */
   async listGroupsByUser(userId) {
-    const sql = `SELECT \`g\`.\`id\`, \`g\`.\`name\`, \`g\`.\`code\`, \`g\`.\`status\`,
+    const sql = `SELECT \`ug\`.\`id\` AS \`ug_id\`, \`g\`.\`id\`, \`g\`.\`name\`, \`g\`.\`code\`, \`g\`.\`status\`,
         \`ug\`.\`role_in_group\`, \`ug\`.\`joined_at\`
       FROM \`user_group\` AS \`ug\`
       JOIN \`group\` AS \`g\` ON \`g\`.\`id\` = \`ug\`.\`group_id\` AND \`g\`.\`is_deleted\` = 0 AND \`g\`.\`status\` = 'active'

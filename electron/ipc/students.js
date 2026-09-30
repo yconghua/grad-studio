@@ -66,6 +66,16 @@ function register(ipcMain) {
       return { success: false, message: '操作失败，请稍后重试' }
     }
   })
+
+  // 任意用户师生关系（仅超级管理员，成员资料用）
+  ipcMain.handle('students:relation-by-user', async (_evt, payload) => {
+    try {
+      return await studentsService.listByUser(payload && payload.userId)
+    } catch (err) {
+      console.error('[students:relation-by-user] 未预期异常:', err)
+      return { success: false, message: '操作失败，请稍后重试' }
+    }
+  })
 }
 
 module.exports = { register }

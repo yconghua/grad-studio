@@ -23,6 +23,21 @@ async function listMine() {
   }
 }
 
+// 超级管理员查看任意用户所属课题组（成员资料「所属课题组」tab 数据源）
+async function listByUser(userId) {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isAdmin()) return { success: false, message: '无权限：仅超级管理员可查看' }
+  const targetId = Number(userId)
+  if (!targetId) return { success: false, message: '参数错误' }
+  try {
+    const groups = await userGroupRepository.listGroupsByUser(targetId)
+    return { success: true, groups }
+  } catch (err) {
+    console.error('[groupService.listByUser] 数据库异常:', err)
+    return { success: false, message: '读取失败，请稍后重试' }
+  }
+}
+
 // 课题组列表（仅超级管理员）
 async function list(payload) {
   if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
@@ -136,4 +151,4 @@ async function remove(payload) {
   }
 }
 
-module.exports = { listMine, list, create, update, remove }
+module.exports = { listMine, listByUser, list, create, update, remove }

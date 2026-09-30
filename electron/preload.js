@@ -120,6 +120,7 @@ contextBridge.exposeInMainWorld('api', {
   group: {
     list: createInvoke('group:list'),
     listMine: createInvoke('group:listMine'),
+    listByUser: createInvoke('group:listByUser'),
     create: createInvoke('group:create'),
     update: createInvoke('group:update'),
     remove: createInvoke('group:remove')
@@ -129,7 +130,10 @@ contextBridge.exposeInMainWorld('api', {
     list: createInvoke('member:list'),
     add: createInvoke('member:add'),
     update: createInvoke('member:update'),
-    remove: createInvoke('member:remove')
+    remove: createInvoke('member:remove'),
+    adminAdd: createInvoke('member:adminAdd'),
+    adminRemove: createInvoke('member:adminRemove'),
+    adminReplace: createInvoke('member:adminReplace')
   },
   // 导师学生关系（students:*）
   students: {
@@ -138,7 +142,8 @@ contextBridge.exposeInMainWorld('api', {
     listAvailable: createInvoke('students:list-available'),
     myMentor: createInvoke('students:my-mentor'),
     bind: createInvoke('students:bind'),
-    unbind: createInvoke('students:unbind')
+    unbind: createInvoke('students:unbind'),
+    relationByUser: createInvoke('students:relation-by-user')
   },
   // 课题组公告（notice:*）
   notice: {

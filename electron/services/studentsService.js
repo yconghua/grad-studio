@@ -8,6 +8,7 @@ const permission = require('./permission')
 const { ROLE_MENTOR, ROLE_STUDENT } = require('../../shared/constants')
 const mentorStudentRepository = require('../db/repositories/mentorStudentRepository')
 const userGroupRepository = require('../db/repositories/userGroupRepository')
+const userRepository = require('../db/repositories/userRepository')
 const operationLogService = require('./operationLogService')
 
 // 学生列表：导师仅看自己名下（active）；组管理员需传 group_id 看全组
@@ -161,4 +162,41 @@ async function unbind(payload) {
   }
 }
 
-module.exports = { list, listGroupStudents, listAvailableForBind, myMentor, bind, unbind }
+// 超级管理员查看任意用户的师生关系（成员资料「师生关系」tab 数据源）：
+// 导师 → 名下学生列表；学生 → 绑定的导师；组管 / 超管无师生关系。
+async function listByUser(userId) {
+  if (!permission.isLoggedIn()) return { success: false, message: '未登录，请重新登录' }
+  if (!permission.isAdmin()) return { success: false, message: '无权限：仅超级管理员可查看' }
+  const targetId = Number(userId)
+  if (!targetId) return { success: false, message: '参数错误' }
+  try {
+    const target = await userRepository.findById(targetId)
+    if (!target) return { success: false, message: '用户不存在' }
+    const result = { role: target.role }
+    if (target.role === ROLE_MENTOR) {
+      const students = await mentorStudentRepository.listByMentor(targetId, 'active')
+      result.students = students.map((s) => ({
+        student_id: s.student_id,
+        username: s.student_username,
+        real_name: s.student_real_name || '',
+        group_id: s.group_id
+      }))
+    } else if (target.role === ROLE_STUDENT) {
+      const row = await mentorStudentRepository.findByStudent(targetId)
+      result.mentor = row
+        ? {
+            mentor_id: row.mentor_id,
+            username: row.mentor_username,
+            real_name: row.mentor_real_name || '',
+            group_id: row.group_id
+          }
+        : null
+    }
+    return { success: true, ...result }
+  } catch (err) {
+    console.error('[studentsService.listByUser] 数据库异常:', err)
+    return { success: false, message: '读取失败，请稍后重试' }
+  }
+}
+
+module.exports = { list, listGroupStudents, listAvailableForBind, myMentor, bind, unbind, listByUser }

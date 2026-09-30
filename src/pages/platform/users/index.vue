@@ -96,75 +96,172 @@
     <div v-if="profileVisible" class="modal-mask" @click.self="closeProfile">
       <div class="modal-box profile-box">
         <h3 class="modal-title">成员资料：{{ profileUsername }}</h3>
+        <div class="profile-tabs">
+          <button class="profile-tab" :class="{ active: profileTab === 'basic' }" @click="profileTab = 'basic'">基本资料</button>
+          <button class="profile-tab" :class="{ active: profileTab === 'groups' }" @click="profileTab = 'groups'">所属课题组</button>
+          <button class="profile-tab" :class="{ active: profileTab === 'relation' }" @click="profileTab = 'relation'">师生关系</button>
+        </div>
         <div v-if="profileLoading" class="state">加载中…</div>
         <div v-else>
-          <div class="profile-grid">
-            <div class="form-item">
-              <label>真实姓名</label>
-              <input v-model="profileForm.real_name" class="input" placeholder="未填写" />
+          <!-- Tab1 基本资料 -->
+          <div v-if="profileTab === 'basic'">
+            <div class="profile-grid">
+              <div class="form-item">
+                <label>真实姓名</label>
+                <input v-model="profileForm.real_name" class="input" placeholder="未填写" />
+              </div>
+              <div class="form-item">
+                <label>性别</label>
+                <select v-model="profileForm.gender" class="input">
+                  <option value="">未填写</option>
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>学号 / 工号</label>
+                <input v-model="profileForm.student_no" class="input" placeholder="未填写" />
+              </div>
+              <div class="form-item">
+                <label>邮箱</label>
+                <input v-model="profileForm.email" class="input" placeholder="未填写" />
+              </div>
+              <div class="form-item">
+                <label>手机号</label>
+                <input v-model="profileForm.phone" class="input" placeholder="未填写" />
+              </div>
+              <div class="form-item">
+                <label>所属学院</label>
+                <input v-model="profileForm.college" class="input" placeholder="未填写" />
+              </div>
+              <div class="form-item">
+                <label>所属系 / 研究所</label>
+                <input v-model="profileForm.department" class="input" placeholder="未填写" />
+              </div>
+              <div class="form-item">
+                <label>专业 / 研究方向</label>
+                <input v-model="profileForm.major" class="input" placeholder="未填写" />
+              </div>
+              <div class="form-item">
+                <label>年级</label>
+                <input v-model="profileForm.grade" class="input" placeholder="如 2024 级" />
+              </div>
+              <div class="form-item">
+                <label>学位类型</label>
+                <select v-model="profileForm.degree_type" class="input">
+                  <option value="">未填写</option>
+                  <option value="master">硕士</option>
+                  <option value="doctor">博士</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>组内职位</label>
+                <input v-model="profileForm.position" class="input" placeholder="未填写" />
+              </div>
+              <div class="form-item">
+                <label>入组日期</label>
+                <input v-model="profileForm.join_date" type="date" class="input" />
+              </div>
             </div>
             <div class="form-item">
-              <label>性别</label>
-              <select v-model="profileForm.gender" class="input">
-                <option value="">未填写</option>
-                <option value="male">男</option>
-                <option value="female">女</option>
-              </select>
+              <label>个人简介</label>
+              <textarea v-model="profileForm.bio" class="textarea" rows="3" placeholder="未填写"></textarea>
             </div>
-            <div class="form-item">
-              <label>学号 / 工号</label>
-              <input v-model="profileForm.student_no" class="input" placeholder="未填写" />
-            </div>
-            <div class="form-item">
-              <label>邮箱</label>
-              <input v-model="profileForm.email" class="input" placeholder="未填写" />
-            </div>
-            <div class="form-item">
-              <label>手机号</label>
-              <input v-model="profileForm.phone" class="input" placeholder="未填写" />
-            </div>
-            <div class="form-item">
-              <label>所属学院</label>
-              <input v-model="profileForm.college" class="input" placeholder="未填写" />
-            </div>
-            <div class="form-item">
-              <label>所属系 / 研究所</label>
-              <input v-model="profileForm.department" class="input" placeholder="未填写" />
-            </div>
-            <div class="form-item">
-              <label>专业 / 研究方向</label>
-              <input v-model="profileForm.major" class="input" placeholder="未填写" />
-            </div>
-            <div class="form-item">
-              <label>年级</label>
-              <input v-model="profileForm.grade" class="input" placeholder="如 2024 级" />
-            </div>
-            <div class="form-item">
-              <label>学位类型</label>
-              <select v-model="profileForm.degree_type" class="input">
-                <option value="">未填写</option>
-                <option value="master">硕士</option>
-                <option value="doctor">博士</option>
-              </select>
-            </div>
-            <div class="form-item">
-              <label>组内职位</label>
-              <input v-model="profileForm.position" class="input" placeholder="未填写" />
-            </div>
-            <div class="form-item">
-              <label>入组日期</label>
-              <input v-model="profileForm.join_date" type="date" class="input" />
+            <p v-if="profileError" class="form-error">{{ profileError }}</p>
+            <p v-if="profileMsg" class="result-pwd">✅ {{ profileMsg }}</p>
+            <div class="modal-actions">
+              <button class="btn btn-secondary" :disabled="profileSaving" @click="closeProfile">取消</button>
+              <button class="btn btn-primary" :disabled="profileSaving" @click="saveProfile">{{ profileSaving ? '保存中…' : '保存' }}</button>
             </div>
           </div>
-          <div class="form-item">
-            <label>个人简介</label>
-            <textarea v-model="profileForm.bio" class="textarea" rows="3" placeholder="未填写"></textarea>
+
+          <!-- Tab2 所属课题组 -->
+          <div v-else-if="profileTab === 'groups'">
+            <div v-if="isSuperAdmin" class="admin-hint">超级管理员，无需加入课题组</div>
+            <div v-else>
+              <div v-if="groupsLoading" class="state">加载中…</div>
+              <div v-else>
+                <p class="section-label">当前所属课题组</p>
+                <div v-if="!profileGroups.length" class="empty-hint">该用户未加入任何课题组</div>
+                <table v-else class="group-tbl">
+                  <thead>
+                    <tr>
+                      <th>课题组</th><th>编号</th><th>组内角色</th><th>入组时间</th><th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="g in profileGroups" :key="g.id">
+                      <td>{{ g.name }}</td>
+                      <td>{{ g.code }}</td>
+                      <td><span class="tag" :class="'tag-' + g.role_in_group">{{ groupRoleLabel(g.role_in_group) }}</span></td>
+                      <td>{{ formatDate(g.joined_at) }}</td>
+                      <td><button class="link danger" :disabled="groupBusy" @click="removeGroup(g)">移出</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div class="group-ops">
+                  <p class="section-label">变更课题组</p>
+                  <div class="group-op-row">
+                    <select v-model="addGroupId" class="input" :disabled="groupBusy">
+                      <option value="">选择要加入的课题组</option>
+                      <option v-for="g in candidateGroups" :key="g.id" :value="g.id">{{ g.name }}（{{ g.code }}）</option>
+                    </select>
+                    <button class="btn btn-secondary" :disabled="groupBusy || !addGroupId" @click="doAddGroup">加入课题组</button>
+                  </div>
+                  <div v-if="isSingleGroupRole" class="group-op-row">
+                    <select v-model="replaceGroupId" class="input" :disabled="groupBusy">
+                      <option value="">选择要替换到的新课题组</option>
+                      <option v-for="g in candidateGroups" :key="g.id" :value="g.id">{{ g.name }}（{{ g.code }}）</option>
+                    </select>
+                    <button class="btn btn-secondary" :disabled="groupBusy || !replaceGroupId" @click="doReplaceGroup">替换课题组</button>
+                    <span class="group-tip">导师 / 学生仅可属于一个课题组，替换将一步完成离旧组 + 入新组</span>
+                  </div>
+                </div>
+                <p v-if="groupError" class="form-error">{{ groupError }}</p>
+                <p v-if="groupMsg" class="result-pwd">✅ {{ groupMsg }}</p>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn btn-secondary" @click="closeProfile">关闭</button>
+            </div>
           </div>
-          <p v-if="profileError" class="form-error">{{ profileError }}</p>
-          <p v-if="profileMsg" class="result-pwd">✅ {{ profileMsg }}</p>
-          <div class="modal-actions">
-            <button class="btn btn-secondary" :disabled="profileSaving" @click="closeProfile">取消</button>
-            <button class="btn btn-primary" :disabled="profileSaving" @click="saveProfile">{{ profileSaving ? '保存中…' : '保存' }}</button>
+
+          <!-- Tab3 师生关系 -->
+          <div v-else-if="profileTab === 'relation'">
+            <div v-if="relationLoading" class="state">加载中…</div>
+            <div v-else-if="relation">
+              <div v-if="relation.role === 'mentor'">
+                <p class="section-label">指导的学生（{{ (relation.students || []).length }} 人）</p>
+                <div v-if="!relation.students || !relation.students.length" class="empty-hint">暂无指导中的学生</div>
+                <table v-else class="group-tbl">
+                  <thead>
+                    <tr>
+                      <th>学生账号</th><th>姓名</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="s in relation.students" :key="s.student_id">
+                      <td>{{ s.username }}</td>
+                      <td>{{ s.real_name || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-else-if="relation.role === 'student'">
+                <p class="section-label">指导老师</p>
+                <div v-if="relation.mentor" class="relation-mentor">
+                  <span class="tag tag-mentor">导师</span>
+                  <span>{{ relation.mentor.real_name || relation.mentor.username }}（{{ relation.mentor.username }}）</span>
+                </div>
+                <div v-else class="empty-hint">暂未绑定导师</div>
+              </div>
+              <div v-else class="empty-hint">该角色无师生关系</div>
+            </div>
+            <div v-else class="empty-hint">师生关系加载失败，请重试</div>
+            <div class="modal-actions">
+              <button class="btn btn-secondary" @click="closeProfile">关闭</button>
+            </div>
           </div>
         </div>
       </div>
@@ -202,7 +299,12 @@
 <script setup>
 import { dialogAlert, dialogConfirm } from '../../../composables/useDialog'
 import { ref, computed, onMounted } from 'vue'
-import { listUsers, createUser, updateUser, deleteUser, batchCreateUsers, getProfileByAdmin, updateProfileByAdmin } from '../../../api'
+import {
+  listUsers, createUser, updateUser, deleteUser, batchCreateUsers,
+  getProfileByAdmin, updateProfileByAdmin,
+  listGroups, listUserGroups, adminAddMember, adminRemoveMember, adminReplaceGroup,
+  getUserRelation
+} from '../../../api'
 
 const roleOptions = [
   { value: 'super_admin', label: '超级管理员' },
@@ -355,6 +457,46 @@ const profileMsg = ref('')
 const profileTarget = ref(null)
 const profileUsername = ref('')
 const profileForm = ref({})
+// 资料弹窗 tab：basic 基本资料 / groups 所属课题组 / relation 师生关系
+const profileTab = ref('basic')
+
+// 所属课题组：当前用户所属组 + 全部可选组
+const profileGroups = ref([])
+const allGroups = ref([])
+const groupsLoading = ref(false)
+const groupBusy = ref(false)
+const addGroupId = ref('')
+const replaceGroupId = ref('')
+const groupError = ref('')
+const groupMsg = ref('')
+
+// 师生关系（Tab3）
+const relationLoading = ref(false)
+const relation = ref(null)
+
+// 超级管理员无需加入课题组（Tab2 只读提示）
+const isSuperAdmin = computed(() => profileTarget.value && profileTarget.value.role === 'super_admin')
+// 导师 / 学生受「单课题组」约束：可走一步替换
+const isSingleGroupRole = computed(() => {
+  const r = profileTarget.value && profileTarget.value.role
+  return r === 'mentor' || r === 'student'
+})
+// 可加入 / 可替换到的课题组：全部启用组中排除已属组
+const candidateGroups = computed(() => {
+  const owned = new Set(profileGroups.value.map((g) => Number(g.id)))
+  return allGroups.value.filter((g) => g.status === 'active' && !owned.has(Number(g.id)))
+})
+
+function groupRoleLabel(r) {
+  return { group_admin: '课题组管理员', mentor: '导师', student: '学生' }[r] || r
+}
+
+function formatDate(ts) {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  if (isNaN(d.getTime())) return '—'
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 function emptyProfile() {
   return {
@@ -370,8 +512,10 @@ async function openProfile(u) {
   profileForm.value = emptyProfile()
   profileError.value = ''
   profileMsg.value = ''
+  profileTab.value = 'basic'
   profileVisible.value = true
   profileLoading.value = true
+  loadProfileExtras()
   try {
     const res = await getProfileByAdmin(u.id)
     if (res && res.success) {
@@ -391,9 +535,111 @@ async function openProfile(u) {
   }
 }
 
+// 并行加载「所属课题组 + 全部组 + 师生关系」数据
+async function loadProfileExtras() {
+  groupError.value = ''
+  groupMsg.value = ''
+  addGroupId.value = ''
+  replaceGroupId.value = ''
+  profileGroups.value = []
+  relation.value = null
+  groupsLoading.value = true
+  relationLoading.value = true
+  try {
+    const [ugRes, gRes] = await Promise.all([listUserGroups(profileTarget.value.id), listGroups()])
+    if (ugRes && ugRes.success) profileGroups.value = ugRes.groups || []
+    if (gRes && gRes.success) allGroups.value = gRes.groups || []
+  } catch (e) {
+    // 任一接口失败保持空列表，不阻塞弹窗
+  } finally {
+    groupsLoading.value = false
+  }
+  try {
+    const res = await getUserRelation(profileTarget.value.id)
+    if (res && res.success) relation.value = res
+  } catch (e) {
+    relation.value = null
+  } finally {
+    relationLoading.value = false
+  }
+}
+
+// 变更组后刷新当前用户所属组列表
+async function refreshProfileGroups() {
+  try {
+    const res = await listUserGroups(profileTarget.value.id)
+    if (res && res.success) profileGroups.value = res.groups || []
+  } catch (e) {
+    // 忽略，列表保持原样
+  }
+}
+
+async function doAddGroup() {
+  if (!addGroupId.value || groupBusy.value) return
+  groupBusy.value = true
+  groupError.value = ''
+  groupMsg.value = ''
+  try {
+    const res = await adminAddMember({ user_id: profileTarget.value.id, group_id: addGroupId.value })
+    if (res && res.success) {
+      groupMsg.value = res.message || '已加入课题组'
+      addGroupId.value = ''
+      await refreshProfileGroups()
+    } else {
+      groupError.value = (res && res.message) || '操作失败'
+    }
+  } catch (e) {
+    groupError.value = '网络异常'
+  } finally {
+    groupBusy.value = false
+  }
+}
+
+async function removeGroup(g) {
+  if (groupBusy.value) return
+  groupBusy.value = true
+  groupError.value = ''
+  groupMsg.value = ''
+  try {
+    const res = await adminRemoveMember(g.ug_id)
+    if (res && res.success) {
+      groupMsg.value = res.message || '已移出课题组'
+      await refreshProfileGroups()
+    } else {
+      groupError.value = (res && res.message) || '操作失败'
+    }
+  } catch (e) {
+    groupError.value = '网络异常'
+  } finally {
+    groupBusy.value = false
+  }
+}
+
+async function doReplaceGroup() {
+  if (!replaceGroupId.value || groupBusy.value) return
+  groupBusy.value = true
+  groupError.value = ''
+  groupMsg.value = ''
+  try {
+    const res = await adminReplaceGroup({ user_id: profileTarget.value.id, group_id: replaceGroupId.value })
+    if (res && res.success) {
+      groupMsg.value = res.message || '已替换课题组'
+      replaceGroupId.value = ''
+      await refreshProfileGroups()
+    } else {
+      groupError.value = (res && res.message) || '操作失败'
+    }
+  } catch (e) {
+    groupError.value = '网络异常'
+  } finally {
+    groupBusy.value = false
+  }
+}
+
 function closeProfile() {
   if (profileSaving.value) return
   profileVisible.value = false
+  profileTab.value = 'basic'
 }
 
 async function saveProfile() {
@@ -628,6 +874,21 @@ onMounted(loadList)
 .profile-box { width: 720px; max-height: 90vh; overflow: auto; }
 .profile-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
 .profile-grid .form-item { margin-bottom: 12px; }
+.profile-tabs { display: flex; gap: 4px; border-bottom: 1px solid #eceff3; margin-bottom: 16px; }
+.profile-tab { padding: 8px 16px; font-size: 13px; color: #4e5969; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; }
+.profile-tab:hover { color: #0d80e0; }
+.profile-tab.active { color: #0d80e0; border-bottom-color: #0d80e0; font-weight: 600; }
+.admin-hint { padding: 28px; text-align: center; color: #8a9099; font-size: 14px; background: #f7f9fc; border-radius: 10px; }
+.section-label { margin: 0 0 10px; font-size: 13px; color: #4e5969; font-weight: 600; }
+.empty-hint { padding: 22px; text-align: center; color: #8a9099; font-size: 13px; background: #f7f9fc; border-radius: 10px; }
+.group-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.group-tbl th { background: #f7f9fc; text-align: left; padding: 8px 10px; color: #4e5969; font-weight: 600; border-bottom: 1px solid #eceff3; }
+.group-tbl td { padding: 8px 10px; border-bottom: 1px solid #eceff3; color: #1f2329; }
+.group-ops { margin-top: 18px; }
+.group-op-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.group-op-row .input { flex: 1; min-width: 240px; }
+.group-tip { font-size: 12px; color: #8a9099; }
+.relation-mentor { display: flex; align-items: center; gap: 10px; padding: 14px; background: #f7f9fc; border-radius: 10px; font-size: 14px; color: #1f2329; }
 .modal-title { margin: 0 0 16px; font-size: 16px; color: #1f2329; }
 .modal-text { font-size: 14px; color: #1f2329; margin: 0 0 20px; line-height: 1.6; }
 .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 18px; }

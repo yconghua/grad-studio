@@ -215,6 +215,11 @@ export function listGroups() {
   return window.api.group.list()
 }
 
+// 超级管理员查看任意用户所属课题组（成员资料「所属课题组」tab）
+export function listUserGroups(userId) {
+  return window.api.group.listByUser({ userId })
+}
+
 // 当前登录用户所属课题组列表（含组内角色 role_in_group，供页头课题组选择器使用）
 export function listMyGroups() {
   return window.api.group.listMine()
@@ -232,7 +237,7 @@ export function removeGroup(id) {
   return window.api.group.remove({ id })
 }
 
-// ===== 组成员管理（仅课题组管理员） =====
+// ===== 组成员管理（仅课题组管理员；admin* 为超级管理员变更课题组） =====
 export function listMembersByGroup(groupId) {
   return window.api.member.list({ group_id: groupId })
 }
@@ -247,6 +252,21 @@ export function updateMember(payload) {
 
 export function removeMember(id) {
   return window.api.member.remove({ id })
+}
+
+// 超级管理员：将用户加入课题组（组管可多组；导师/学生单组，已在他组时走替换）
+export function adminAddMember(payload) {
+  return window.api.member.adminAdd(payload)
+}
+
+// 超级管理员：将用户移出课题组
+export function adminRemoveMember(id) {
+  return window.api.member.adminRemove({ id })
+}
+
+// 超级管理员：导师/学生原子替换课题组（一步完成离旧组 + 入新组）
+export function adminReplaceGroup(payload) {
+  return window.api.member.adminReplace(payload)
 }
 
 // ===== 导师学生关系 =====
@@ -275,6 +295,11 @@ export function bindStudent(payload) {
 
 export function unbindStudent(id) {
   return window.api.students.unbind({ id })
+}
+
+// 超级管理员查看任意用户的师生关系（成员资料「师生关系」tab）
+export function getUserRelation(userId) {
+  return window.api.students.relationByUser({ userId })
 }
 
 // ===== 课题组公告 =====
