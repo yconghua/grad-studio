@@ -1,6 +1,6 @@
 {
   "name": "grad-studio",
-  "version": "2.1.9",
+  "version": "2.1.10",
   "releaseDate": "2026-09-30",
   "description": "grad studio - Vue3 + Electron + MySQL",
   "main": "electron/main.js",
@@ -35,6 +35,7 @@
   "build": {
     "appId": "com.grad.studio",
     "productName": "grad_studio",
+    "artifactName": "${productName}.Setup.${version}.${ext}",
     "icon": "build/icon.ico",
     "publish": {
       "provider": "github",
