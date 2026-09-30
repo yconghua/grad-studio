@@ -178,7 +178,7 @@
       @confirmed="onDeleteConfirmed"
     />
 
-    <!-- 登录成功初始化弹窗：转圈动画 + 「数据正在初始化中…」，2 秒后自动进入首页 -->
+    <!-- 登录成功初始化弹窗：转圈动画 + 「数据正在初始化中…」，最短展示 2 秒，首屏预取更慢则以实际为准 -->
     <div v-if="showInit" class="init-overlay">
       <div class="init-dialog">
         <div class="init-spinner"></div>
@@ -193,19 +193,25 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, deleteDb, getDbInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
+import { useHomePreload } from '../../composables/useHomePreload'
 import { useAppName } from '../../composables/useAppName'
 import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/db'
 import logoUrl from '../../assets/logo.ico'
 
 const { setSession } = useSession()
+const { preloadHomeData } = useHomePreload()
 const { appName } = useAppName()
 const router = useRouter()
+
+// 登录按钮「登录中…」与「数据正在初始化中…」的最短展示时长：
+// 实际请求耗时短于该值时等满，长于该值时以实际为准（展示时长 = max(实际耗时, 最短)）
+const MIN_LOADING_MS = 2000
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const username = ref('')
 const password = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
-// 登录成功后的初始化弹窗：显示 1 秒（转圈 + 「数据正在初始化中…」）后自动进入首页
 const showInit = ref(false)
 // 是否同意隐私协议与服务条款（未勾选不可登录）；7 天内勾选过则自动勾选
 const agreePolicy = ref(false)
@@ -405,19 +411,26 @@ async function onSubmit() {
 
   loading.value = true
   try {
-    const res = await login(username.value.trim(), password.value)
-    if (res.success && res.user) {
-      // 登录成功：弹「数据正在初始化中…」2 秒后进入首页；
-      // 首次登录（mustChangePassword=true）则进入强制改密页
+    // 登录按钮「登录中…」与登录请求并行，最短展示 MIN_LOADING_MS（失败同样等满，避免连点与闪变）
+    const [res] = await Promise.all([
+      login(username.value.trim(), password.value),
+      sleep(MIN_LOADING_MS)
+    ])
+    if (res && res.success && res.user) {
+      // 登录成功：先写入会话（预取需按当前用户拉课题组列表），再弹「数据正在初始化中…」；
+      // 初始化弹窗与首屏数据预取并行，最短展示 MIN_LOADING_MS，实际预取更慢则以实际为准；
+      // 首次登录（mustChangePassword=true）需先改密，不进首页，跳过预取
+      setSession(res.user)
       showInit.value = true
       const mustChange = !!res.user.mustChangePassword
-      setTimeout(() => {
-        showInit.value = false
-        setSession(res.user)
-        router.push(mustChange ? '/force-password' : '/')
-      }, 2000)
+      await Promise.all([
+        mustChange ? Promise.resolve() : preloadHomeData(res.user),
+        sleep(MIN_LOADING_MS)
+      ])
+      showInit.value = false
+      router.push(mustChange ? '/force-password' : '/')
     } else {
-      errorMsg.value = res.message || '登录失败，请重试'
+      errorMsg.value = (res && res.message) || '登录失败，请重试'
     }
   } catch (e) {
     errorMsg.value = '登录过程出现异常，请重试'

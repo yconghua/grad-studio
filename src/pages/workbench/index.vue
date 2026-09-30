@@ -165,6 +165,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRole } from '../../composables/useRole'
 import { useGroupContext } from '../../composables/useGroupContext'
+import { useHomePreload } from '../../composables/useHomePreload'
+import { useSession } from '../../composables/useSession'
 import GroupSelector from '../../components/GroupSelector.vue'
 import {
   listUsers, listGroups, listOperationLogs,
@@ -177,6 +179,17 @@ import {
 const router = useRouter()
 const { isSuperAdmin, isGroupAdmin, isMentor, isStudent } = useRole()
 const { currentGroupId, loadGroups } = useGroupContext()
+const { getPreload } = useHomePreload()
+const { getSessionUser } = useSession()
+const currentUserId = getSessionUser()?.id
+
+// 请求优先取登录页预取缓存（同一用户同 key 已预取成功则不重复请求），未命中走真实请求
+function cachedOr(key, fn) {
+  const c = getPreload(currentUserId)
+  const v = c && c.data && c.data[key]
+  if (v !== undefined && v !== null) return Promise.resolve(v)
+  return fn()
+}
 
 const greeting = computed(() => {
   if (isSuperAdmin) return '平台运行概览与最近操作动态'
@@ -212,7 +225,11 @@ const loadingAdmin = ref(false)
 async function loadAdmin() {
   loadingAdmin.value = true
   try {
-    const [u, g, logs] = await Promise.all([listUsers(), listGroups(), listOperationLogs({ page: 1, pageSize: 5 })])
+    const [u, g, logs] = await Promise.all([
+      cachedOr('users', () => listUsers()),
+      cachedOr('groups', () => listGroups()),
+      cachedOr('logs', () => listOperationLogs({ page: 1, pageSize: 5 }))
+    ])
     if (u && u.success) userCount.value = (u.users || []).length
     if (g && g.success) groupCount.value = (g.groups || []).length
     if (logs && logs.success) {
@@ -234,11 +251,11 @@ async function loadGroup() {
   loadingGroup.value = true
   try {
     const [m, n, mt, s, k] = await Promise.all([
-      listMembersByGroup(gid),
-      listNotices(gid),
-      listMeetings(gid),
-      listSubjects(gid),
-      listKnowledge(gid)
+      cachedOr('members', () => listMembersByGroup(gid)),
+      cachedOr('notices', () => listNotices(gid)),
+      cachedOr('meetings', () => listMeetings(gid)),
+      cachedOr('subjects', () => listSubjects(gid)),
+      cachedOr('knowledge', () => listKnowledge(gid))
     ])
     stats.value = {
       members: (m && m.success ? m.members : []).length,
@@ -262,10 +279,10 @@ async function loadMentor() {
   try {
     const gid = currentGroupId.value
     const [s, w, a, r] = await Promise.all([
-      listStudents(),
-      listAllWeeklyReports({}),
-      gid ? listAllAchievements({ status: 'pending', group_id: gid }) : Promise.resolve({ success: false, data: [] }),
-      gid ? listMeetingReports({ group_id: gid }) : Promise.resolve({ success: false, data: [] })
+      cachedOr('students', () => listStudents()),
+      cachedOr('weeklyReports', () => listAllWeeklyReports({})),
+      cachedOr('achievements', () => gid ? listAllAchievements({ status: 'pending', group_id: gid }) : Promise.resolve({ success: false, data: [] })),
+      cachedOr('meetingReports', () => gid ? listMeetingReports({ group_id: gid }) : Promise.resolve({ success: false, data: [] }))
     ])
     const allWeekly = (w && w.success ? w.data : [])
     mentorStats.value = {
@@ -275,7 +292,7 @@ async function loadMentor() {
       pendingReports: (r && r.success ? r.data : []).filter((x) => x.status === 'pending').length
     }
     if (currentGroupId.value) {
-      const n = await listNotices(currentGroupId.value)
+      const n = await cachedOr('notices', () => listNotices(currentGroupId.value))
       mentorNotices.value = (n && n.success ? n.notices : []).slice(0, 3)
     } else {
       mentorNotices.value = []
@@ -375,17 +392,17 @@ async function loadStudent() {
     const gid = currentGroupId.value
     const empty = { success: false, data: [] }
     const [t, w, s, mt, ach, lit, logs, reps, dn, dr, msg] = await Promise.all([
-      listMyTasks(),
-      listMyWeeklyReports(),
-      gid ? listSubjects(gid) : Promise.resolve(empty),
-      gid ? listMeetings(gid) : Promise.resolve(empty),
-      listMyAchievements(),
-      listMyLiterature({}),
-      listMyResearchLogs(),
-      gid ? listMeetingReports({ group_id: gid }) : Promise.resolve(empty),
-      gid ? listDegreeNodes(gid) : Promise.resolve(empty),
-      gid ? listDegreeRecords({ group_id: gid }) : Promise.resolve(empty),
-      getMessageUnreadCount()
+      cachedOr('myTasks', () => listMyTasks()),
+      cachedOr('myWeeklyReports', () => listMyWeeklyReports()),
+      cachedOr('mySubjects', () => gid ? listSubjects(gid) : Promise.resolve(empty)),
+      cachedOr('myMeetings', () => gid ? listMeetings(gid) : Promise.resolve(empty)),
+      cachedOr('myAchievements', () => listMyAchievements()),
+      cachedOr('myLiterature', () => listMyLiterature({})),
+      cachedOr('myResearchLogs', () => listMyResearchLogs()),
+      cachedOr('myMeetingReports', () => gid ? listMeetingReports({ group_id: gid }) : Promise.resolve(empty)),
+      cachedOr('degreeNodes', () => gid ? listDegreeNodes(gid) : Promise.resolve(empty)),
+      cachedOr('degreeRecords', () => gid ? listDegreeRecords({ group_id: gid }) : Promise.resolve(empty)),
+      cachedOr('msgUnread', () => getMessageUnreadCount())
     ])
     const tasks = (t && t.success ? t.data : []) || []
     const weeklies = (w && w.success ? w.data : []) || []
@@ -532,7 +549,7 @@ async function loadStudent() {
       .slice(0, 3)
 
     if (gid) {
-      const n = await listNotices(gid)
+      const n = await cachedOr('notices', () => listNotices(gid))
       studentNotices.value = (n && n.success ? n.notices : []).slice(0, 3)
     } else {
       studentNotices.value = []

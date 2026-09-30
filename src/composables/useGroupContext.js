@@ -31,17 +31,19 @@ watch(currentGroupId, (v) => {
 export function useGroupContext() {
   const { isSuperAdmin } = useRole()
   const { getSessionUser } = useSession()
-  const user = getSessionUser()
 
   // 加载当前用户可见的课题组列表：超管全量，其他角色仅所属组
-  // 并发去重：首次调用发起请求，进行中的后续调用共享同一 Promise
+  // 每次调用实时读取当前登录用户（支持登录页预取等「调用时尚未登录」的场景），
+  // 超管 / 非超管分支按实时角色判断，避免沿用首次调用时的空会话。
   async function loadGroups() {
+    const user = getSessionUser()
     const uid = user ? user.id : null
     if (groupsLoaded.value && loadedForUserId === uid) return loadPromise
     if (loadPromise) return loadPromise
     loadPromise = (async () => {
       try {
-        const res = isSuperAdmin ? await listGroups() : await listMyGroups()
+        const isSuper = !!(user && user.role === 'super_admin')
+        const res = isSuper ? await listGroups() : await listMyGroups()
         if (res && res.success) {
           groups.value = res.groups || []
           groupsLoaded.value = true
@@ -62,7 +64,8 @@ export function useGroupContext() {
   }
 
   // 已登录时首次调用即触发加载（导师 / 学生端无 GroupSelector，不能依赖组件挂载）
-  if (user) loadGroups()
+  const sessionUser = getSessionUser()
+  if (sessionUser) loadGroups()
 
   function setGroupId(id) {
     const n = Number(id)

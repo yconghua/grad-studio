@@ -189,11 +189,13 @@ import { visibleNavItems } from '../config/navConfig'
 import { useSession } from '../composables/useSession'
 import { useGroupContext } from '../composables/useGroupContext'
 import { useAppName } from '../composables/useAppName'
+import { useHomePreload } from '../composables/useHomePreload'
 import UpdateDialog from '../components/UpdateDialog.vue'
 import logoUrl from '../assets/logo.ico'
 
 const { clearSession, getSessionUser } = useSession()
 const { currentGroupId, groups, groupsLoaded } = useGroupContext()
+const { getPreload } = useHomePreload()
 const { appName } = useAppName()
 
 const currentUser = getSessionUser()
@@ -295,6 +297,22 @@ const msgUnread = ref(0)
 const msgList = ref([])
 const msgLoading = ref(false)
 let msgTimer = null
+
+// 首屏未读角标优先复用登录页预取结果（同一用户已预取则不重复请求）
+function applyPreloadUnread() {
+  const pre = getPreload(currentUser?.id)
+  if (!pre) return false
+  if (pre.msgUnread && pre.msgUnread.success) {
+    msgUnread.value = (pre.msgUnread.data && pre.msgUnread.data.total) || 0
+  }
+  if (pre.chatUnread && pre.chatUnread.success) {
+    chatUnread.value = (pre.chatUnread.data && pre.chatUnread.data.total) || 0
+  }
+  if (pre.noticeUnread && pre.noticeUnread.success) {
+    noticeUnread.value = pre.noticeUnread.count || 0
+  }
+  return true
+}
 
 async function fetchMsgUnread() {
   try {
@@ -701,9 +719,12 @@ window.addEventListener('chat-unread-changed', onChatUnreadChanged)
 
 onMounted(() => {
   document.addEventListener('click', onDocClick)
-  fetchMsgUnread()
-  fetchNoticeUnread()
-  fetchChatUnread()
+  // 登录页已预取首屏未读数：命中缓存直接用，未命中才自行请求
+  if (!applyPreloadUnread()) {
+    fetchMsgUnread()
+    fetchNoticeUnread()
+    fetchChatUnread()
+  }
   msgTimer = setInterval(() => {
     fetchMsgUnread()
     fetchNoticeUnread()
