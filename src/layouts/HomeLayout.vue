@@ -615,10 +615,12 @@ function onNoticeUnreadChanged() {
   fetchMsgUnread()
 }
 
-// 「我的消息」页已读操作（全部已读/单条已读）后刷新铃铛与公告角标
+// 「我的消息」页已读操作（全部已读/单条已读）后刷新铃铛、公告与聊天角标
+// 聊天消息双写 message 表，会话已读位置由后端联动同步，这里重新拉取聊天未读总数
 function onMessagesReadChanged() {
   fetchMsgUnread()
   fetchNoticeUnread()
+  fetchChatUnread()
 }
 
 // ===== 聊天：独立未读角标 + 实时推送 =====
