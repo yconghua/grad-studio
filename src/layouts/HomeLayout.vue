@@ -606,7 +606,8 @@ function handleUpdateState(payload) {
   }
 }
 
-// 检查更新：silent=true 为启动静默检查（失败不打扰），手动点击时给完整反馈
+// 检查更新：仅由用户手动触发（顶部菜单「检查更新」或弹窗内「重试」），失败时给出完整反馈；
+// silent 参数保留备用（当前无静默调用方，应用启动不再自动检查更新）
 async function checkUpdate(silent = false) {
   if (updateChecking) return
   updateChecking = true
@@ -737,8 +738,6 @@ onMounted(() => {
   offChatPush = onChatPush(onChatPushPayload)
   // 订阅更新状态推送（下载进度 / 下载完成 / 出错）
   offUpdateState = onUpdateState(handleUpdateState)
-  // 启动后延迟静默检查一次更新，避免与登录后的数据加载抢网络
-  setTimeout(() => { checkUpdate(true) }, 2000)
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
