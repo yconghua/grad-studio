@@ -1,0 +1,170 @@
+<template>
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">课题组详情</h2>
+        <p class="page-sub">课题组基本信息、成员与业务概况管理</p>
+      </div>
+      <div class="head-actions">
+        <select v-model="currentId" class="select" style="min-width: 200px" @change="onSwitch">
+          <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+        </select>
+        <button class="btn" @click="$router.push('/admin/groups')">返回列表</button>
+      </div>
+    </div>
+
+    <template v-if="group">
+      <!-- 基本信息 -->
+      <div class="card">
+        <div class="card-head"><h3>基本信息</h3></div>
+        <div class="info-grid">
+          <div class="info-item"><label>课题组名称</label><span>{{ group.name }}</span></div>
+          <div class="info-item"><label>唯一标识号</label><span class="mono">{{ group.code }}</span></div>
+          <div class="info-item"><label>描述</label><span>{{ group.description || '-' }}</span></div>
+          <div class="info-item"><label>管理员</label><span>{{ adminName(group.adminUserId) }}</span></div>
+          <div class="info-item"><label>状态</label><span><span :class="statusTagClass(group.status)">{{ statusText(group.status) }}</span></span></div>
+          <div class="info-item"><label>创建时间</label><span>{{ group.createdAt || '-' }}</span></div>
+        </div>
+      </div>
+
+      <!-- 概况统计 -->
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">{{ memberStats ? memberStats.mentorCount : '-' }}</div><div class="stat-label">导师</div></div>
+        <div class="stat-card"><div class="stat-num">{{ memberStats ? memberStats.studentCount : '-' }}</div><div class="stat-label">学生</div></div>
+        <div class="stat-card"><div class="stat-num">{{ memberStats ? memberStats.unassignedCount : '-' }}</div><div class="stat-label">未指定导师学生</div></div>
+        <div class="stat-card"><div class="stat-num">{{ noticeTotal }}</div><div class="stat-label">公告数</div></div>
+        <div class="stat-card"><div class="stat-num">{{ meetingStats ? meetingStats.total : '-' }}</div><div class="stat-label">组会总数</div></div>
+        <div class="stat-card"><div class="stat-num">{{ meetingStats ? meetingStats.monthTotal : '-' }}</div><div class="stat-label">本月组会</div></div>
+        <div class="stat-card"><div class="stat-num">{{ meetingStats ? meetingStats.participationRate : '-' }}</div><div class="stat-label">参与率</div></div>
+      </div>
+
+      <!-- 成员管理 -->
+      <MemberManagePanel :group-id="currentId" :is-super="true" />
+    </template>
+    <div v-else class="empty">{{ groups.length ? '加载中…' : '暂无课题组数据' }}</div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import MemberManagePanel from '../../components/MemberManagePanel.vue'
+import { listGroups, getGroup, listUsers, listNotices, getMeetingStats } from '../../api'
+import { superGetMemberStats } from '../../api/member'
+import { fetchAll } from '../../utils/fetchAll'
+import { statusText, statusTagClass } from '../../utils/labels'
+
+const route = useRoute()
+const router = useRouter()
+const groups = ref([])
+const currentId = ref(0)
+const group = ref(null)
+const memberStats = ref(null)
+const noticeTotal = ref(0)
+const meetingStats = ref(null)
+const admins = ref([])
+
+async function load() {
+  group.value = null
+  memberStats.value = null
+  meetingStats.value = null
+  noticeTotal.value = 0
+  const gid = currentId.value
+  const [gr, ms, ns, mg] = await Promise.all([
+    getGroup(gid),
+    superGetMemberStats(gid),
+    listNotices({ groupId: gid, page: 1 }),
+    getMeetingStats(gid)
+  ])
+  if (gr && gr.success) group.value = gr.data
+  if (ms && ms.success) memberStats.value = ms.data
+  if (ns && ns.success) noticeTotal.value = ns.data.total || 0
+  if (mg && mg.success) meetingStats.value = mg.data
+}
+
+function onSwitch() {
+  router.replace({ query: { id: currentId.value } })
+  load()
+}
+
+function adminName(adminUserId) {
+  if (!adminUserId) return '-'
+  const a = admins.value.find((x) => x.id === Number(adminUserId))
+  return a ? a.realName || a.username : `用户 #${adminUserId}`
+}
+
+onMounted(async () => {
+  groups.value = await fetchAll(listGroups)
+  const idFromQuery = Number(route.query.id)
+  currentId.value = idFromQuery || (groups.value[0] ? groups.value[0].id : 0)
+  admins.value = await fetchAll(listUsers, { role: 'group_admin' })
+  if (currentId.value) load()
+})
+</script>
+
+<style scoped>
+.head-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.card-head h3 {
+  font-size: 15px;
+  color: #1f2329;
+  margin: 0 0 12px;
+}
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.info-item label {
+  font-size: 12px;
+  color: #8a919f;
+}
+.info-item span {
+  font-size: 13px;
+  color: #1f2329;
+}
+.mono {
+  font-family: monospace;
+  font-size: 12px;
+}
+.stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 18px;
+  min-width: 120px;
+  max-width: 160px;
+  text-align: center;
+}
+.stat-num {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1e5eff;
+}
+.stat-label {
+  font-size: 12px;
+  color: #8a919f;
+  margin-top: 4px;
+}
+</style>

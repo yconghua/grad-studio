@@ -29,7 +29,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="g in list" :key="g.id" @click="openDetail(g, groupDetailFields, '课题组详情')">
+          <tr v-for="g in list" :key="g.id" @click="goDetail(g)">
             <td>{{ g.id }}</td>
             <td class="ellipsis">{{ g.name }}</td>
             <td style="font-family: monospace; font-size: 12px" class="ellipsis">{{ g.code }}</td>
@@ -103,19 +103,18 @@
       </div>
     </div>
   </div>
-
-  <!-- 课题组行详情弹窗 -->
-  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import RowDetailDialog from '../../components/RowDetailDialog.vue'
+import { useRouter } from 'vue-router'
 import { listGroups, createGroup, getGroup, updateGroup, deleteGroup, listUsers } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { statusText, statusTagClass } from '../../utils/labels'
+
+const router = useRouter()
 
 // 超级管理员独立页面：课题组设置（列表一页固定 8 条，新增时后端生成 UUID）
 const keyword = ref('')
@@ -158,26 +157,9 @@ function adminName(adminUserId) {
   return a ? a.realName || a.username : `用户 #${adminUserId}`
 }
 
-// ===== 行详情 =====
-const detailVisible = ref(false)
-const detailRow = ref(null)
-const detailFields = ref([])
-const detailTitle = ref('')
-// 课题组详情字段：管理员显示名复用列表反查逻辑
-const groupDetailFields = [
-  { key: 'id', label: 'ID' },
-  { key: 'name', label: '课题组名称' },
-  { key: 'code', label: '唯一标识号' },
-  { key: 'description', label: '描述' },
-  { key: 'adminUserId', label: '管理员', render: adminName },
-  { key: 'status', label: '状态', render: statusText },
-  { key: 'createdAt', label: '创建时间' }
-]
-function openDetail(row, fields, title) {
-  detailRow.value = row
-  detailFields.value = fields
-  detailTitle.value = title
-  detailVisible.value = true
+// 行点击跳转课题组详情页（成员管理 / 业务概况）
+function goDetail(row) {
+  router.push({ path: '/admin/group-detail', query: { id: row.id } })
 }
 
 async function openCreate() {

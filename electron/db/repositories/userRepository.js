@@ -283,6 +283,80 @@ class UserRepository extends BaseRepository {
   }
 
   /**
+   * 课题组内导师/学生成员分页（成员管理列表）：LEFT JOIN 取导师姓名
+   * @param {number} groupId
+   * @param {{ keyword?: string, role?: string, page?: number }} filters
+   */
+  async pagedGroupMembers(groupId, filters = {}) {
+    const where = ['u.group_id = ?', "u.role IN ('mentor', 'student')", 'u.status = ?']
+    const values = [Number(groupId), ACCOUNT_STATUS_ENABLED]
+    if (filters.role) {
+      where.push('u.role = ?')
+      values.push(filters.role)
+    }
+    const whereSql = where.join(' AND ')
+
+    let keywordClause = ''
+    let keywordValues = []
+    if (filters.keyword && String(filters.keyword).trim()) {
+      const kw = `%${String(filters.keyword).trim()}%`
+      keywordClause = ' AND (u.username LIKE ? OR u.real_name LIKE ?)'
+      keywordValues = [kw, kw]
+    }
+
+    const countSql = `SELECT COUNT(*) AS total FROM \`users\` u WHERE ${whereSql}${keywordClause}`
+    const [countRows] = await this._execute(countSql, [...values, ...keywordValues], 'pagedGroupMembers.count')
+    const total = Number(countRows[0] && countRows[0].total) || 0
+
+    const { page, pageSize, limit, offset } = normalizePage(filters.page)
+    const sql =
+      `SELECT u.id, u.username, u.real_name, u.role, u.status, u.email, u.phone, u.gender,
+              u.group_id, u.mentor_id, u.created_at, m.real_name AS mentor_name
+       FROM \`users\` u
+       LEFT JOIN \`users\` m ON m.id = u.mentor_id
+       WHERE ${whereSql}${keywordClause}
+       ORDER BY u.id ASC LIMIT ${limit} OFFSET ${offset}`
+    const [rows] = await this._execute(sql, [...values, ...keywordValues], 'pagedGroupMembers')
+    return { list: rows, ...buildPageMeta(total, page, pageSize) }
+  }
+
+  /**
+   * 移除成员时清理组会参与关系：删除该用户在本组全部会议中的参与记录
+   * @param {number} userId
+   * @param {number} groupId
+   */
+  async clearGroupMeetingParticipation(userId, groupId) {
+    const sql =
+      'DELETE FROM `group_meeting_participant` WHERE user_id = ? AND meeting_id IN (SELECT id FROM `group_meeting` WHERE group_id = ?)'
+    const [result] = await this._execute(sql, [Number(userId), Number(groupId)], 'clearGroupMeetingParticipation')
+    return result.affectedRows
+  }
+
+  /**
+   * 课题组成员统计（详情页概况卡）：导师数 / 学生数 / 未指定导师学生数 / 最近加入时间
+   * @param {number} groupId
+   * @returns {{ mentorCount: number, studentCount: number, unassignedCount: number, latestJoin: string|null }}
+   */
+  async groupMemberStats(groupId) {
+    const sql =
+      `SELECT
+         SUM(CASE WHEN role = 'mentor' THEN 1 ELSE 0 END) AS mentor_count,
+         SUM(CASE WHEN role = 'student' THEN 1 ELSE 0 END) AS student_count,
+         SUM(CASE WHEN role = 'student' AND mentor_id IS NULL THEN 1 ELSE 0 END) AS unassigned_count,
+         MAX(created_at) AS latest_join
+       FROM \`users\`
+       WHERE group_id = ? AND role IN ('mentor', 'student') AND status = ?`
+    const [rows] = await this._execute(sql, [Number(groupId), ACCOUNT_STATUS_ENABLED], 'groupMemberStats')
+    const r = rows[0] || {}
+    return {
+      mentorCount: Number(r.mentor_count) || 0,
+      studentCount: Number(r.student_count) || 0,
+      unassignedCount: Number(r.unassigned_count) || 0,
+      latestJoin: r.latest_join || null
+    }
+  }
+
+  /**
    * 通用条件分页（内部复用）：固定条件 + 可选关键字（账号/真实姓名）
    */
   async _pagedByCondition(condArr, condValues, filters, action) {

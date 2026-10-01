@@ -45,6 +45,38 @@ function register(ipcMain) {
     return groupService.deleteGroup(payload && payload.id)
   }))
 
+  // ===== 超级管理员：课题组详情页成员管理（group:*，groupId 必传）=====
+  ipcMain.handle('group:members-list', handler(async (_evt, payload) => {
+    await requireRole(ROLE_SUPER_ADMIN)
+    return groupService.listMembers(payload || {})
+  }))
+  ipcMain.handle('group:members-add', handler(async (_evt, payload) => {
+    await requireRole(ROLE_SUPER_ADMIN)
+    return groupService.addMembers(payload || {})
+  }))
+  ipcMain.handle('group:member-remove', handler(async (_evt, payload) => {
+    await requireRole(ROLE_SUPER_ADMIN)
+    return groupService.removeMember(payload && payload.groupId, payload && payload.userId)
+  }))
+  ipcMain.handle('group:members-batch-remove', handler(async (_evt, payload) => {
+    await requireRole(ROLE_SUPER_ADMIN)
+    return groupService.batchRemoveMembers(payload && payload.groupId, (payload && payload.ids) || [])
+  }))
+  ipcMain.handle('group:members-batch-assign-mentor', handler(async (_evt, payload) => {
+    await requireRole(ROLE_SUPER_ADMIN)
+    const { groupId, ids, mentorId } = payload || {}
+    return groupService.batchAssignMentor(groupId, ids, mentorId)
+  }))
+  ipcMain.handle('group:set-student-mentor', handler(async (_evt, payload) => {
+    await requireRole(ROLE_SUPER_ADMIN)
+    const { groupId, studentId, data } = payload || {}
+    return groupService.setStudentMentor(groupId, studentId, data || {})
+  }))
+  ipcMain.handle('group:member-stats', handler(async (_evt, payload) => {
+    await requireRole(ROLE_SUPER_ADMIN)
+    return groupService.getGroupMemberStats(payload && payload.groupId)
+  }))
+
   // ===== 课题组管理员：本课题组 =====
   ipcMain.handle('group-admin:get-own', handler(async () => {
     await requireRole(ROLE_GROUP_ADMIN)
@@ -64,16 +96,16 @@ function register(ipcMain) {
   }))
   ipcMain.handle('group-admin:member-remove', handler(async (_evt, payload) => {
     await requireRole(ROLE_GROUP_ADMIN)
-    return groupService.removeMember(payload && payload.userId)
+    return groupService.removeMember(undefined, payload && payload.userId)
   }))
   ipcMain.handle('group-admin:members-batch-remove', handler(async (_evt, payload) => {
     await requireRole(ROLE_GROUP_ADMIN)
-    return groupService.batchRemoveMembers((payload && payload.ids) || [])
+    return groupService.batchRemoveMembers(undefined, (payload && payload.ids) || [])
   }))
   ipcMain.handle('group-admin:members-batch-assign-mentor', handler(async (_evt, payload) => {
     await requireRole(ROLE_GROUP_ADMIN)
     const { ids, mentorId } = payload || {}
-    return groupService.batchAssignMentor(ids, mentorId)
+    return groupService.batchAssignMentor(undefined, ids, mentorId)
   }))
   ipcMain.handle('group-admin:students-list', handler(async (_evt, payload) => {
     await requireRole(ROLE_GROUP_ADMIN)
@@ -82,7 +114,7 @@ function register(ipcMain) {
   ipcMain.handle('group-admin:set-student-mentor', handler(async (_evt, payload) => {
     await requireRole(ROLE_GROUP_ADMIN)
     const { studentId, data } = payload || {}
-    return groupService.setStudentMentor(studentId, data || {})
+    return groupService.setStudentMentor(undefined, studentId, data || {})
   }))
 
   // ===== 导师：我的学生 =====

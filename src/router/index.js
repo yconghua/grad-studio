@@ -51,6 +51,7 @@ const routes = [
       { path: 'users', name: 'admin-users', component: () => import('../pages/admin/AdminUserList.vue'), meta: { title: '用户管理' } },
       { path: 'users/:id/edit', name: 'admin-user-edit', component: () => import('../pages/admin/AdminUserEdit.vue'), meta: { title: '编辑用户' } },
       { path: 'groups', name: 'admin-groups', component: () => import('../pages/admin/AdminGroupList.vue'), meta: { title: '课题组设置' } },
+      { path: 'group-detail', name: 'admin-group-detail', component: () => import('../pages/admin/AdminGroupDetail.vue'), meta: { title: '课题组详情' } },
       { path: 'notices', name: 'admin-notices', component: () => import('../pages/admin/AdminGroupNotice.vue'), meta: { title: '课题组公告管理' } },
       { path: 'meetings', name: 'admin-meetings', component: () => import('../pages/admin/AdminMeetingList.vue'), meta: { title: '会议记录管理' } },
       { path: 'system', name: 'admin-system', component: () => import('../pages/admin/AdminSystemConfig.vue'), meta: { title: '系统配置' } },

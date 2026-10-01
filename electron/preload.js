@@ -85,7 +85,14 @@ contextBridge.exposeInMainWorld('api', {
     create: createInvoke('group:create'),
     detail: createInvoke('group:detail'),
     update: createInvoke('group:update'),
-    delete: createInvoke('group:delete')
+    delete: createInvoke('group:delete'),
+    membersList: createInvoke('group:members-list'),
+    membersAdd: createInvoke('group:members-add'),
+    memberRemove: createInvoke('group:member-remove'),
+    membersBatchRemove: createInvoke('group:members-batch-remove'),
+    membersBatchAssignMentor: createInvoke('group:members-batch-assign-mentor'),
+    setStudentMentor: createInvoke('group:set-student-mentor'),
+    memberStats: createInvoke('group:member-stats')
   },
   // 课题组管理员：本课题组（group-admin:*）
   groupAdmin: {

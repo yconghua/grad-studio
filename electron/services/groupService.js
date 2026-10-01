@@ -19,6 +19,7 @@ const authService = require('./authService')
 const userService = require('./userService')
 const ApiError = require('./apiError')
 const {
+  ROLE_SUPER_ADMIN,
   ROLE_GROUP_ADMIN,
   ROLE_MENTOR,
   ROLE_STUDENT,
@@ -58,6 +59,42 @@ async function ownGroup() {
   const group = await groupRepository.findByAdminUserId(me.id)
   if (!group) throw new ApiError('当前账号未绑定课题组', 404)
   return group
+}
+
+// 成员操作目标课题组统一判定：超管用传入 groupId（校验存在），组管强制本组，其余 403。
+// 两套 IPC 通道（group-admin:* / group:*）共用同一批成员方法，仅此处区分 groupId 来源。
+async function resolveGroupId(me, groupId) {
+  if (me.role === ROLE_SUPER_ADMIN) {
+    const gid = Number(groupId)
+    if (!gid) throw new ApiError('请指定课题组', 400)
+    const group = await groupRepository.findById(gid)
+    if (!group) throw new ApiError('课题组不存在', 404)
+    return gid
+  }
+  if (me.role === ROLE_GROUP_ADMIN) {
+    const group = await ownGroup()
+    return group.id
+  }
+  throw new ApiError('无权限：无权执行此操作', 403)
+}
+
+// 成员行转 DTO（含导师姓名、加入时间）
+function memberDto(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    username: row.username,
+    realName: row.real_name,
+    role: row.role,
+    status: row.status,
+    phone: row.phone || '',
+    email: row.email || '',
+    gender: row.gender,
+    groupId: row.group_id == null ? null : Number(row.group_id),
+    mentorId: row.mentor_id == null ? null : Number(row.mentor_id),
+    mentorName: row.mentor_name || null,
+    joinTime: row.created_at || null
+  }
 }
 
 // ===== 超级管理员：课题组管理 =====
@@ -216,57 +253,63 @@ async function updateOwnGroup({ name, description } = {}) {
 }
 
 /**
- * 本课题组成员列表：仅本组导师 / 学生（组管理员自身不计入成员），
- * 可按角色、关键字过滤
+ * 课题组成员列表（超管任意组 / 组管仅本组）：仅本组导师 / 学生（组管理员不计入成员），
+ * 可按角色、关键字过滤；返回导师姓名与加入时间。
  */
-async function listMembers({ page, keyword, role } = {}) {
-  const group = await ownGroup()
+async function listMembers({ groupId, page, keyword, role } = {}) {
+  const me = await authService.getCurrentUser()
+  const gid = await resolveGroupId(me, groupId)
   if (role && ![ROLE_MENTOR, ROLE_STUDENT].includes(role)) throw new ApiError('角色参数不合法', 400)
-  const result = await userRepository.pagedList({
-    page,
-    keyword,
-    role,
-    roles: role ? undefined : [ROLE_MENTOR, ROLE_STUDENT],
-    groupId: group.id,
-    status: ACCOUNT_STATUS_ENABLED
-  })
-  return pageResult(result, userService.toUserDto)
+  const result = await userRepository.pagedGroupMembers(gid, { page, keyword, role })
+  return pageResult(result, memberDto)
 }
 
 /**
- * 选择已有用户加入本课题组（课题组管理员不能创建新用户）：
- * 只能加入导师 / 学生角色，且目标用户必须未入组。
+ * 选择已有用户加入课题组（超管任意组 / 组管仅本组）：
+ * 只能加入导师 / 学生角色，且目标用户必须未入组（不做跨组拉人）。
+ * 逐条独立处理，一条失败不影响其余，返回明细。
  */
-async function addMembers({ userIds, role } = {}) {
-  const group = await ownGroup()
+async function addMembers({ groupId, userIds, role } = {}) {
+  const me = await authService.getCurrentUser()
+  const gid = await resolveGroupId(me, groupId)
   if (!Array.isArray(userIds) || userIds.length === 0) throw new ApiError('请选择要加入的用户', 400)
   if (![ROLE_MENTOR, ROLE_STUDENT].includes(role)) throw new ApiError('角色参数不合法', 400)
 
-  let added = 0
+  let successCount = 0
+  const failList = []
   for (const uid of userIds) {
-    const u = await userRepository.findById(Number(uid))
-    if (!u || u.status !== ACCOUNT_STATUS_ENABLED) continue
-    if (u.role !== role) {
-      throw new ApiError(`用户「${u.username}」不是${role === ROLE_MENTOR ? '导师' : '学生'}角色`, 400)
+    const idNum = Number(uid)
+    let username = ''
+    try {
+      const u = await userRepository.findById(idNum)
+      if (!u || u.status !== ACCOUNT_STATUS_ENABLED) throw new ApiError('用户不存在或已禁用')
+      username = u.username
+      if (u.role !== role) {
+        throw new ApiError(`用户「${u.username}」不是${role === ROLE_MENTOR ? '导师' : '学生'}角色`)
+      }
+      if (u.group_id) {
+        throw new ApiError(`用户「${u.username}」已属于其他课题组`)
+      }
+      await userRepository.updateById(idNum, { group_id: gid })
+      successCount++
+    } catch (e) {
+      failList.push({ id: idNum, username, reason: (e && e.message) ? e.message : '加入失败' })
     }
-    if (u.group_id) {
-      throw new ApiError(`用户「${u.username}」已属于其他课题组`, 400)
-    }
-    await userRepository.updateById(Number(uid), { group_id: group.id })
-    added++
   }
-  return { added }
+  return { successCount, failCount: failList.length, failList }
 }
 
 /**
- * 移除本课题组成员：导师名下还有学生时禁止移除；学生移除时同步解除导师关系。
+ * 移除课题组成员（超管任意组 / 组管仅本组）：导师名下还有学生时禁止移除；
+ * 学生移除时同步解除导师关系、清理本组组会参与关系，放同一事务。
  */
-async function removeMember(userId) {
-  const group = await ownGroup()
+async function removeMember(groupId, userId) {
+  const me = await authService.getCurrentUser()
+  const gid = await resolveGroupId(me, groupId)
   const idNum = Number(userId)
   const u = await userRepository.findById(idNum)
   if (!u) throw new ApiError('用户不存在', 404)
-  if (u.group_id !== group.id) throw new ApiError('该用户不属于当前课题组', 400)
+  if (u.group_id !== gid) throw new ApiError('该用户不属于当前课题组', 400)
 
   if (u.role === ROLE_MENTOR) {
     const { total } = await userRepository.pagedStudentsByMentor(idNum, {})
@@ -274,16 +317,21 @@ async function removeMember(userId) {
   }
   const data = { group_id: null }
   if (u.role === ROLE_STUDENT) data.mentor_id = null
-  await userRepository.updateById(idNum, data)
+  await runTransaction(async () => {
+    await userRepository.updateById(idNum, data)
+    if (u.role === ROLE_STUDENT) {
+      await userRepository.clearGroupMeetingParticipation(idNum, gid)
+    }
+  })
   return true
 }
 
 /**
- * 批量移除本课题组成员（课题组管理员）：逐条复用单条移除逻辑，
- * 一条失败不影响其余；不能移除当前登录账号（组管自身）。
+ * 批量移除课题组成员：逐条复用单条移除逻辑，一条失败不影响其余；
+ * 不能移除当前登录账号（组管自身）。
  * 返回 { successCount, failCount, failList: [{ id, reason }] }
  */
-async function batchRemoveMembers(ids) {
+async function batchRemoveMembers(groupId, ids) {
   const me = await authService.getCurrentUser()
   if (!me) throw new ApiError('未登录，请重新登录', 401)
   if (!Array.isArray(ids) || ids.length === 0) throw new ApiError('请选择要移除的成员', 400)
@@ -294,7 +342,7 @@ async function batchRemoveMembers(ids) {
     const idNum = Number(rawId)
     try {
       if (me.id === idNum) throw new ApiError('不能移除当前登录账号', 400)
-      await removeMember(idNum)
+      await removeMember(groupId, idNum)
       successCount++
     } catch (e) {
       failList.push({ id: idNum, reason: (e && e.message) ? e.message : '移除失败' })
@@ -304,18 +352,19 @@ async function batchRemoveMembers(ids) {
 }
 
 /**
- * 批量给学生指定导师（课题组管理员）：仅对「属于本组的学生」生效，
+ * 批量给学生指定导师（超管任意组 / 组管仅本组）：仅对「属于本组的学生」生效，
  * 非学生跳过进 failList；已绑定其他导师的直接覆盖并计入 replacedCount。
  * 导师先整体校验（存在 / mentor 角色 / 属于本组）。
  */
-async function batchAssignMentor(ids, mentorId) {
-  const group = await ownGroup()
+async function batchAssignMentor(groupId, ids, mentorId) {
+  const me = await authService.getCurrentUser()
+  const gid = await resolveGroupId(me, groupId)
   if (!Array.isArray(ids) || ids.length === 0) throw new ApiError('请选择要指定导师的学生', 400)
   const mid = Number(mentorId)
   if (!mid) throw new ApiError('请选择导师', 400)
   const mentor = await userRepository.findById(mid)
   if (!mentor || mentor.role !== ROLE_MENTOR) throw new ApiError('所选导师不存在', 400)
-  if (mentor.group_id !== group.id) throw new ApiError('导师与学生必须属于同一课题组', 400)
+  if (mentor.group_id !== gid) throw new ApiError('导师与学生必须属于同一课题组', 400)
 
   let successCount = 0
   let replacedCount = 0
@@ -326,7 +375,7 @@ async function batchAssignMentor(ids, mentorId) {
       const student = await userRepository.findById(idNum)
       if (!student) throw new ApiError('用户不存在', 404)
       if (student.role !== ROLE_STUDENT) throw new ApiError('仅学生可指定导师，非学生已跳过', 400)
-      if (student.group_id !== group.id) throw new ApiError('该学生不属于当前课题组', 400)
+      if (student.group_id !== gid) throw new ApiError('该学生不属于当前课题组', 400)
       if (student.mentor_id) replacedCount++
       await userRepository.updateById(idNum, { mentor_id: mid })
       successCount++
@@ -340,21 +389,23 @@ async function batchAssignMentor(ids, mentorId) {
 /**
  * 本课题组学生列表（分页）
  */
-async function listStudents({ page, keyword } = {}) {
-  const group = await ownGroup()
-  const result = await userRepository.pagedStudentsByGroup(group.id, { page, keyword })
+async function listStudents({ groupId, page, keyword } = {}) {
+  const me = await authService.getCurrentUser()
+  const gid = await resolveGroupId(me, groupId)
+  const result = await userRepository.pagedStudentsByGroup(gid, { page, keyword })
   return pageResult(result, userService.toUserDto)
 }
 
 /**
- * 给学生指定导师：学生与导师必须同属本课题组；一个学生只能有一个导师。
- * mentorId 传空表示取消指定。
+ * 给学生指定导师（超管任意组 / 组管仅本组）：学生与导师必须同属本课题组；
+ * 一个学生只能有一个导师；mentorId 传空表示取消指定。
  */
-async function setStudentMentor(studentId, { mentorId } = {}) {
-  const group = await ownGroup()
+async function setStudentMentor(groupId, studentId, { mentorId } = {}) {
+  const me = await authService.getCurrentUser()
+  const gid = await resolveGroupId(me, groupId)
   const student = await userRepository.findById(Number(studentId))
   if (!student || student.role !== ROLE_STUDENT) throw new ApiError('学生不存在', 404)
-  if (student.group_id !== group.id) throw new ApiError('该学生不属于当前课题组', 400)
+  if (student.group_id !== gid) throw new ApiError('该学生不属于当前课题组', 400)
 
   if (mentorId === undefined || mentorId === null || mentorId === '') {
     await userRepository.updateById(Number(studentId), { mentor_id: null })
@@ -362,9 +413,18 @@ async function setStudentMentor(studentId, { mentorId } = {}) {
   }
   const mentor = await userRepository.findById(Number(mentorId))
   if (!mentor || mentor.role !== ROLE_MENTOR) throw new ApiError('导师不存在', 400)
-  if (mentor.group_id !== group.id) throw new ApiError('导师与学生必须属于同一课题组', 400)
+  if (mentor.group_id !== gid) throw new ApiError('导师与学生必须属于同一课题组', 400)
   await userRepository.updateById(Number(studentId), { mentor_id: Number(mentorId) })
   return userService.getUser(studentId)
+}
+
+/**
+ * 课题组成员统计（详情页概况卡）：导师数 / 学生数 / 未指定导师学生数 / 最近加入时间
+ */
+async function getGroupMemberStats(groupId) {
+  const me = await authService.getCurrentUser()
+  const gid = await resolveGroupId(me, groupId)
+  return userRepository.groupMemberStats(gid)
 }
 
 // ===== 导师：我的学生 =====
@@ -394,6 +454,7 @@ module.exports = {
   batchAssignMentor,
   listStudents,
   setStudentMentor,
+  getGroupMemberStats,
   listMentorStudents,
   toGroupDto
 }

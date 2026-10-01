@@ -30,3 +30,26 @@ export function setStudentMentor(studentId, data = {}) {
 export function listMyStudents(params = {}) {
   return window.api.mentor.studentsList(params)
 }
+
+// 超级管理员：任意课题组详情页成员管理（group:*，groupId 必传）
+export function superListMembers(params = {}) {
+  return window.api.group.membersList(params)
+}
+export function superAddMembers(data = {}) {
+  return window.api.group.membersAdd(data)
+}
+export function superRemoveMember(groupId, userId) {
+  return window.api.group.memberRemove({ groupId, userId })
+}
+export function superBatchRemoveMembers(groupId, ids) {
+  return window.api.group.membersBatchRemove({ groupId, ids })
+}
+export function superBatchAssignMentor(groupId, ids, mentorId) {
+  return window.api.group.membersBatchAssignMentor({ groupId, ids, mentorId })
+}
+export function superSetStudentMentor(groupId, studentId, data = {}) {
+  return window.api.group.setStudentMentor({ groupId, studentId, data })
+}
+export function superGetMemberStats(groupId) {
+  return window.api.group.memberStats({ groupId })
+}
