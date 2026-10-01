@@ -9,5 +9,5 @@
 
 <script setup>
 import RoleLayout from './RoleLayout.vue'
-import { SUPER_ADMIN_NAV, SUPER_ADMIN_HOME } from '../config/nav.super-admin'
+import { SUPER_ADMIN_NAV, SUPER_ADMIN_HOME } from '../config/nav/super-admin'
 </script>

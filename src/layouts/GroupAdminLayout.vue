@@ -9,5 +9,5 @@
 
 <script setup>
 import RoleLayout from './RoleLayout.vue'
-import { GROUP_ADMIN_NAV, GROUP_ADMIN_HOME } from '../config/nav.group-admin'
+import { GROUP_ADMIN_NAV, GROUP_ADMIN_HOME } from '../config/nav/group-admin'
 </script>

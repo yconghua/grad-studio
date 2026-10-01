@@ -9,5 +9,5 @@
 
 <script setup>
 import RoleLayout from './RoleLayout.vue'
-import { STUDENT_NAV, STUDENT_HOME } from '../config/nav.student'
+import { STUDENT_NAV, STUDENT_HOME } from '../config/nav/student'
 </script>

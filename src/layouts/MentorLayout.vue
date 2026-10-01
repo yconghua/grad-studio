@@ -9,5 +9,5 @@
 
 <script setup>
 import RoleLayout from './RoleLayout.vue'
-import { MENTOR_NAV, MENTOR_HOME } from '../config/nav.mentor'
+import { MENTOR_NAV, MENTOR_HOME } from '../config/nav/mentor'
 </script>

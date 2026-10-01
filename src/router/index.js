@@ -23,10 +23,10 @@ import StudentLayout from '../layouts/StudentLayout.vue'
 import NotFoundView from '../pages/notfound/index.vue'
 import { useSession } from '../composables/useSession'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../config/constants'
-import { SUPER_ADMIN_HOME } from '../config/nav.super-admin'
-import { GROUP_ADMIN_HOME } from '../config/nav.group-admin'
-import { MENTOR_HOME } from '../config/nav.mentor'
-import { STUDENT_HOME } from '../config/nav.student'
+import { SUPER_ADMIN_HOME } from '../config/nav/super-admin'
+import { GROUP_ADMIN_HOME } from '../config/nav/group-admin'
+import { MENTOR_HOME } from '../config/nav/mentor'
+import { STUDENT_HOME } from '../config/nav/student'
 
 const { getSessionUser, isSessionValid } = useSession()
 
