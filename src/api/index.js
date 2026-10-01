@@ -1,725 +1,146 @@
-// 对 preload 暴露的 window.api 做一层薄封装，便于组件调用。
-// 若需要，可在此统一处理错误 / loading。
-//
-// 已封装模块：
-//   auth           认证与用户管理
-//   sys            系统与数据库连接
-//   profile        用户档案
-//   group          课题组管理
-//   member         组成员管理
-//   students       导师学生关系
-//   notice         课题组公告
-//   degree         学位节点与记录
-//   meeting        组会
-//   meetingReport  组会汇报
-//   subject        课题与成员
-//   task           任务与进展
-//   researchLog    科研日志
-//   weekly         周报
-//   achievement    科研成果
-//   paper          论文投稿跟踪
-//   literature     文献库
-//   literatureNote 文献笔记
-//   archive        科研档案
-//   knowledge      知识库
-//   groupSetting   课题组配置
-//   systemParam    系统参数
-//   operationLog   操作日志
-//   message        站内消息
-//   chat           聊天（chat:*，独立于 message:*）
+/**
+ * 渲染层 API 薄封装：对 preload 暴露的 window.api 做一层调用封装。
+ *
+ * 统一约定：
+ *   - 后端统一返回 { success, code, message, data }（成功时 success=true、code=0）；
+ *   - 本模块所有函数原样返回该响应对象（success 判断由页面自行处理），
+ *     与既有组件（登录页 / 数据库管理弹窗）的调用习惯保持一致。
+ */
 
-// ===== 认证与用户管理 =====
+// ===== 认证 =====
 export function login(username, password) {
   return window.api.auth.login({ username, password })
 }
-
 export function logout() {
   return window.api.auth.logout()
 }
-
 export function getCurrentUser() {
   return window.api.auth.getCurrentUser()
 }
-
-export function changePassword(username, oldPassword, newPassword) {
-  return window.api.auth.changePassword({ username, oldPassword, newPassword })
+export function changePassword(payload = {}) {
+  return window.api.auth.changePassword(payload)
 }
 
-// 用户管理（超级管理员：平台账号；课题组管理员：本组成员）
-export function listUsers() {
-  return window.api.auth.listUsers()
+// ===== 用户管理（超级管理员）=====
+export function listUsers(params = {}) {
+  return window.api.user.list(params)
 }
-
-// 成员列表（轻量，供下拉选人；传 { group_id } 只返回该课题组在组人员）
-// 3 秒短缓存（按 group_id 区分）：多个页面并发挂载时避免重复请求；传入 { force: true } 强制刷新
-let membersCache = { at: 0, data: null, groupId: null }
-export function listMembers(options) {
-  const force = options && options.force
-  const groupId = options && options.group_id ? Number(options.group_id) : null
-  const now = Date.now()
-  if (!force && membersCache.data && membersCache.groupId === groupId && now - membersCache.at < 3000) {
-    return Promise.resolve(membersCache.data)
-  }
-  return window.api.auth.listMembers(options || {}).then((res) => {
-    if (res && res.success) membersCache = { at: now, data: res, groupId }
-    return res
-  })
+export function createUser(data = {}) {
+  return window.api.user.create(data)
 }
-
-export function createUser(payload) {
-  return window.api.auth.createUser(payload)
+export function getUser(id) {
+  return window.api.user.detail({ id })
 }
-
-// 批量新增用户
-export function batchCreateUsers(users) {
-  return window.api.auth.batchCreateUsers({ users })
+export function updateAccount(id, data = {}) {
+  return window.api.user.updateAccount({ id, data })
 }
-
-export function updateUser(payload) {
-  return window.api.auth.updateUser(payload)
+export function updateProfile(id, data = {}) {
+  return window.api.user.updateProfile({ id, data })
 }
-
-// 读取当前登录用户自己的档案（当前用户表仅含登录必需字段）
-export function getMyProfile() {
-  return window.api.auth.getMyProfile()
-}
-
 export function deleteUser(id) {
-  return window.api.auth.deleteUser({ id })
+  return window.api.user.delete({ id })
+}
+// 候选人列表（未入组的导师 / 学生，供「加入课题组」选人）
+export function listCandidates(params = {}) {
+  return window.api.user.candidates(params)
 }
 
-// ===== 系统与数据库连接 =====
-export function getSysInfo() {
-  return window.api.sys.info()
+// ===== 课题组管理（超级管理员）=====
+export function listGroups(params = {}) {
+  return window.api.group.list(params)
+}
+export function createGroup(data = {}) {
+  return window.api.group.create(data)
+}
+export function getGroup(id) {
+  return window.api.group.detail({ id })
+}
+export function updateGroup(id, data = {}) {
+  return window.api.group.update({ id, data })
+}
+export function deleteGroup(id) {
+  return window.api.group.delete({ id })
 }
 
-// 公开应用信息（无需登录）：平台显示名称等
+// ===== 课题组管理员：本课题组 =====
+export function getOwnGroup() {
+  return window.api.groupAdmin.getOwn()
+}
+export function updateOwnGroup(data = {}) {
+  return window.api.groupAdmin.updateOwn({ data })
+}
+export function listMembers(params = {}) {
+  return window.api.groupAdmin.membersList(params)
+}
+export function addMembers(data = {}) {
+  return window.api.groupAdmin.membersAdd(data)
+}
+export function removeMember(userId) {
+  return window.api.groupAdmin.memberRemove({ userId })
+}
+export function listGroupStudents(params = {}) {
+  return window.api.groupAdmin.studentsList(params)
+}
+export function setStudentMentor(studentId, data = {}) {
+  return window.api.groupAdmin.setStudentMentor({ studentId, data })
+}
+
+// ===== 导师：我的学生 =====
+export function listMyStudents(params = {}) {
+  return window.api.mentor.studentsList(params)
+}
+
+// ===== 系统配置与公共系统接口 =====
+export function getSystemInfo() {
+  return window.api.system.info()
+}
+export function getDatabaseInfo() {
+  return window.api.system.database()
+}
+export function listParams(params = {}) {
+  return window.api.system.paramsList(params)
+}
+export function createParam(data = {}) {
+  return window.api.system.paramsCreate(data)
+}
+export function updateParam(id, data = {}) {
+  return window.api.system.paramsUpdate({ id, data })
+}
+export function deleteParam(id) {
+  return window.api.system.paramsDelete({ id })
+}
+export function getIntroduction() {
+  return window.api.system.introduction()
+}
+export function checkUpdate() {
+  return window.api.system.checkUpdate()
+}
+
+// ===== 系统基础设施（登录页 / 数据库管理组件使用）=====
 export function getPublicInfo() {
   return window.api.sys.getPublicInfo()
 }
-
 export function getDbInfo() {
   return window.api.sys.dbInfo()
 }
-
-// 查看数据表（当前库所有表 + 字段 + 行数）
-export function getTablesInfo() {
-  return window.api.sys.tablesInfo()
-}
-
-// 清理本地缓存（Electron 会话 / 磁盘缓存）
-export function clearCache() {
-  return window.api.sys.clearCache()
-}
-
-// 用户数据目录（路径展示 + 在系统文件管理器中打开）
-export function getUserDataPath() {
-  return window.api.sys.userDataPath()
-}
-
-export function openUserDataDir() {
-  return window.api.sys.openUserDataDir()
-}
-
-// 程序文件所在目录
-export function getAppPath() {
-  return window.api.sys.appPath()
-}
-
-export function openAppDir() {
-  return window.api.sys.openAppDir()
-}
-
-// 导出当前库为 SQL 备份文件
-export function exportDatabase() {
-  return window.api.sys.exportDb()
-}
-
-// 打开开发者控制台（DevTools）
-export function openDevTools() {
-  return window.api.sys.openDevTools()
-}
-
-// 检查更新（发现新版本后由主进程自动下载）
-export function checkForUpdates() {
-  return window.api.sys.checkForUpdates()
-}
-
-// 下载完成后重启并安装更新
-export function installUpdate() {
-  return window.api.sys.installUpdate()
-}
-
-// 订阅更新状态推送（下载进度 / 下载完成 / 出错），返回取消订阅函数
-export function onUpdateState(callback) {
-  return window.api.sys.onUpdateState(callback)
-}
-
-// 卸载应用（启动 NSIS 卸载程序并退出；仅打包安装后可用）
-export function uninstallApp() {
-  return window.api.sys.uninstall()
-}
-
-// 用系统浏览器打开外部链接（仅放行 GitHub 域名）
-export function openExternal(url) {
-  return window.api.sys.openExternal({ url })
-}
-
-// 选择附件文件（弹出文件对话框）
-export function pickAttachment() {
-  return window.api.sys.pickAttachment()
-}
-
-// 用系统默认程序打开附件
-export function openAttachment(path) {
-  return window.api.sys.openAttachment({ path })
-}
-
-// 数据库连接管理（清单 / 切换 / 新增 / 删除）
 export function getDbConnections() {
   return window.api.sys.dbConnections()
 }
-
 export function switchDb(id) {
   return window.api.sys.switchDb({ id })
 }
-
-export function addDb(payload) {
-  return window.api.sys.addDb(payload)
+export function addDb(data = {}) {
+  return window.api.sys.addDb(data)
 }
-
 export function deleteDb(id) {
   return window.api.sys.deleteDb({ id })
 }
-
-// ===== 用户档案 =====
-export function getProfile() {
-  return window.api.profile.get()
+export function exportDb() {
+  return window.api.sys.exportDb()
 }
-
-export function updateProfile(payload) {
-  return window.api.profile.update(payload)
+export function pickAttachment() {
+  return window.api.sys.pickAttachment()
 }
-
-// 超级管理员按用户读取 / 修改档案
-export function getProfileByAdmin(userId) {
-  return window.api.profile.getByAdmin({ userId })
-}
-
-export function updateProfileByAdmin(payload) {
-  return window.api.profile.updateByAdmin(payload)
-}
-
-// ===== 课题组管理（仅超级管理员；listMyGroups 登录用户可用） =====
-export function listGroups() {
-  return window.api.group.list()
-}
-
-// 超级管理员查看任意用户所属课题组（成员资料「所属课题组」tab）
-export function listUserGroups(userId) {
-  return window.api.group.listByUser({ userId })
-}
-
-// 当前登录用户所属课题组列表（含组内角色 role_in_group，供页头课题组选择器使用）
-export function listMyGroups() {
-  return window.api.group.listMine()
-}
-
-export function createGroup(payload) {
-  return window.api.group.create(payload)
-}
-
-export function updateGroup(payload) {
-  return window.api.group.update(payload)
-}
-
-export function removeGroup(id) {
-  return window.api.group.remove({ id })
-}
-
-// ===== 组成员管理（仅课题组管理员；admin* 为超级管理员变更课题组） =====
-export function listMembersByGroup(groupId) {
-  return window.api.member.list({ group_id: groupId })
-}
-
-export function addMember(payload) {
-  return window.api.member.add(payload)
-}
-
-export function updateMember(payload) {
-  return window.api.member.update(payload)
-}
-
-export function removeMember(id) {
-  return window.api.member.remove({ id })
-}
-
-// 超级管理员：将用户加入课题组（组管可多组；导师/学生单组，已在他组时走替换）
-export function adminAddMember(payload) {
-  return window.api.member.adminAdd(payload)
-}
-
-// 超级管理员：将用户移出课题组
-export function adminRemoveMember(id) {
-  return window.api.member.adminRemove({ id })
-}
-
-// 超级管理员：导师/学生原子替换课题组（一步完成离旧组 + 入新组）
-export function adminReplaceGroup(payload) {
-  return window.api.member.adminReplace(payload)
-}
-
-// ===== 导师学生关系 =====
-export function listStudents(payload) {
-  return window.api.students.list(payload)
-}
-
-// 学生名单（导师看自己名下 / 组管与超管看组内学生）——学位记录等选人场景
-export function listGroupStudents(payload) {
-  return window.api.students.listGroupStudents(payload)
-}
-
-// 绑定候选学生：组内尚未被任何导师绑定的学生
-export function listAvailableStudents(payload) {
-  return window.api.students.listAvailable(payload)
-}
-
-// 我的指导老师（学生本人，个人资料页）
-export function listMyMentor() {
-  return window.api.students.myMentor()
-}
-
-export function bindStudent(payload) {
-  return window.api.students.bind(payload)
-}
-
-export function unbindStudent(id) {
-  return window.api.students.unbind({ id })
-}
-
-// 超级管理员查看任意用户的师生关系（成员资料「师生关系」tab）
-export function getUserRelation(userId) {
-  return window.api.students.relationByUser({ userId })
-}
-
-// ===== 课题组公告 =====
-export function listNotices(groupId) {
-  return window.api.notice.list({ group_id: groupId })
-}
-
-export function getNoticeUnreadCount(groupId) {
-  return window.api.notice.unreadCount({ group_id: groupId })
-}
-
-export function markNoticeRead(noticeId) {
-  return window.api.notice.markRead({ notice_id: noticeId })
-}
-
-export function createNotice(payload) {
-  return window.api.notice.create(payload)
-}
-
-export function updateNotice(payload) {
-  return window.api.notice.update(payload)
-}
-
-export function removeNotice(id) {
-  return window.api.notice.remove({ id })
-}
-
-// ===== 学位节点与记录（导师维护；组管服务端权限兼容） =====
-export function listDegreeNodes(groupId) {
-  return window.api.degree.listNodes({ group_id: groupId })
-}
-
-export function saveDegreeNode(payload) {
-  return window.api.degree.saveNode(payload)
-}
-
-export function removeDegreeNode(id) {
-  return window.api.degree.removeNode({ id })
-}
-
-export function listDegreeRecords(payload) {
-  return window.api.degree.listRecords(payload)
-}
-
-export function saveDegreeRecord(payload) {
-  return window.api.degree.saveRecord(payload)
-}
-
-// ===== 组会 =====
-export function listMeetings(groupId) {
-  return window.api.meeting.list({ group_id: groupId })
-}
-
-export function createMeeting(payload) {
-  return window.api.meeting.create(payload)
-}
-
-export function updateMeeting(payload) {
-  return window.api.meeting.update(payload)
-}
-
-export function removeMeeting(id) {
-  return window.api.meeting.remove({ id })
-}
-
-// ===== 组会汇报 =====
-export function listMeetingReports(payload) {
-  return window.api.meetingReport.list(payload)
-}
-
-export function submitMeetingReport(payload) {
-  return window.api.meetingReport.submit(payload)
-}
-
-export function reviewMeetingReport(payload) {
-  return window.api.meetingReport.review(payload)
-}
-
-// ===== 课题与成员 =====
-export function listSubjects(groupId) {
-  return window.api.subject.list({ group_id: groupId })
-}
-
-export function createSubject(payload) {
-  return window.api.subject.create(payload)
-}
-
-export function updateSubject(payload) {
-  return window.api.subject.update(payload)
-}
-
-export function removeSubject(id) {
-  return window.api.subject.remove({ id })
-}
-
-export function listSubjectMembers(subjectId) {
-  return window.api.subject.listMembers({ subject_id: subjectId })
-}
-
-export function addSubjectMember(payload) {
-  return window.api.subject.addMember(payload)
-}
-
-export function removeSubjectMember(id) {
-  return window.api.subject.removeMember({ id })
-}
-
-// ===== 任务与进展 =====
-export function listTasks(payload) {
-  return window.api.task.list(payload)
-}
-
-export function createTask(payload) {
-  return window.api.task.create(payload)
-}
-
-export function updateTask(payload) {
-  return window.api.task.update(payload)
-}
-
-export function removeTask(id) {
-  return window.api.task.remove({ id })
-}
-
-export function listMyTasks() {
-  return window.api.task.listMine()
-}
-
-export function submitTaskProgress(payload) {
-  return window.api.task.progressSubmit(payload)
-}
-
-export function listTaskProgress(taskId) {
-  return window.api.task.listProgress({ task_id: taskId })
-}
-
-// ===== 科研日志（学生本人） =====
-export function listMyResearchLogs() {
-  return window.api.researchLog.listMine()
-}
-
-export function createResearchLog(payload) {
-  return window.api.researchLog.create(payload)
-}
-
-export function updateResearchLog(payload) {
-  return window.api.researchLog.update(payload)
-}
-
-export function removeResearchLog(id) {
-  return window.api.researchLog.remove({ id })
-}
-
-// ===== 周报 =====
-export function listMyWeeklyReports() {
-  return window.api.weekly.listMine()
-}
-
-export function createWeeklyReport(payload) {
-  return window.api.weekly.create(payload)
-}
-
-export function updateWeeklyReport(payload) {
-  return window.api.weekly.update(payload)
-}
-
-export function submitWeeklyReport(id) {
-  return window.api.weekly.submit({ id })
-}
-
-export function reviewWeeklyReport(payload) {
-  return window.api.weekly.review(payload)
-}
-
-export function listAllWeeklyReports(payload) {
-  return window.api.weekly.listAll(payload)
-}
-
-// ===== 科研成果 =====
-export function listMyAchievements() {
-  return window.api.achievement.listMine()
-}
-
-export function createAchievement(payload) {
-  return window.api.achievement.create(payload)
-}
-
-export function updateAchievement(payload) {
-  return window.api.achievement.update(payload)
-}
-
-export function removeAchievement(id) {
-  return window.api.achievement.remove({ id })
-}
-
-export function reviewAchievement(payload) {
-  return window.api.achievement.review(payload)
-}
-
-export function listAllAchievements(payload) {
-  return window.api.achievement.listAll(payload)
-}
-
-// 论文投稿跟踪（学生本人传空；导师传 { group_id } 看全组）
-export function listPapers(options) {
-  return window.api.paper.list(options || {})
-}
-
-export function createPaper(payload) {
-  return window.api.paper.create(payload)
-}
-
-export function updatePaper(payload) {
-  return window.api.paper.update(payload)
-}
-
-export function removePaper(id) {
-  return window.api.paper.remove({ id })
-}
-
-// ===== 文献库（学生本人） =====
-export function listMyLiterature(payload) {
-  return window.api.literature.listMine(payload)
-}
-
-export function createLiterature(payload) {
-  return window.api.literature.create(payload)
-}
-
-export function updateLiterature(payload) {
-  return window.api.literature.update(payload)
-}
-
-export function removeLiterature(id) {
-  return window.api.literature.remove({ id })
-}
-
-// ===== 文献笔记（学生本人） =====
-export function listLiteratureNotes(literatureId) {
-  return window.api.literatureNote.list({ literature_id: literatureId })
-}
-
-export function createLiteratureNote(payload) {
-  return window.api.literatureNote.create(payload)
-}
-
-export function updateLiteratureNote(payload) {
-  return window.api.literatureNote.update(payload)
-}
-
-export function removeLiteratureNote(id) {
-  return window.api.literatureNote.remove({ id })
-}
-
-// ===== 科研档案（学生本人） =====
-export function listArchiveRecords() {
-  return window.api.archive.list()
-}
-
-export function createArchiveRecord(payload) {
-  return window.api.archive.create(payload)
-}
-
-export function removeArchiveRecord(id) {
-  return window.api.archive.remove({ id })
-}
-
-export function exportArchive() {
-  return window.api.archive.export()
-}
-
-// ===== 知识库 =====
-export function listKnowledge(groupId) {
-  return window.api.knowledge.list({ group_id: groupId })
-}
-
-export function createKnowledge(payload) {
-  return window.api.knowledge.create(payload)
-}
-
-export function updateKnowledge(payload) {
-  return window.api.knowledge.update(payload)
-}
-
-export function removeKnowledge(id) {
-  return window.api.knowledge.remove({ id })
-}
-
-export function listKnowledgeFiles(knowledgeId) {
-  return window.api.knowledge.listFiles({ knowledge_id: knowledgeId })
-}
-
-export function uploadKnowledgeFile(payload) {
-  return window.api.knowledge.uploadFile(payload)
-}
-
-export function removeKnowledgeFile(id) {
-  return window.api.knowledge.removeFile({ id })
-}
-
-// ===== 课题组配置（仅组管） =====
-export function getGroupSetting(groupId) {
-  return window.api.groupSetting.get({ group_id: groupId })
-}
-
-export function updateGroupSetting(payload) {
-  return window.api.groupSetting.update(payload)
-}
-
-// ===== 系统参数（仅超管） =====
-export function listSystemParams() {
-  return window.api.systemParam.list()
-}
-
-export function saveSystemParam(payload) {
-  return window.api.systemParam.save(payload)
-}
-
-export function removeSystemParam(id) {
-  return window.api.systemParam.remove({ id })
-}
-
-// ===== 操作日志（仅超管） =====
-export function listOperationLogs(payload) {
-  return window.api.operationLog.list(payload)
-}
-
-// ===== 站内消息（本人） =====
-export function listMyMessages(payload) {
-  return window.api.message.listMine(payload)
-}
-
-export function getMessageUnreadCount() {
-  return window.api.message.unreadCount()
-}
-
-export function markMessageRead(id) {
-  return window.api.message.markRead({ id })
-}
-
-export function markAllMessagesRead() {
-  return window.api.message.markAllRead()
-}
-
-// ===== 聊天（chat:*，独立于 message:*） =====
-export function listChatContacts() {
-  return window.api.chat.listContacts()
-}
-
-export function listChatConversations() {
-  return window.api.chat.listConversations()
-}
-
-export function openChatConversation(userId) {
-  return window.api.chat.open({ user_id: userId })
-}
-
-export function listChatMessages(conversationId, beforeId = 0, limit = 30) {
-  return window.api.chat.listMessages({ conversation_id: conversationId, before_id: beforeId, limit })
-}
-
-export function sendChatMessage(payload) {
-  return window.api.chat.send(payload)
-}
-
-export function recallChatMessage(messageId) {
-  return window.api.chat.recall({ message_id: messageId })
-}
-
-export function markChatRead(conversationId) {
-  return window.api.chat.markRead({ conversation_id: conversationId })
-}
-
-export function deleteChatConversation(conversationId) {
-  return window.api.chat.deleteConversation({ conversation_id: conversationId })
-}
-
-export function searchChatMessages(keyword) {
-  return window.api.chat.search({ keyword })
-}
-
-export function getChatUnreadTotal() {
-  return window.api.chat.unreadTotal()
-}
-
-export function getChatAttachmentPreview(filePath) {
-  return window.api.chat.attachmentPreview({ path: filePath })
-}
-
-// 订阅聊天实时推送（主进程 chat:push），返回取消订阅函数
-export function onChatPush(callback) {
-  return window.api.chat.onPush(callback)
-}
-
-// ===== 数据总览（仅超管） =====
-export function listOverviewGroups() {
-  return window.api.overview.groups()
-}
-
-export function getOverviewGroupDetail(groupId) {
-  return window.api.overview.groupDetail({ group_id: groupId })
-}
-
-export function listOverviewUsers(role) {
-  return window.api.overview.users(role ? { role } : {})
-}
-
-export function getOverviewUserDetail(userId) {
-  return window.api.overview.userDetail({ user_id: userId })
-}
-
-export function listOverviewTables() {
-  return window.api.overview.listTables()
-}
-
-export function getOverviewTableData(table, limit = 100, offset = 0) {
-  return window.api.overview.tableData({ table, limit, offset })
-}
-
-// ===== 全局搜索（按角色限定可见范围） =====
-export function globalSearch(keyword) {
-  return window.api.search.global({ keyword })
+export function openAttachment(path) {
+  return window.api.sys.openAttachment({ path })
 }

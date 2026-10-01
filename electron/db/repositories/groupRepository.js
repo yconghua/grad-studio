@@ -1,86 +1,106 @@
 /**
- * 课题组仓库（Repository Layer）—— 对应 `group` 表
+ * 课题组仓库（Repository Layer）—— 对应 `groups` 表
  *
- * 课题组是平台级组织单位，由超级管理员维护。
- * code 唯一索引，创建 / 编辑时需查重。
- * 导出单例。
+ * 说明：`groups` 为 MySQL 保留字，所有 SQL 中表名统一反引号包裹。
+ * 本表为物理删除，findById / update / delete 自行实现（不带 is_deleted 条件）。
  */
 const BaseRepository = require('./BaseRepository')
-const { buildWhereClause } = require('./queryHelpers')
+const { buildWhereClause, buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
 
-const SAFE_COLUMNS = [
-  'id', 'name', 'code', 'description', 'leader_id', 'status', 'created_by'
-]
-
-const WRITE_FIELDS = [
-  'name', 'code', 'description', 'leader_id', 'status', 'created_by'
-]
+// 课题组表安全返回列
+const SAFE_COLUMNS = ['id', 'name', 'code', 'description', 'admin_user_id', 'status', 'created_at', 'updated_at']
 
 function cols(columns) {
   return columns.map((c) => `\`${c}\``).join(', ')
 }
 
-function pickWrite(data) {
-  const out = {}
-  for (const k of WRITE_FIELDS) {
-    const v = data ? data[k] : undefined
-    if (v === undefined) continue
-    if (typeof v === 'string' && v.trim() === '') continue
-    out[k] = v
-  }
-  return out
-}
-
 class GroupRepository extends BaseRepository {
   constructor() {
-    super('group')
+    super('groups')
   }
 
   /**
-   * 课题组列表，支持按名称 / 编号关键字、状态过滤
-   * @param {{ keyword?: string, status?: string }} filters
-   * @returns {Object[]}
-   */
-  async list(filters = {}) {
-    const conditions = [{ field: 'is_deleted', op: '=', value: 0 }]
-    if (filters.status) {
-      conditions.push({ field: 'status', op: '=', value: filters.status })
-    }
-    if (filters.keyword) {
-      conditions.push({
-        field: 'name',
-        op: 'LIKE',
-        value: `%${filters.keyword}%`
-      })
-    }
-    const { clause, values } = buildWhereClause(conditions)
-    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`group\` ${clause} ORDER BY id ASC`
-    const [rows] = await this._execute(sql, values, 'list')
-    return rows
-  }
-
-  /**
-   * 按编号查重（创建 / 编辑时调用；排除自身 id 可选）
-   * @param {string} code
-   * @param {number?} excludeId 编辑时排除当前记录
+   * 按主键查询
+   * @param {number} id
    * @returns {Object|null}
    */
-  async findByCode(code, excludeId) {
-    const params = [code]
-    let excludeSql = ''
-    if (excludeId) {
-      excludeSql = ' AND id <> ?'
-      params.push(excludeId)
-    }
-    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`group\` WHERE \`code\` = ? AND is_deleted = 0${excludeSql}`
-    const [rows] = await this._execute(sql, params, 'findByCode')
+  async findById(id) {
+    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\` WHERE id = ?`
+    const [rows] = await this._execute(sql, [id], 'findById')
     return rows[0] || null
   }
 
-  // 白名单提取可写入字段
-  pick(data) {
-    return pickWrite(data)
+  /**
+   * 按唯一标识号查询（UUID）
+   * @param {string} code
+   * @returns {Object|null}
+   */
+  async findByCode(code) {
+    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\` WHERE code = ?`
+    const [rows] = await this._execute(sql, [code], 'findByCode')
+    return rows[0] || null
+  }
+
+  /**
+   * 按课题组管理员用户ID查询（唯一绑定校验用）
+   * @param {number} adminUserId
+   * @returns {Object|null}
+   */
+  async findByAdminUserId(adminUserId) {
+    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\` WHERE admin_user_id = ?`
+    const [rows] = await this._execute(sql, [Number(adminUserId)], 'findByAdminUserId')
+    return rows[0] || null
+  }
+
+  /**
+   * 课题组分页列表：支持关键字（名称/标识号模糊）过滤
+   * @param {{ keyword?: string, page?: number }} filters
+   */
+  async pagedList(filters = {}) {
+    const conditions = []
+    if (filters.keyword && String(filters.keyword).trim()) {
+      const kw = `%${String(filters.keyword).trim()}%`
+      conditions.push({ field: 'name', op: 'LIKE', value: kw })
+    }
+    const { clause, values } = buildWhereClause(conditions)
+
+    const countSql = `SELECT COUNT(*) AS total FROM \`groups\`${clause}`
+    const [countRows] = await this._execute(countSql, values, 'pagedList.count')
+    const total = Number(countRows[0] && countRows[0].total) || 0
+
+    const { page, pageSize, limit, offset } = normalizePage(filters.page)
+    // LIMIT/OFFSET 直接内联整数值（normalizePage 已做 parseInt 归一化），规避
+    // prepared statement 对 LIMIT ? 占位符的支持问题（部分 MySQL 版本报
+    // 「Incorrect arguments to mysqld_stmt_execute」）。
+    const sql =
+      `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\`${clause} ORDER BY id ASC LIMIT ${limit} OFFSET ${offset}`
+    const [rows] = await this._execute(sql, values, 'pagedList')
+    return { list: rows, ...buildPageMeta(total, page, pageSize) }
+  }
+
+  /**
+   * 增量更新（不含 is_deleted 条件）
+   * @param {number} id
+   * @param {Object} data 字段->值 映射
+   */
+  async updateById(id, data) {
+    const { clause, values } = buildUpdateSet(data)
+    if (!clause) return 0
+    const sql = `UPDATE \`groups\` SET ${clause} WHERE id = ?`
+    const [result] = await this._execute(sql, [...values, id], 'updateById')
+    return result.affectedRows
+  }
+
+  /**
+   * 物理删除课题组
+   * @param {number} id
+   */
+  async deleteById(id) {
+    const sql = 'DELETE FROM `groups` WHERE id = ?'
+    const [result] = await this._execute(sql, [id], 'deleteById')
+    return result.affectedRows
   }
 }
 
+// 导出单例
 module.exports = new GroupRepository()

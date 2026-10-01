@@ -14,7 +14,7 @@
         <input v-model="oldPassword" type="password" class="input" placeholder="请输入初始密码" @keyup.enter="submit" />
 
         <label class="label">新密码</label>
-        <input v-model="newPassword" type="password" class="input" placeholder="请输入新密码" @keyup.enter="submit" />
+        <input v-model="newPassword" type="password" class="input" placeholder="至少 6 位，须包含大小写字母" @keyup.enter="submit" />
 
         <label class="label">确认新密码</label>
         <input v-model="confirmPassword" type="password" class="input" placeholder="请再次输入新密码" @keyup.enter="submit" />
@@ -34,6 +34,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { changePassword } from '../../api'
 import { useSession } from '../../composables/useSession'
+import { ROLE_HOME } from '../../router'
 
 const router = useRouter()
 const { getSessionUser, setSession } = useSession()
@@ -68,18 +69,27 @@ async function submit() {
     errorMsg.value = '新密码长度至少 6 位'
     return
   }
+  if (!/[A-Z]/.test(newPassword.value) || !/[a-z]/.test(newPassword.value)) {
+    errorMsg.value = '新密码必须包含大小写字母'
+    return
+  }
   if (newPassword.value !== confirmPassword.value) {
     errorMsg.value = '两次输入的新密码不一致'
     return
   }
   saving.value = true
   try {
-    const res = await changePassword(username.value, oldPassword.value, newPassword.value)
+    const res = await changePassword({
+      username: username.value,
+      oldPassword: oldPassword.value,
+      newPassword: newPassword.value,
+      confirmPassword: confirmPassword.value
+    })
     if (res && res.success) {
-      // 更新会话中的强制改密标记，然后进入首页
+      // 更新会话中的强制改密标记，然后按角色进入对应工作台
       const u = getSessionUser() || {}
       setSession({ ...u, mustChangePassword: false })
-      router.replace('/')
+      router.replace(ROLE_HOME[u.role] || '/login')
     } else {
       errorMsg.value = (res && res.message) || '修改失败，请重试'
     }
@@ -98,84 +108,76 @@ async function submit() {
   align-items: center;
   justify-content: center;
   background: #eef2ff;
+  overflow: auto;
 }
 .force-card {
-  width: 380px;
+  width: 420px;
   max-width: 92vw;
   background: #fff;
   border-radius: 14px;
-  padding: 34px 30px;
-  box-shadow: 0 12px 40px rgba(13, 128, 224, 0.14);
+  padding: 28px 30px 22px;
+  box-shadow: 0 10px 30px rgba(79, 110, 247, 0.12);
 }
-.head {
-  margin-bottom: 20px;
-}
-.title {
+.head .title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1d2129;
+  font-size: 18px;
 }
-.sub {
-  margin: 6px 0 0;
+.head .sub {
   font-size: 13px;
-  color: #8a9099;
-}
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  color: #8a919f;
+  margin: 6px 0 16px;
 }
 .label {
+  display: block;
   font-size: 13px;
-  color: #4e5969;
+  color: #4b5563;
+  margin: 12px 0 6px;
 }
 .input {
   width: 100%;
-  height: 42px;
+  height: 40px;
   padding: 0 12px;
-  font-size: 14px;
-  border: 1px solid #dfe3e8;
+  border: 1px solid #dcdfe6;
   border-radius: 8px;
+  font-size: 14px;
   outline: none;
   box-sizing: border-box;
 }
 .input:focus {
-  border-color: #0d80e0;
+  border-color: #4f6ef7;
 }
-.input:disabled {
-  background: #f2f3f5;
-  color: #8a9099;
+.input[disabled] {
+  background: #f7f8fa;
+  color: #6b7280;
 }
 .error {
-  margin: 0;
+  color: #e5484d;
   font-size: 13px;
-  color: #ea4335;
+  margin: 10px 0 0;
 }
 .btn {
   width: 100%;
-  height: 44px;
+  height: 42px;
+  margin-top: 18px;
   border: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
+  background: #4f6ef7;
   color: #fff;
   font-size: 15px;
-  font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
 }
 .btn:hover {
-  opacity: 0.92;
+  background: #3d5cf0;
 }
-.btn:disabled {
+.btn[disabled] {
   opacity: 0.6;
   cursor: not-allowed;
 }
 .tip {
-  margin: 16px 0 0;
   font-size: 12px;
-  color: #8a9099;
+  color: #8a919f;
   text-align: center;
-  line-height: 1.6;
+  margin-top: 14px;
+  line-height: 1.7;
 }
 </style>

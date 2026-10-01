@@ -34,9 +34,10 @@
           </div>
           <p class="card-sub">请输入账号密码以进入系统</p>
 
-          <!-- 默认账号提示：仅提示默认密码，首次登录需修改密码 -->
+          <!-- 默认密码提示：不同角色默认密码不同，首次登录需修改密码 -->
           <div class="default-tip">
-            <b>默认密码提示</b>：超级管理员 <b>admin123456</b> · 课题组管理员 <b>ga123456@</b> · 导师 <b>ds123456@</b> · 学生 <b>xs123456@</b>（首次登录需修改密码）
+            <b>默认密码提示</b>：超级管理员 <b>SuperAdmin123</b> · 课题组管理员 <b>GroupAdmin123</b> ·
+            导师 <b>Mentor123</b> · 学生 <b>Student123</b>（首次登录需修改密码）
           </div>
 
           <form @submit.prevent="onSubmit">
@@ -46,7 +47,7 @@
               v-model="username"
               class="field-input"
               type="text"
-              placeholder="请输入账号"
+              placeholder="请输入账号（区分大小写）"
               autocomplete="username"
               @keyup.enter="onSubmit"
             />
@@ -62,17 +63,6 @@
               @keyup.enter="onSubmit"
             />
 
-            <!-- 同意并接受隐私协议与服务条款（未勾选不可登录） -->
-            <label class="agree-row">
-              <input type="checkbox" v-model="agreePolicy" />
-              <span class="agree-text">
-                我已阅读并同意
-                <span class="agree-link" @click.prevent="showPrivacy = true">《隐私协议》</span>
-                和
-                <span class="agree-link" @click.prevent="showTerms = true">《服务条款》</span>
-              </span>
-            </label>
-
             <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
             <button class="submit-btn" type="submit" :disabled="loading">
@@ -81,7 +71,6 @@
 
             <p class="forgot-tip">忘记密码请联系<span class="admin-link" @click="showAdminContact = true">管理员</span>重置</p>
           </form>
-
         </div>
       </section>
     </main>
@@ -107,53 +96,7 @@
       </div>
     </div>
 
-    <!-- 隐私协议弹窗 -->
-    <div v-if="showPrivacy" class="privacy-overlay">
-      <div class="privacy-backdrop" @click="showPrivacy = false"></div>
-      <div class="privacy-dialog" role="dialog" aria-modal="true">
-        <div class="privacy-head">
-          <h3>隐私协议</h3>
-          <button type="button" class="privacy-close" @click="showPrivacy = false" aria-label="关闭">×</button>
-        </div>
-        <div class="privacy-body">
-          <p class="privacy-lead">
-            更新时间：2026年8月25日
-          </p>
-          <p class="privacy-lead">
-            {{ appName }}（以下简称"本系统"）重视您的隐私。本隐私协议说明本系统在本地运行过程中如何收集、存储与使用您的信息。
-          </p>
-          <section v-for="(sec, i) in privacySections" :key="i" class="privacy-sec">
-            <h4>{{ sec.title }}</h4>
-            <p>{{ sec.body }}</p>
-          </section>
-        </div>
-      </div>
-    </div>
-
-    <!-- 服务条款弹窗 -->
-    <div v-if="showTerms" class="privacy-overlay">
-      <div class="privacy-backdrop" @click="showTerms = false"></div>
-      <div class="privacy-dialog" role="dialog" aria-modal="true">
-        <div class="privacy-head">
-          <h3>服务条款</h3>
-          <button type="button" class="privacy-close" @click="showTerms = false" aria-label="关闭">×</button>
-        </div>
-        <div class="privacy-body">
-          <p class="privacy-lead">
-            更新时间：2026年8月25日
-          </p>
-          <p class="privacy-lead">
-            {{ appName }}（以下简称"本系统"）的账号由管理员统一分配与管理，使用前请仔细阅读以下服务条款。
-          </p>
-          <section v-for="(sec, i) in termsSections" :key="i" class="privacy-sec">
-            <h4>{{ sec.title }}</h4>
-            <p>{{ sec.body }}</p>
-          </section>
-        </div>
-      </div>
-    </div>
-
-    <!-- 数据库管理相关弹窗（已抽离为 components/db/ 组件） -->
+    <!-- 数据库管理相关弹窗（组件位于 components/db/） -->
     <BaseConfig
       :visible="showBaseConfig"
       :refresh-key="settingsRefreshKey"
@@ -177,59 +120,61 @@
       @close="showDeleteConfirm = false"
       @confirmed="onDeleteConfirmed"
     />
-
-    <!-- 登录成功初始化弹窗：转圈动画 + 「数据正在初始化中…」，最短展示 2 秒，首屏预取更慢则以实际为准 -->
-    <div v-if="showInit" class="init-overlay">
-      <div class="init-dialog">
-        <div class="init-spinner"></div>
-        <p class="init-text">数据正在初始化中…</p>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, deleteDb, getDbInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
-import { useHomePreload } from '../../composables/useHomePreload'
 import { useAppName } from '../../composables/useAppName'
+import { ROLE_HOME } from '../../router'
 import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/db'
 import logoUrl from '../../assets/logo.ico'
 
 const { setSession } = useSession()
-const { preloadHomeData } = useHomePreload()
 const { appName } = useAppName()
 const router = useRouter()
-
-// 登录按钮「登录中…」与「数据正在初始化中…」的最短展示时长：
-// 实际请求耗时短于该值时等满，长于该值时以实际为准（展示时长 = max(实际耗时, 最短)）
-const MIN_LOADING_MS = 2000
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const username = ref('')
 const password = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
-const showInit = ref(false)
-// 是否同意隐私协议与服务条款（未勾选不可登录）；7 天内勾选过则自动勾选
-const agreePolicy = ref(false)
-const AGREE_KEY = 'agreed_policy_at'
-const AGREE_TTL = 7 * 24 * 60 * 60 * 1000
-try {
-  const ts = Number(localStorage.getItem(AGREE_KEY) || 0)
-  if (ts && Date.now() - ts < AGREE_TTL) agreePolicy.value = true
-} catch (e) {}
-watch(agreePolicy, (v) => {
-  try {
-    if (v) localStorage.setItem(AGREE_KEY, String(Date.now()))
-    else localStorage.removeItem(AGREE_KEY)
-  } catch (e) {}
-})
 
-// 登录卡片右上角的数据库状态：挂载时 + 切换数据库后刷新
-// 状态值：loading（检测中）/ connected（已连接）/ disconnected（未连接）/ unavailable（环境不可用）
+// 登录：成功后按角色跳转对应工作台；首次登录（mustChangePassword）先强制改密
+async function onSubmit() {
+  errorMsg.value = ''
+  if (!username.value || !password.value) {
+    errorMsg.value = '请输入账号和密码'
+    return
+  }
+  loading.value = true
+  try {
+    const res = await login(username.value, password.value)
+    if (res && res.success) {
+      const user = res.data && res.data.user
+      if (!user) {
+        errorMsg.value = '登录响应异常，请重试'
+        return
+      }
+      setSession(user)
+      if (user.mustChangePassword) {
+        router.replace('/force-password')
+      } else {
+        router.replace(ROLE_HOME[user.role] || '/login')
+      }
+    } else {
+      errorMsg.value = (res && res.message) || '登录失败，请重试'
+    }
+  } catch (e) {
+    errorMsg.value = '登录过程出现异常，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 登录卡片右上角数据库状态：挂载时 + 切换数据库后刷新
 const dbState = ref('loading')
 const dbMeta = ref({ host: '', port: '', database: '' })
 const dbStatusText = computed(() => {
@@ -241,13 +186,12 @@ const dbStatusText = computed(() => {
   }
 })
 const dbStatusClass = computed(() => 'is-' + dbState.value)
-// 悬停提示当前连接的主机 / 库名
 const dbMetaTitle = computed(() => {
   const m = dbMeta.value
   return m.host && m.database ? `${m.database} · ${m.host}:${m.port}` : ''
 })
+
 async function refreshDbStatus() {
-  // 非 Electron 环境（纯网页端）无 window.api，直接标记不可用，避免报错
   if (!window.api || !window.api.sys || !window.api.sys.dbInfo) {
     dbState.value = 'unavailable'
     return
@@ -269,48 +213,36 @@ async function refreshDbStatus() {
 }
 onMounted(refreshDbStatus)
 
-// 页脚版权年：固定起始 2025，结束取当前动态年份
 const copyrightYear = new Date().getFullYear()
-
-// 服务条款 / 隐私协议 / 联系管理员弹窗（保留在登录页）
-const showTerms = ref(false)
-const showPrivacy = ref(false)
 const showAdminContact = ref(false)
 
-// -------------------- 数据库管理弹窗（协调层，逻辑在各弹窗组件内） --------------------
+// 数据库管理弹窗（协调层，逻辑在各弹窗组件内）
 const showBaseConfig = ref(false)
 const showSwitchDb = ref(false)
 const showAddDb = ref(false)
 const showDeleteConfirm = ref(false)
 const pendingDeleteId = ref('')
-// 刷新信号：切换数据库后刷新基础配置；添加/删除后刷新切换弹窗清单
 const settingsRefreshKey = ref(0)
 const switchRefreshKey = ref(0)
-// 删除结果消息：注入切换弹窗的消息行展示
 const extMsg = ref('')
 const extMsgOk = ref(false)
 
-// 打开切换弹窗：清空上次外部消息，避免残留
 function openSwitchDb() {
   extMsg.value = ''
   extMsgOk.value = false
   showSwitchDb.value = true
 }
 
-// 切换数据库成功：刷新基础配置里的当前数据库显示 + 右上角状态药丸
 function onDbChanged() {
   settingsRefreshKey.value++
   refreshDbStatus()
 }
 
-// 添加成功：刷新切换弹窗的连接清单（若其仍打开）+ 右上角数据库状态药丸
-// （首个连接添加后后端已自动生效，必须重新查询才能让状态显示「已连接」）
 function onDbAdded() {
   switchRefreshKey.value++
   refreshDbStatus()
 }
 
-// 删除请求（来自切换弹窗，校验已通过）：打开确认框
 function onRequestDelete(id) {
   pendingDeleteId.value = id
   showDeleteConfirm.value = true
@@ -334,109 +266,7 @@ async function onDeleteConfirmed(id) {
     extMsg.value = '删除过程出现异常，请重试'
   }
   switchRefreshKey.value++
-}
-
-const termsSections = [
-  {
-    title: '一、账号使用',
-    body: '本系统账号由管理员统一分配，仅限本人使用，严禁转借、共享或泄露给任何第三方。'
-  },
-  {
-    title: '二、账号安全',
-    body: '请妥善保管账号密码，如发现账号异常使用或密码泄露，请及时联系管理员重置密码。'
-  },
-  {
-    title: '三、使用规范',
-    body: '您在使用本系统过程中需遵守法律法规，不得利用本系统从事违法或损害他人权益的行为。'
-  },
-  {
-    title: '四、行为监督',
-    body: '管理员有权对账号使用行为进行监督，如发现违规使用，可暂停或终止账号权限。'
-  },
-  {
-    title: '五、责任承担',
-    body: '通过本账号进行的所有操作均视为您本人行为，需承担相应责任。'
-  },
-  {
-    title: '六、条款更新',
-    body: '本条款可根据实际需求更新，更新后继续使用本系统即视为接受新条款。'
-  }
-]
-
-const privacySections = [
-  {
-    title: '一、我们收集的信息',
-    body: '本系统仅收集您在使用时主动上传的数据。我们不会收集与系统运行无关的个人敏感信息。'
-  },
-  {
-    title: '二、密码与凭证安全',
-    body: '您的密码在服务器端经算法加密后存储，系统中任何位置均不保存明文密码；登录校验为本地比对，凭证不会离开本机。'
-  },
-  {
-    title: '三、数据存储位置',
-    body: '所有业务数据保存在您本机部署的数据库中。本系统为纯本地桌面应用，默认不联网、不上传任何数据至外部服务器。'
-  },
-  {
-    title: '四、登录会话',
-    body: '登录态保存在本机浏览器本地存储，有一定的有效期；超过有效期后需重新输入账号密码。您也可随时点击"退出登录"立即结束当前会话。'
-  },
-  {
-    title: '五、信息共享',
-    body: '我们不会将您的任何个人信息或业务数据出售、出租或共享给任何第三方。'
-  },
-  {
-    title: '六、您的权利',
-    body: '您有权查看与修改本人资料；账号删除将在数据库中全部删除您的数据，请谨慎操作。如对个人信息处理有疑问，可联系系统管理员，1509054114@qq.com。'
-  }
-]
-
-async function onSubmit() {
-  errorMsg.value = ''
-
-  // 未勾选同意协议则禁止登录
-  if (!agreePolicy.value) {
-    errorMsg.value = '请先阅读并同意隐私协议和服务条款'
-    return
-  }
-
-  // 基础空值校验
-  if (!username.value.trim()) {
-    errorMsg.value = '请输入账号'
-    return
-  }
-  if (!password.value) {
-    errorMsg.value = '请输入密码'
-    return
-  }
-
-  loading.value = true
-  try {
-    // 登录按钮「登录中…」与登录请求并行，最短展示 MIN_LOADING_MS（失败同样等满，避免连点与闪变）
-    const [res] = await Promise.all([
-      login(username.value.trim(), password.value),
-      sleep(MIN_LOADING_MS)
-    ])
-    if (res && res.success && res.user) {
-      // 登录成功：先写入会话（预取需按当前用户拉课题组列表），再弹「数据正在初始化中…」；
-      // 初始化弹窗与首屏数据预取并行，最短展示 MIN_LOADING_MS，实际预取更慢则以实际为准；
-      // 首次登录（mustChangePassword=true）需先改密，不进首页，跳过预取
-      setSession(res.user)
-      showInit.value = true
-      const mustChange = !!res.user.mustChangePassword
-      await Promise.all([
-        mustChange ? Promise.resolve() : preloadHomeData(res.user),
-        sleep(MIN_LOADING_MS)
-      ])
-      showInit.value = false
-      router.push(mustChange ? '/force-password' : '/')
-    } else {
-      errorMsg.value = (res && res.message) || '登录失败，请重试'
-    }
-  } catch (e) {
-    errorMsg.value = '登录过程出现异常，请重试'
-  } finally {
-    loading.value = false
-  }
+  refreshDbStatus()
 }
 </script>
 
@@ -446,9 +276,8 @@ async function onSubmit() {
   display: flex;
   flex-direction: column;
   background-color: #f5f7fa;
+  overflow: auto;
 }
-
-/* 上：系统标题（居中、字体稍大） */
 .login-header {
   flex: 0 0 auto;
   display: flex;
@@ -456,10 +285,8 @@ async function onSubmit() {
   justify-content: center;
   gap: 10px;
   padding: 14px 16px 12px;
-  background: transparent;
 }
 .brand-mark {
-  flex: 0 0 auto;
   width: 34px;
   height: 34px;
   object-fit: contain;
@@ -471,15 +298,15 @@ async function onSubmit() {
   letter-spacing: 1px;
   color: #1f2329;
 }
-
-/* 中：系统介绍（左） + 表单（右） */
 .login-main {
   flex: 1 1 auto;
   display: flex;
   min-height: 0;
   padding: 32px 0;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
 }
-/* 左：系统介绍卡片（功能亮点） */
 .intro-panel {
   flex: 1 1 auto;
   position: relative;
@@ -491,6 +318,7 @@ async function onSubmit() {
   margin-right: 12px;
   margin-left: 30px;
   display: flex;
+  max-width: 720px;
 }
 .intro-inner {
   flex: 1 1 auto;
@@ -500,8 +328,6 @@ async function onSubmit() {
   padding: 44px 46px;
   min-width: 0;
 }
-
-/* 左侧：单纯的一句话，居中、不设强调 */
 .intro-quote {
   max-width: 420px;
   text-align: center;
@@ -512,11 +338,8 @@ async function onSubmit() {
   line-height: 2;
   color: #4e5969;
 }
-
-/* 右：登录表单（固定较窄宽度，左右紧凑） */
 .form-panel {
   flex: 0 0 380px;
-  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -546,12 +369,10 @@ async function onSubmit() {
   font-weight: 700;
   margin: 0;
 }
-/* 右上角数据库状态药丸：绿=已连接 / 红=未连接 / 灰=检测中或不可用 */
 .db-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  flex: 0 0 auto;
   font-size: 12px;
   font-weight: 500;
   line-height: 1;
@@ -562,24 +383,20 @@ async function onSubmit() {
   cursor: pointer;
   transition: filter 0.2s;
 }
-.db-status:hover {
-  filter: brightness(0.96);
-}
 .db-status .db-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: currentColor;
-  flex: 0 0 auto;
 }
 .db-status.is-connected {
   color: #19a558;
-  background: rgba(25, 165, 88, 0.10);
+  background: rgba(25, 165, 88, 0.1);
   border-color: rgba(25, 165, 88, 0.25);
 }
 .db-status.is-disconnected {
   color: #ea4335;
-  background: rgba(234, 67, 53, 0.10);
+  background: rgba(234, 67, 53, 0.1);
   border-color: rgba(234, 67, 53, 0.25);
 }
 .db-status.is-loading,
@@ -593,19 +410,18 @@ async function onSubmit() {
   color: #8a9099;
   margin: 0 0 20px;
 }
-/* 默认账号密码提示条 */
 .default-tip {
   margin: 0 0 14px;
   padding: 8px 10px;
   font-size: 12px;
-  line-height: 1.6;
-  color: #7a5b00;
-  background: #fffbe6;
-  border: 1px solid #ffe58f;
+  line-height: 1.7;
+  color: #4b5563;
+  background: #f0f6ff;
+  border: 1px dashed #bcd0ff;
   border-radius: 8px;
 }
 .default-tip b {
-  color: #d48806;
+  color: #4f6ef7;
 }
 .field-label {
   display: block;
@@ -621,35 +437,11 @@ async function onSubmit() {
   border: 1px solid #dfe3e8;
   border-radius: 8px;
   outline: none;
+  box-sizing: border-box;
   transition: border-color 0.2s;
 }
 .field-input:focus {
-  border-color: #0d80e0;
-}
-/* 同意隐私协议与服务条款（密码框下方） */
-.agree-row {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: 14px;
-  font-size: 12px;
-  color: #8a9099;
-  cursor: pointer;
-  user-select: none;
-}
-.agree-row input[type='checkbox'] {
-  cursor: pointer;
-}
-.agree-text {
-  line-height: 1.6;
-}
-.agree-link {
-  color: #0d80e0;
-  cursor: pointer;
-  text-decoration: none;
-}
-.agree-link:hover {
-  opacity: 0.8;
+  border-color: #4f6ef7;
 }
 .error-msg {
   margin: 14px 0 0;
@@ -662,7 +454,7 @@ async function onSubmit() {
   margin-top: 14px;
   border: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
+  background: #4f6ef7;
   color: #fff;
   font-size: 15px;
   font-weight: 600;
@@ -684,45 +476,23 @@ async function onSubmit() {
   text-align: center;
 }
 .admin-link {
-  color: #0d80e0;
+  color: #4f6ef7;
   cursor: pointer;
-  text-decoration: none;
 }
-.admin-link:hover {
-  opacity: 0.8;
-}
-
-/* 下：页脚（版权与基础配置同一行，居中） */
 .login-footer {
   flex: 0 0 auto;
   text-align: center;
   padding: 18px 16px 20px;
-  background: transparent;
 }
 .footer-inner {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-}
-.footer-link {
-  background: none;
-  border: none;
-  padding: 0;
-  color: #8a9099;
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: none;
-}
-.footer-link:hover {
-  text-decoration: underline;
 }
 .footer-copy {
   font-size: 12px;
   color: #8a9099;
 }
-
-/* 通用弹窗（联系管理员 / 隐私协议 / 服务条款） */
 .privacy-overlay {
   position: fixed;
   inset: 0;
@@ -739,7 +509,7 @@ async function onSubmit() {
 .privacy-dialog {
   position: relative;
   z-index: 1;
-  width: 560px;
+  width: 460px;
   max-width: 92vw;
   max-height: 80vh;
   background: #fff;
@@ -752,89 +522,30 @@ async function onSubmit() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 22px;
+  padding: 14px 18px;
   border-bottom: 1px solid #eceff3;
 }
 .privacy-head h3 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 15px;
   color: #1f2329;
 }
 .privacy-close {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border: none;
   border-radius: 8px;
   background: #f2f3f5;
   color: #4e5969;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.2s;
-}
-.privacy-close:hover {
-  background: #e5e6eb;
 }
 .privacy-body {
-  padding: 18px 22px;
+  padding: 16px 18px;
   overflow-y: auto;
-}
-.privacy-lead {
   font-size: 13px;
   line-height: 1.8;
-  color: #4e5969;
-  margin: 0 0 8px;
-}
-.privacy-sec h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2329;
-  margin: 16px 0 6px;
-}
-.privacy-sec p {
-  font-size: 13px;
-  line-height: 1.8;
-  color: #4e5969;
-  margin: 0 0 8px;
-}
-
-/* 登录成功初始化弹窗：半透明遮罩 + 白卡片 + 转圈圆环 */
-.init-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.7);
-}
-.init-dialog {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 28px 44px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-}
-.init-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid #e5e6eb;
-  border-top-color: #0d80e0;
-  border-radius: 50%;
-  animation: init-spin 0.8s linear infinite;
-}
-@keyframes init-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.init-text {
-  margin: 0;
-  font-size: 14px;
   color: #4e5969;
 }
 </style>

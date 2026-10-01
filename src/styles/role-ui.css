@@ -1,0 +1,101 @@
+/* 角色系统通用样式（四个角色页面共用，main.js 引入） */
+:root {
+  --primary: #4f6ef7;
+  --danger: #e5484d;
+  --text: #1f2329;
+  --text-2: #4b5563;
+  --muted: #8a919f;
+  --border: #e5e7eb;
+}
+
+/* ===== 页面骨架 ===== */
+.page { padding: 20px 24px; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.page-title { font-size: 18px; font-weight: 600; color: var(--text); margin: 0; }
+.page-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+/* ===== 工具栏 / 表单控件 ===== */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+.toolbar .spacer { flex: 1; }
+.input, .select { height: 34px; padding: 0 10px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; background: #fff; outline: none; color: var(--text); }
+.input:focus, .select:focus { border-color: var(--primary); }
+.input[readonly] { background: #f7f8fa; color: #6b7280; }
+.btn { height: 34px; padding: 0 16px; border: 1px solid #dcdfe6; border-radius: 6px; background: #fff; color: var(--text); font-size: 13px; cursor: pointer; }
+.btn:hover { border-color: #c0c4cc; background: #f5f7fa; }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn-primary:hover { background: #3d5cf0; }
+.btn-danger { background: #fff; border-color: #f0c0c3; color: var(--danger); }
+.btn-danger:hover { background: #fef0f0; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* ===== 统计卡片 ===== */
+.stat-cards { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat-card { flex: 1; min-width: 170px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.stat-card .num { font-size: 26px; font-weight: 700; color: var(--primary); }
+.stat-card .label { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+/* ===== 信息块 / 面板 ===== */
+.panel { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+.panel-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+
+/* ===== 表格 ===== */
+.tbl-wrap { background: #fff; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { background: #f7f8fa; text-align: left; padding: 10px 12px; font-weight: 600; color: var(--text-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tbl td { padding: 10px 12px; border-bottom: 1px solid #f0f1f3; color: var(--text); vertical-align: middle; word-break: break-all; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tbody tr:hover td { background: #fafbfc; }
+.tbl .ops { display: flex; gap: 6px; }
+
+/* ===== 分页 ===== */
+.pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px 16px; font-size: 13px; color: var(--text-2); }
+
+/* ===== 标签 ===== */
+.tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; line-height: 18px; white-space: nowrap; }
+.tag-blue { background: #eef2ff; color: var(--primary); }
+.tag-green { background: #e6f7ee; color: #16a34a; }
+.tag-gray { background: #f1f2f4; color: #6b7280; }
+.tag-red { background: #fef0f0; color: var(--danger); }
+.tag-orange { background: #fff4e5; color: #ea8600; }
+
+/* ===== 空状态 ===== */
+.empty { padding: 40px 0; text-align: center; color: #9aa1ac; font-size: 13px; }
+
+/* ===== 弹窗 ===== */
+.modal-mask { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; }
+.modal { width: 580px; max-width: 92vw; max-height: 88vh; background: #fff; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
+.modal.sm { width: 420px; }
+.modal.lg { width: 760px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #eef0f3; }
+.modal-head h3 { margin: 0; font-size: 15px; }
+.modal-close { border: none; background: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 0 4px; line-height: 1; }
+.modal-body { padding: 16px 18px; overflow: auto; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px; border-top: 1px solid #eef0f3; }
+
+/* ===== 表单 ===== */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
+.field .input, .field .select, .field textarea { width: 100%; }
+.field textarea { height: 80px; padding: 8px 10px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; outline: none; }
+.field textarea:focus { border-color: var(--primary); }
+.field .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.form-grid .field-full { grid-column: 1 / -1; }
+
+/* ===== Tab ===== */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.tab { padding: 8px 16px; font-size: 14px; color: var(--text-2); cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+/* ===== 键值展示 ===== */
+.desc-list { font-size: 13px; color: #374151; }
+.desc-list .row { display: flex; padding: 8px 0; border-bottom: 1px dashed #eef0f3; }
+.desc-list .row .k { width: 130px; color: var(--muted); flex-shrink: 0; }
+.desc-list .row .v { flex: 1; word-break: break-all; }
+
+/* ===== 头像 ===== */
+.avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.avatar-empty { background: #eef2ff; color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+.avatar-lg { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+.avatar-preview { display: flex; align-items: center; gap: 12px; }

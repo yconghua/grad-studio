@@ -1,101 +1,103 @@
 // 应用路由（hash 模式）
 //
 // 结构：
-//   - 登录 / 强制改密（独立于主布局）
-//   - 主布局 HomeLayout 下挂载：
-//       a) 全部业务菜单路由：由 src/config/navConfig.js 的 navItems 驱动生成，
-//          key 即路由 path（platform-users → /platform/users），meta.roles 即角色权限数组，
-//          路由守卫按当前角色拦截越权直达；
-//       b) 个人中心 /profile（个人资料）与 /profile/password（修改密码）；
-//       c) /help 使用帮助。
+//   - /login 登录页（含数据库连接管理）
+//   - /force-password 首次登录强制修改密码（保留既有机制）
+//   - 四个角色各自独立的布局与页面树：
+//       /admin        超级管理员（工作台 / 用户管理 / 课题组设置 / 系统配置 / 个人资料 / 设置）
+//       /group-admin  课题组管理员（工作台 / 课题组设置 / 课题组成员 / 个人资料 / 设置）
+//       /mentor       导师（工作台 / 我的学生 / 个人资料 / 设置）
+//       /student      学生（工作台 / 个人资料 / 设置）
 //   - 404 兜底
-//
-// 页面组件：业务页面统一懒加载 pages/<key>/index.vue（platform- 前缀为 pages/platform/<子页>/index.vue）。
-
+// 守卫逻辑：
+//   1. 未登录（无会话或过期）一律回登录页；
+//   2. 需强制改密（mustChangePassword）时拦截到 /force-password；
+//   3. 角色越权直达时跳回本角色工作台（后端接口另有权限校验，前端守卫仅作体验层）。
 import { createRouter, createWebHashHistory } from 'vue-router'
 import LoginView from '../pages/auth/LoginView.vue'
 import ForcePasswordView from '../pages/auth/ForcePassword.vue'
-import HomeLayout from '../layouts/HomeLayout.vue'
+import SuperAdminLayout from '../layouts/SuperAdminLayout.vue'
+import GroupAdminLayout from '../layouts/GroupAdminLayout.vue'
+import MentorLayout from '../layouts/MentorLayout.vue'
+import StudentLayout from '../layouts/StudentLayout.vue'
 import NotFoundView from '../pages/notfound/index.vue'
-import ProfileView from '../pages/profile/index.vue'
-import ProfilePasswordView from '../pages/profile/password.vue'
-import HelpView from '../pages/help/index.vue'
-import { navItems, defaultNavPath, isRoleAllowed, noGroupOnlyNavPath } from '../config/navConfig'
-import { ROLE_MENTOR, ROLE_STUDENT } from '../config/constants'
 import { useSession } from '../composables/useSession'
-import { useGroupContext } from '../composables/useGroupContext'
-import { getCurrentUser } from '../api'
+import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../config/constants'
+import { SUPER_ADMIN_HOME } from '../config/nav.super-admin'
+import { GROUP_ADMIN_HOME } from '../config/nav.group-admin'
+import { MENTOR_HOME } from '../config/nav.mentor'
+import { STUDENT_HOME } from '../config/nav.student'
 
-const { isSessionValid, clearSession, getSessionUser } = useSession()
-const { groups, loadGroups } = useGroupContext()
+const { getSessionUser, isSessionValid } = useSession()
 
-// 菜单 key → 路由 path 的映射规则：platform-xxx → /platform/xxx，其余 → /xxx
-function keyToPath(key) {
-  return '/' + key.replace(/^platform-/, 'platform/')
+// 角色 → 登录后工作台
+export const ROLE_HOME = {
+  [ROLE_SUPER_ADMIN]: SUPER_ADMIN_HOME,
+  [ROLE_GROUP_ADMIN]: GROUP_ADMIN_HOME,
+  [ROLE_MENTOR]: MENTOR_HOME,
+  [ROLE_STUDENT]: STUDENT_HOME
 }
-
-// 菜单 key → 页面组件（懒加载）
-// platform- 前缀的 key 对应 pages/platform/<子页>/index.vue，其余对应 pages/<key>/index.vue。
-// 动态导入路径中变量只保留一层目录名（vite dev 限制：变量仅代表单层文件名），
-// 因此 platform 子页拆成「固定前缀 + 单层变量」的形式，避免两层变量解析失败。
-function keyToPage(key) {
-  if (key.indexOf('platform-') === 0) {
-    const sub = key.replace('platform-', '')
-    return () => import(`../pages/platform/${sub}/index.vue`)
-  }
-  return () => import(`../pages/${key}/index.vue`)
-}
-
-// 业务菜单路由（从 navItems 驱动，meta.roles 供守卫做角色校验）
-const navRoutes = navItems.map((item) => ({
-  path: keyToPath(item.key).replace(/^\//, ''),
-  name: item.key,
-  component: keyToPage(item.key),
-  meta: { title: item.title, roles: item.roles || null }
-}))
 
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
   { path: '/force-password', name: 'force-password', component: ForcePasswordView },
+  // ===== 超级管理员 =====
   {
-    path: '/',
-    component: HomeLayout,
+    path: '/admin',
+    component: SuperAdminLayout,
+    meta: { role: ROLE_SUPER_ADMIN },
     children: [
-      { path: '', redirect: defaultNavPath },
-      ...navRoutes,
-      {
-        path: 'profile',
-        name: 'profile',
-        component: ProfileView,
-        meta: { title: '个人资料' }
-      },
-      {
-        path: 'my-messages',
-        name: 'my-messages',
-        component: () => import('../pages/my-messages/index.vue'),
-        meta: { title: '我的消息' }
-      },
-      {
-        path: 'profile/password',
-        name: 'profile-password',
-        component: ProfilePasswordView,
-        meta: { title: '修改密码' }
-      },
-      {
-        path: 'help',
-        name: 'help',
-        component: HelpView,
-        meta: { title: '使用帮助' }
-      },
-      {
-        path: 'app-settings',
-        name: 'app-settings',
-        component: () => import('../pages/app-settings/index.vue'),
-        meta: { title: '设置' }
-      }
+      { path: 'dashboard', name: 'admin-dashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'users', name: 'admin-users', component: () => import('../views/admin/AdminUserList.vue'), meta: { title: '用户管理' } },
+      { path: 'users/:id/edit', name: 'admin-user-edit', component: () => import('../views/admin/AdminUserEdit.vue'), meta: { title: '编辑用户' } },
+      { path: 'groups', name: 'admin-groups', component: () => import('../views/admin/AdminGroupList.vue'), meta: { title: '课题组设置' } },
+      { path: 'system', name: 'admin-system', component: () => import('../views/admin/AdminSystemConfig.vue'), meta: { title: '系统配置' } },
+      { path: 'profile', name: 'admin-profile', component: () => import('../views/admin/AdminProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'settings', name: 'admin-settings', component: () => import('../views/admin/AdminSettings.vue'), meta: { title: '设置' } },
+      { path: '', redirect: SUPER_ADMIN_HOME }
     ]
   },
-  { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView }
+  // ===== 课题组管理员 =====
+  {
+    path: '/group-admin',
+    component: GroupAdminLayout,
+    meta: { role: ROLE_GROUP_ADMIN },
+    children: [
+      { path: 'dashboard', name: 'group-admin-dashboard', component: () => import('../views/group-admin/GroupAdminDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'group', name: 'group-admin-group', component: () => import('../views/group-admin/GroupAdminGroupSetting.vue'), meta: { title: '课题组设置' } },
+      { path: 'members', name: 'group-admin-members', component: () => import('../views/group-admin/GroupAdminMemberManage.vue'), meta: { title: '课题组成员' } },
+      { path: 'profile', name: 'group-admin-profile', component: () => import('../views/group-admin/GroupAdminProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'settings', name: 'group-admin-settings', component: () => import('../views/group-admin/GroupAdminSettings.vue'), meta: { title: '设置' } },
+      { path: '', redirect: GROUP_ADMIN_HOME }
+    ]
+  },
+  // ===== 导师 =====
+  {
+    path: '/mentor',
+    component: MentorLayout,
+    meta: { role: ROLE_MENTOR },
+    children: [
+      { path: 'dashboard', name: 'mentor-dashboard', component: () => import('../views/mentor/MentorDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'students', name: 'mentor-students', component: () => import('../views/mentor/MentorStudentList.vue'), meta: { title: '我的学生' } },
+      { path: 'profile', name: 'mentor-profile', component: () => import('../views/mentor/MentorProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'settings', name: 'mentor-settings', component: () => import('../views/mentor/MentorSettings.vue'), meta: { title: '设置' } },
+      { path: '', redirect: MENTOR_HOME }
+    ]
+  },
+  // ===== 学生 =====
+  {
+    path: '/student',
+    component: StudentLayout,
+    meta: { role: ROLE_STUDENT },
+    children: [
+      { path: 'dashboard', name: 'student-dashboard', component: () => import('../views/student/StudentDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'profile', name: 'student-profile', component: () => import('../views/student/StudentProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'settings', name: 'student-settings', component: () => import('../views/student/StudentSettings.vue'), meta: { title: '设置' } },
+      { path: '', redirect: STUDENT_HOME }
+    ]
+  },
+  // 404 兜底
+  { path: '/:pathMatch(.*)*', name: 'notfound', component: NotFoundView }
 ]
 
 const router = createRouter({
@@ -103,66 +105,30 @@ const router = createRouter({
   routes
 })
 
-// 校验后端会话是否仍然有效（主进程内存态）
-async function checkBackendSession() {
-  try {
-    const u = await getCurrentUser()
-    return u ? true : false
-  } catch (e) {
-    return 'unknown'
-  }
-}
+// 登录守卫：会话校验 + 强制改密拦截 + 角色越权拦截
+router.beforeEach((to) => {
+  const user = getSessionUser()
+  const valid = isSessionValid()
 
-// 登录后落地页：未加入课题组的导师/学生 → 测试内容页；其余（含课题组管理员）→ 工作台
-async function resolveDefaultPath() {
-  const u = getSessionUser()
-  if (!u) return defaultNavPath
-  if (u.role === ROLE_MENTOR || u.role === ROLE_STUDENT) {
-    await loadGroups()
-    if (groups.value.length === 0) return noGroupOnlyNavPath
-  }
-  return defaultNavPath
-}
-
-// 全局前置守卫：登录态 → 后端会话 → 强制改密 → 角色权限
-router.beforeEach(async (to) => {
-  if (!isSessionValid()) {
-    clearSession()
-    return to.path === '/login' ? true : '/login'
-  }
+  // 登录页：已登录直接进本角色工作台
   if (to.path === '/login') {
-    const st = await checkBackendSession()
-    if (st === false) {
-      clearSession()
-      return true
-    }
-    return '/'
+    if (valid && user) return ROLE_HOME[user.role] || '/login'
+    return true
   }
-  const st = await checkBackendSession()
-  if (st === false) {
-    clearSession()
-    return '/login'
+  // 强制改密页：仅允许「需改密」的登录用户访问
+  if (to.path === '/force-password') {
+    if (!valid || !user) return '/login'
+    if (!user.mustChangePassword) return ROLE_HOME[user.role] || '/login'
+    return true
   }
-  // 首次登录强制改密：未改密前只允许停留在改密页，其他页面一律拦截
-  if (to.path !== '/force-password' && to.path !== '/login') {
-    const su = getSessionUser()
-    if (su && su.mustChangePassword) {
-      return '/force-password'
-    }
-  }
-  // 角色权限：meta.roles 数组与当前角色不匹配 → 打回该角色默认落地页
-  const roles = to.meta && to.meta.roles
-  if (Array.isArray(roles) && roles.length) {
-    const u = getSessionUser()
-    const r = u && u.role
-    if (!r || !isRoleAllowed(roles, r)) {
-      return await resolveDefaultPath()
-    }
-  }
-  // 默认落地页非工作台的角色（未入组导师学生）：访问工作台时改跳各自落地页
-  const home = await resolveDefaultPath()
-  if (to.path === defaultNavPath && home !== defaultNavPath) {
-    return home
+  // 未登录 / 会话过期
+  if (!valid || !user) return '/login'
+  // 待改密用户只能停留在强制改密页
+  if (user.mustChangePassword) return '/force-password'
+  // 角色越权直达：跳回本角色工作台
+  const needRole = to.meta && to.meta.role
+  if (needRole && needRole !== user.role) {
+    return ROLE_HOME[user.role] || '/login'
   }
   return true
 })

@@ -1,124 +1,29 @@
 /**
  * 路由层（IPC Layer）—— 认证相关路由（auth:* 前缀）
  *
- * 本模块只做一件事：把渲染层发来的 auth:* 调用，转交给 authService 处理。
- * 这里不写任何 SQL、不做密码哈希、不碰仓库；所有业务都在 authService。
- * 仅做一层防御性 catch，把意外异常收敛成统一的 { success, message } 外壳，
- * 保证渲染层永远拿到结构化结果（与旧 main.js 中各 handler 的返回形态保持一致）。
+ * 只做转发：把渲染层发来的 auth:* 调用转交给 authService，
+ * 这里不写 SQL、不做哈希、不碰仓库；统一异常转码由 helper.handler 完成。
  */
 const authService = require('../services/authService')
+const ApiError = require('../services/apiError')
+const { handler } = require('./helper')
 
-// 注册所有 auth:* 路由。ipcMain 由 main.js 传入，便于聚合与测试。
 function register(ipcMain) {
-  // 登录校验
-  ipcMain.handle('auth:login', async (_evt, payload) => {
-    try {
-      return await authService.login(payload)
-    } catch (err) {
-      console.error('[auth:login] 未预期异常:', err)
-      return { success: false, message: '登录失败，请稍后重试' }
-    }
-  })
+  // 登录校验（用户名/密码区分大小写）
+  ipcMain.handle('auth:login', handler((_evt, payload) => authService.login(payload || {})))
 
-  // 退出登录
-  ipcMain.handle('auth:logout', async () => {
-    try {
-      return authService.logout()
-    } catch (err) {
-      console.error('[auth:logout] 未预期异常:', err)
-      return { success: false, message: '退出失败，请稍后重试' }
-    }
-  })
+  // 退出登录（清除登录态）
+  ipcMain.handle('auth:logout', handler(() => authService.logout()))
 
-  // 取当前登录用户
-  ipcMain.handle('auth:get-current-user', async () => {
-    try {
-      return authService.getCurrentUser()
-    } catch (err) {
-      console.error('[auth:get-current-user] 未预期异常:', err)
-      return null
-    }
-  })
+  // 当前登录用户（回库刷新；未登录返回 401）
+  ipcMain.handle('auth:get-current-user', handler(async () => {
+    const user = await authService.getCurrentUser()
+    if (!user) throw new ApiError('未登录，请重新登录', 401)
+    return user
+  }))
 
-  // 修改密码
-  ipcMain.handle('auth:change-password', async (_evt, payload) => {
-    try {
-      return await authService.changePassword(payload)
-    } catch (err) {
-      console.error('[auth:change-password] 未预期异常:', err)
-      return { success: false, message: '修改失败，请稍后重试' }
-    }
-  })
-
-  // 用户列表（仅管理员）
-  ipcMain.handle('auth:list-users', async () => {
-    try {
-      return await authService.listUsers()
-    } catch (err) {
-      console.error('[auth:list-users] 未预期异常:', err)
-      return { success: false, message: '读取用户列表失败' }
-    }
-  })
-
-  // 成员列表（轻量，所有登录用户可读，供下拉选人；传 group_id 则只返回该组人员）
-  ipcMain.handle('auth:list-members', async (_evt, payload) => {
-    try {
-      return await authService.listMembers(payload)
-    } catch (err) {
-      console.error('[auth:list-members] 未预期异常:', err)
-      return { success: false, message: '读取成员列表失败' }
-    }
-  })
-
-  // 新增用户
-  ipcMain.handle('auth:create-user', async (_evt, payload) => {
-    try {
-      return await authService.createUser(payload)
-    } catch (err) {
-      console.error('[auth:create-user] 未预期异常:', err)
-      return { success: false, message: '创建失败，请稍后重试' }
-    }
-  })
-
-  // 批量新增用户（成员管理 → 批量导入）
-  ipcMain.handle('auth:batch-create-users', async (_evt, payload) => {
-    try {
-      return await authService.batchCreateUsers(payload)
-    } catch (err) {
-      console.error('[auth:batch-create-users] 未预期异常:', err)
-      return { success: false, message: '批量导入失败，请稍后重试' }
-    }
-  })
-
-  // 编辑用户（可重置密码）
-  ipcMain.handle('auth:update-user', async (_evt, payload) => {
-    try {
-      return await authService.updateUser(payload)
-    } catch (err) {
-      console.error('[auth:update-user] 未预期异常:', err)
-      return { success: false, message: '更新失败，请稍后重试' }
-    }
-  })
-
-  // 删除用户
-  ipcMain.handle('auth:delete-user', async (_evt, payload) => {
-    try {
-      return await authService.deleteUser(payload)
-    } catch (err) {
-      console.error('[auth:delete-user] 未预期异常:', err)
-      return { success: false, message: '删除失败，请稍后重试' }
-    }
-  })
-
-  // 读取当前登录用户自己的档案（用户表仅含登录必需字段）
-  ipcMain.handle('auth:get-my-profile', async () => {
-    try {
-      return await authService.getMyProfile()
-    } catch (err) {
-      console.error('[auth:get-my-profile] 未预期异常:', err)
-      return { success: false, message: '读取档案失败，请稍后重试' }
-    }
-  })
+  // 修改密码（个人修改 / 首次登录强制改密共用）
+  ipcMain.handle('auth:change-password', handler((_evt, payload) => authService.changePassword(payload || {})))
 }
 
 module.exports = { register }

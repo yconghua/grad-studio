@@ -62,4 +62,34 @@ function buildUpdateSet(data = {}) {
   return { clause: sets.join(', '), values }
 }
 
-module.exports = { buildWhereClause, buildUpdateSet }
+// ===== 分页统一规则 =====
+// 所有列表统一每页 8 条（pageSize 固定，不接受前端自定义），返回页码从 1 开始。
+const PAGE_SIZE = 8
+
+/**
+ * 规范化分页参数。
+ * @param {number|string} [page] 页码，默认 1
+ * @returns {{ page: number, pageSize: number, limit: number, offset: number }}
+ */
+function normalizePage(page) {
+  const p = Math.max(1, parseInt(page, 10) || 1)
+  return { page: p, pageSize: PAGE_SIZE, limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE }
+}
+
+/**
+ * 组装分页响应结构。
+ * @param {number} total 总条数
+ * @param {number} page 当前页码
+ * @param {number} pageSize 每页条数
+ * @returns {{ total: number, page: number, pageSize: number, totalPages: number }}
+ */
+function buildPageMeta(total, page, pageSize) {
+  return {
+    total,
+    page,
+    pageSize,
+    totalPages: total ? Math.ceil(total / pageSize) : 0
+  }
+}
+
+module.exports = { buildWhereClause, buildUpdateSet, PAGE_SIZE, normalizePage, buildPageMeta }
