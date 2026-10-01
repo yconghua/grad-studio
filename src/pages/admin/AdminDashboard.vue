@@ -23,6 +23,20 @@
     </div>
 
     <div class="panel">
+      <p class="panel-title">最近会议</p>
+      <template v-if="recentMeeting">
+        <div class="desc-list">
+          <div class="row"><span class="k">主题</span><span class="v">{{ recentMeeting.title }}</span></div>
+          <div class="row"><span class="k">会议时间</span><span class="v">{{ recentMeeting.meetingTime }}</span></div>
+          <div class="row"><span class="k">地点</span><span class="v">{{ recentMeeting.location || '-' }}</span></div>
+          <div class="row"><span class="k">参与人数</span><span class="v">{{ recentMeeting.participantCount }} 人</span></div>
+        </div>
+        <div style="margin-top: 10px"><a class="btn btn-sm" href="#/admin/meetings">进入会议记录</a></div>
+      </template>
+      <div v-else class="empty">暂无已发布会议</div>
+    </div>
+
+    <div class="panel">
       <p class="panel-title">欢迎使用</p>
       <div class="desc-list">
         <div class="row"><span class="k">当前账号</span><span class="v">{{ user ? user.realName || user.username : '' }}</span></div>
@@ -35,7 +49,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { listUsers, listGroups, listParams } from '../../api'
+import { listUsers, listGroups, listParams, getRecentMeeting } from '../../api'
 import { useSession } from '../../composables/useSession'
 
 // 超级管理员独立工作台（与课题组管理员 / 导师 / 学生的工作台为独立文件）
@@ -45,6 +59,7 @@ const user = getSessionUser()
 const statUsers = ref('-')
 const statGroups = ref('-')
 const statParams = ref('-')
+const recentMeeting = ref(null)
 
 onMounted(async () => {
   const [u, g, p] = await Promise.allSettled([
@@ -55,5 +70,7 @@ onMounted(async () => {
   if (u.status === 'fulfilled' && u.value && u.value.success) statUsers.value = (u.value.data && u.value.data.total) || 0
   if (g.status === 'fulfilled' && g.value && g.value.success) statGroups.value = (g.value.data && g.value.data.total) || 0
   if (p.status === 'fulfilled' && p.value && p.value.success) statParams.value = (p.value.data && p.value.data.total) || 0
+  const r = await getRecentMeeting()
+  if (r && r.success) recentMeeting.value = r.data
 })
 </script>

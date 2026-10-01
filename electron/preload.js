@@ -114,6 +114,22 @@ contextBridge.exposeInMainWorld('api', {
     readSelf: createInvoke('notice:read-self'),
     unreadCount: createInvoke('notice:unread-count')
   },
+  // 课题组组会（对应 ipc/meeting.js，通道前缀 meeting:*）
+  meeting: {
+    list: createInvoke('meeting:list'),
+    myDrafts: createInvoke('meeting:my-drafts'),
+    groupDrafts: createInvoke('meeting:group-drafts'),
+    detail: createInvoke('meeting:detail'),
+    create: createInvoke('meeting:create'),
+    update: createInvoke('meeting:update'),
+    publish: createInvoke('meeting:publish'),
+    publishAsNotice: createInvoke('meeting:publish-as-notice'),
+    remove: createInvoke('meeting:delete'),
+    archive: createInvoke('meeting:archive'),
+    stats: createInvoke('meeting:stats'),
+    memberOptions: createInvoke('meeting:member-options'),
+    recent: createInvoke('meeting:recent')
+  },
   // 系统配置与公共系统接口（对应 ipc/system.js，通道前缀 system:*）
   system: {
     info: createInvoke('system:info'),

@@ -257,6 +257,32 @@ class UserRepository extends BaseRepository {
   }
 
   /**
+   * 全平台启用状态的导师/学生总数（组会统计参与率分母，超管不传组时用）
+   * @returns {number}
+   */
+  async countAudienceAll() {
+    const sql =
+      `SELECT COUNT(*) AS total FROM \`users\` WHERE role IN ('mentor', 'student') AND status = ?`
+    const [rows] = await this._execute(sql, [ACCOUNT_STATUS_ENABLED], 'countAudienceAll')
+    return Number(rows[0] && rows[0].total) || 0
+  }
+
+  /**
+   * 该组启用状态的导师/学生列表（组会参与人候选 / 批量校验集合用；
+   * 组管、超管不作为可选参与人）
+   * @param {number} groupId
+   * @returns {Array<{ id: number, username: string, real_name: string, role: string }>}
+   */
+  async listEnabledAudienceByGroup(groupId) {
+    const sql =
+      `SELECT \`id\`, \`username\`, \`real_name\`, \`role\` FROM \`users\`
+      WHERE \`group_id\` = ? AND role IN ('mentor', 'student') AND status = ?
+      ORDER BY \`role\` ASC, \`real_name\` ASC, \`id\` ASC`
+    const [rows] = await this._execute(sql, [Number(groupId), ACCOUNT_STATUS_ENABLED], 'listEnabledAudienceByGroup')
+    return rows
+  }
+
+  /**
    * 通用条件分页（内部复用）：固定条件 + 可选关键字（账号/真实姓名）
    */
   async _pagedByCondition(condArr, condValues, filters, action) {

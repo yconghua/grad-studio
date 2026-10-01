@@ -8,6 +8,20 @@
     </div>
 
     <div class="panel" style="max-width: 640px">
+      <p class="panel-title">最近会议</p>
+      <template v-if="recentMeeting">
+        <div class="desc-list">
+          <div class="row"><span class="k">主题</span><span class="v">{{ recentMeeting.title }}</span></div>
+          <div class="row"><span class="k">会议时间</span><span class="v">{{ recentMeeting.meetingTime }}</span></div>
+          <div class="row"><span class="k">地点</span><span class="v">{{ recentMeeting.location || '-' }}</span></div>
+          <div class="row"><span class="k">参与人数</span><span class="v">{{ recentMeeting.participantCount }} 人</span></div>
+        </div>
+        <div style="margin-top: 10px"><a class="btn btn-sm" href="#/student/meetings">进入会议记录</a></div>
+      </template>
+      <div v-else class="empty">暂无已发布会议</div>
+    </div>
+
+    <div class="panel" style="max-width: 640px">
       <p class="panel-title">欢迎使用</p>
       <div class="desc-list">
         <div class="row"><span class="k">用户名</span><span class="v">{{ user ? user.username : '' }}</span></div>
@@ -22,16 +36,19 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getCurrentUser } from '../../api'
+import { getCurrentUser, getRecentMeeting } from '../../api'
 import { useSession } from '../../composables/useSession'
 
 // 学生独立工作台（与其他角色工作台为独立文件）
 const { getSessionUser } = useSession()
 const user = ref(getSessionUser())
+const recentMeeting = ref(null)
 
 // 回库刷新，保证课题组 / 导师信息最新
 onMounted(async () => {
   const res = await getCurrentUser()
   if (res && res.success) user.value = res.data
+  const r = await getRecentMeeting()
+  if (r && r.success) recentMeeting.value = r.data
 })
 </script>

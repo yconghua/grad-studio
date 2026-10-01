@@ -23,6 +23,20 @@
     </div>
 
     <div class="panel">
+      <p class="panel-title">最近会议</p>
+      <template v-if="recentMeeting">
+        <div class="desc-list">
+          <div class="row"><span class="k">主题</span><span class="v">{{ recentMeeting.title }}</span></div>
+          <div class="row"><span class="k">会议时间</span><span class="v">{{ recentMeeting.meetingTime }}</span></div>
+          <div class="row"><span class="k">地点</span><span class="v">{{ recentMeeting.location || '-' }}</span></div>
+          <div class="row"><span class="k">参与人数</span><span class="v">{{ recentMeeting.participantCount }} 人</span></div>
+        </div>
+        <div style="margin-top: 10px"><a class="btn btn-sm" href="#/group-admin/meetings">进入会议记录</a></div>
+      </template>
+      <div v-else class="empty">暂无已发布会议</div>
+    </div>
+
+    <div class="panel">
       <p class="panel-title">欢迎使用</p>
       <div class="desc-list">
         <div class="row"><span class="k">当前账号</span><span class="v">{{ user ? user.realName || user.username : '' }}</span></div>
@@ -36,7 +50,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getOwnGroup, listMembers } from '../../api'
+import { getOwnGroup, listMembers, getRecentMeeting } from '../../api'
 import { useSession } from '../../composables/useSession'
 
 // 课题组管理员独立工作台（与其他角色工作台为独立文件）
@@ -46,6 +60,7 @@ const user = getSessionUser()
 const group = ref(null)
 const statMentors = ref('-')
 const statStudents = ref('-')
+const recentMeeting = ref(null)
 
 onMounted(async () => {
   const [g, m, s] = await Promise.allSettled([
@@ -56,5 +71,7 @@ onMounted(async () => {
   if (g.status === 'fulfilled' && g.value && g.value.success) group.value = g.value.data
   if (m.status === 'fulfilled' && m.value && m.value.success) statMentors.value = (m.value.data && m.value.data.total) || 0
   if (s.status === 'fulfilled' && s.value && s.value.success) statStudents.value = (s.value.data && s.value.data.total) || 0
+  const r = await getRecentMeeting()
+  if (r && r.success) recentMeeting.value = r.data
 })
 </script>

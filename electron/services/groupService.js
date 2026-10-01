@@ -8,10 +8,13 @@
  * 权限闸门在 IPC 层（ipc/group.js）统一校验。
  */
 const crypto = require('node:crypto')
+const { runTransaction } = require('../db/connection')
 const userRepository = require('../db/repositories/userRepository')
 const groupRepository = require('../db/repositories/groupRepository')
 const groupNoticeRepository = require('../db/repositories/groupNoticeRepository')
 const groupNoticeReadRepository = require('../db/repositories/groupNoticeReadRepository')
+const groupMeetingRepository = require('../db/repositories/groupMeetingRepository')
+const groupMeetingParticipantRepository = require('../db/repositories/groupMeetingParticipantRepository')
 const authService = require('./authService')
 const userService = require('./userService')
 const ApiError = require('./apiError')
@@ -165,9 +168,9 @@ async function updateGroup(id, { name, description, adminUserId, status } = {}) 
 }
 
 /**
- * 删除课题组（物理删除）：课题组下仍有导师/学生成员时禁止删除；
- * 删除时解除管理员用户的课题组绑定，并级联硬删该组全部公告及其已读记录
- * （公告属于课题组，组删除公告一并删除）。
+ * 删除课题组（物理删除）：课题组下仍有导师/学生成员时禁止删除。
+ * 级联顺序（同一事务）：解除管理员绑定 → 删组会参与人 → 删组会 →
+ * 删公告已读 → 删公告 → 删课题组；任一步失败整体回滚。
  */
 async function deleteGroup(id) {
   const idNum = Number(id)
@@ -175,12 +178,17 @@ async function deleteGroup(id) {
   if (!row) throw new ApiError('课题组不存在', 404)
   const members = await userRepository.countByGroup(idNum)
   if (members > 0) throw new ApiError('课题组下仍有成员，请先移除全部成员后再删除', 400)
-  // 解除管理员绑定后再删除课题组
-  if (row.admin_user_id) await userRepository.updateById(row.admin_user_id, { group_id: null })
-  // 级联硬删公告及其已读记录（先清已读，再删公告，最后删课题组）
-  await groupNoticeReadRepository.deleteByGroupId(idNum)
-  await groupNoticeRepository.deleteByGroupId(idNum)
-  await groupRepository.deleteById(idNum)
+  await runTransaction(async () => {
+    // 解除管理员绑定后再删除课题组
+    if (row.admin_user_id) await userRepository.updateById(row.admin_user_id, { group_id: null })
+    // 组会级联：先删参与人（经会议归属定位），再删会议
+    await groupMeetingParticipantRepository.deleteByGroupId(idNum)
+    await groupMeetingRepository.deleteByGroupId(idNum)
+    // 公告级联：先清已读，再删公告
+    await groupNoticeReadRepository.deleteByGroupId(idNum)
+    await groupNoticeRepository.deleteByGroupId(idNum)
+    await groupRepository.deleteById(idNum)
+  })
   return true
 }
 
