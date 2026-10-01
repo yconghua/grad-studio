@@ -14,6 +14,7 @@ const groupRepository = require('../db/repositories/groupRepository')
 const authService = require('./authService')
 const ApiError = require('./apiError')
 const passwordService = require('./passwordService')
+const { runTransaction } = require('../db/connection')
 const {
   ROLE_SUPER_ADMIN,
   ROLE_GROUP_ADMIN,
@@ -114,7 +115,15 @@ async function createUser(payload = {}) {
     passwordHash: hash,
     role,
     status: status === undefined || status === '' ? ACCOUNT_STATUS_ENABLED : Number(status),
-    ...payload
+    // 资料字段显式映射为数据库列名：repository 白名单只认 snake_case，
+    // 直接展开 camelCase 的 payload 会导致真实姓名/课题组/导师等写不进去
+    real_name: payload.realName,
+    phone: payload.phone,
+    email: payload.email,
+    gender: payload.gender,
+    avatar: payload.avatar,
+    group_id: payload.groupId,
+    mentor_id: payload.mentorId
   })
   return getUser(id)
 }
@@ -386,12 +395,123 @@ async function deleteUser(id) {
   return true
 }
 
+// 批量导入：角色文本 → 角色枚举（超级管理员不在可选范围）
+const BATCH_ROLE_MAP = { 导师: ROLE_MENTOR, 学生: ROLE_STUDENT, 课题组管理员: ROLE_GROUP_ADMIN }
+
+// 性别文本 → 枚举（0 未知 / 1 男 / 2 女；其他与留空按未设置）
+function parseGenderText(v) {
+  if (v === '男') return 1
+  if (v === '女') return 2
+  return 0
+}
+
+// 启用状态文本 → 枚举（留空默认启用）
+function parseStatusText(v) {
+  if (v === '禁用') return ACCOUNT_STATUS_DISABLED
+  return ACCOUNT_STATUS_ENABLED
+}
+
+/**
+ * 批量新增用户（超级管理员）：
+ *   - 入参 rows：解析后的行数组，每行含 row(Excel 行号)/username/realName/roleText/phone/email/
+ *     genderText/groupName/mentorUsername/statusText；
+ *   - 每行独立事务，一行失败不影响其余；返回 { successCount, failCount, failList:[{ row, username, reason }] }；
+ *   - 密码统一走该角色默认密码（与单条新增留空一致），不接受前端传密码；
+ *   - 批次内用户名重复的行全部判失败；库内重复由单条新增逻辑校验；
+ *   - 课题组按名称精确匹配启用中的课题组，重名该行失败；
+ *   - 导师按用户名匹配且角色必须是导师、与学生同组；非学生行填导师直接忽略；
+ *   - 学生指定导师但未填所属课题组，该行失败。
+ */
+async function batchCreateUsers(rows = []) {
+  if (!Array.isArray(rows) || rows.length === 0) throw new ApiError('导入数据为空', 400)
+  if (rows.length > 500) throw new ApiError('单次最多 500 行，请分批导入', 400)
+
+  // 批次内用户名查重（区分大小写，与库内唯一口径一致）；重复的用户名所在行全部判失败
+  const countByUsername = new Map()
+  for (const r of rows) {
+    const name = r.username ? String(r.username).trim() : ''
+    if (!name) continue
+    countByUsername.set(name, (countByUsername.get(name) || 0) + 1)
+  }
+
+  const failList = []
+  let successCount = 0
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const rowNo = Number(row.row) || i + 2
+    const username = row.username ? String(row.username).trim() : ''
+    if (username && (countByUsername.get(username) || 0) > 1) {
+      failList.push({ row: rowNo, username, reason: '用户名在本批次内重复' })
+      continue
+    }
+    try {
+      // 每行独立事务：该行失败只回滚自己
+      await runTransaction(async () => {
+        await createImportedUser(row)
+      })
+      successCount++
+    } catch (err) {
+      failList.push({ row: rowNo, username: username || '-', reason: (err && err.message) ? err.message : '导入失败' })
+    }
+  }
+  return { successCount, failCount: failList.length, failList }
+}
+
+// 导入单行（须在事务内调用）：解析文本字段后复用单条新增的全部校验与默认密码逻辑
+async function createImportedUser(row) {
+  const roleText = row.roleText ? String(row.roleText).trim() : ''
+  const role = BATCH_ROLE_MAP[roleText]
+  if (!role) throw new ApiError('角色不合法（只能填 导师 / 学生 / 课题组管理员）', 400)
+
+  // 所属课题组：按名称精确匹配启用中的课题组；重名该行失败
+  let groupId = null
+  const groupName = row.groupName ? String(row.groupName).trim() : ''
+  if (groupName) {
+    const groups = await groupRepository.findByName(groupName)
+    if (groups.length === 0) throw new ApiError('所属课题组不存在或已停用', 400)
+    if (groups.length > 1) throw new ApiError('课题组名称不唯一，请先核实', 400)
+    groupId = groups[0].id
+  }
+
+  // 导师：仅学生行生效；非学生行填了导师直接忽略
+  let mentorId = null
+  const mentorUsername = row.mentorUsername ? String(row.mentorUsername).trim() : ''
+  if (mentorUsername && role === ROLE_STUDENT) {
+    if (!groupId) throw new ApiError('学生指定导师时必须填写所属课题组', 400)
+    const mentor = await userRepository.findByUsername(mentorUsername)
+    if (!mentor || mentor.role !== ROLE_MENTOR) throw new ApiError('导师用户名不存在或不是导师', 400)
+    if (mentor.group_id !== groupId) throw new ApiError('导师与学生必须属于同一课题组', 400)
+    mentorId = mentor.id
+  }
+
+  await createUser({
+    username: row.username,
+    password: '',
+    confirmPassword: '',
+    role,
+    status: parseStatusText(row.statusText),
+    realName: row.realName,
+    phone: row.phone,
+    email: row.email,
+    gender: parseGenderText(row.genderText),
+    avatar: '',
+    groupId,
+    mentorId
+  })
+}
+
+/**
+ * 全部用户名（批量导入预览预检用）：仅超级管理员调用
+ */
+async function listAllUsernames() {
+  return userRepository.findAllUsernames()
+}
+
 /**
  * 候选人列表（供「选择导师/学生加入课题组」下拉使用）：
  * 仅返回未入组（group_id 为空）且启用的导师 / 学生。
  */
 async function listCandidates({ page, keyword, role } = {}) {
-  if (role && !CANDIDATE_ROLES.includes(role)) throw new ApiError('角色参数不合法', 400)
   const result = await userRepository.pagedList({
     page,
     keyword,
@@ -412,6 +532,8 @@ module.exports = {
   resetPassword,
   batchUpdateStatus,
   batchDelete,
+  batchCreateUsers,
+  listAllUsernames,
   deleteUser,
   listCandidates,
   toUserDto

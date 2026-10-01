@@ -53,6 +53,18 @@ class GroupRepository extends BaseRepository {
   }
 
   /**
+   * 按名称精确匹配启用中的课题组（批量导入按名称解析用）
+   * name 无唯一约束，可能返回多行；调用方须自行处理重名
+   * @param {string} name
+   * @returns {Array<Object>}
+   */
+  async findByName(name) {
+    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\` WHERE name = ? AND status = 1`
+    const [rows] = await this._execute(sql, [name], 'findByName')
+    return rows || []
+  }
+
+  /**
    * 课题组分页列表：支持关键字（名称/标识号模糊）过滤
    * @param {{ keyword?: string, page?: number }} filters
    */

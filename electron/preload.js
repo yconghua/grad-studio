@@ -38,9 +38,11 @@ function toPlain(value) {
 }
 
 // 工厂：把「某个 IPC 通道」固化成一个函数，调用时把唯一 payload 透传给主进程。
-const createInvoke = (channel) => async (payload) => {
+// logPayload=false 的通道只打印调用摘要，不打印 payload 全文（如批量导入的行数据）。
+const createInvoke = (channel, { logPayload = true } = {}) => async (payload) => {
   const t0 = Date.now()
-  console.log(`[API→] ${channel}`, sanitize(payload))
+  if (logPayload) console.log(`[API→] ${channel}`, sanitize(payload))
+  else console.log(`[API→] ${channel} (payload 不打印)`)
   try {
     const res = await ipcRenderer.invoke(channel, toPlain(payload))
     const status = res && res.success === false ? 'FAIL' : 'OK'
@@ -71,6 +73,9 @@ contextBridge.exposeInMainWorld('api', {
     resetPassword: createInvoke('user:reset-password'),
     batchStatus: createInvoke('user:batch-status'),
     batchDelete: createInvoke('user:batch-delete'),
+    batchCreate: createInvoke('user:batch-create', { logPayload: false }),
+    usernames: createInvoke('user:usernames'),
+    downloadCsvTemplate: createInvoke('user:download-csv-template'),
     delete: createInvoke('user:delete'),
     candidates: createInvoke('user:candidates')
   },

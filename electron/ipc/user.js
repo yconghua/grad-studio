@@ -11,6 +11,12 @@ const authService = require('../services/authService')
 const ApiError = require('../services/apiError')
 const { handler } = require('./helper')
 const { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN } = require('../../shared/constants')
+const { dialog, BrowserWindow, app } = require('electron')
+const fs = require('fs')
+const path = require('path')
+
+// 批量新增 CSV 模板（固定表头，与前端解析列名严格一致；密码不放模板，统一走角色默认密码）
+const BATCH_CSV_TEMPLATE = '用户名,真实姓名,角色,手机号,邮箱,性别,所属课题组,导师,启用状态'
 
 // 仅超级管理员
 async function requireSuperAdmin() {
@@ -87,6 +93,32 @@ function register(ipcMain) {
   ipcMain.handle('user:batch-delete', handler(async (_evt, payload) => {
     await requireSuperAdmin()
     return userService.batchDelete((payload && payload.ids) || [])
+  }))
+
+  // 批量新增用户（超管）：rows 为解析后的用户数组
+  ipcMain.handle('user:batch-create', handler(async (_evt, payload) => {
+    await requireSuperAdmin()
+    return userService.batchCreateUsers((payload && payload.rows) || [])
+  }))
+
+  // 全部用户名（超管）：批量导入预览预检用户名重复
+  ipcMain.handle('user:usernames', handler(async () => {
+    await requireSuperAdmin()
+    return userService.listAllUsernames()
+  }))
+
+  // 下载批量新增 CSV 模板（超管）：主进程保存对话框 + 写 UTF-8 BOM 文件
+  ipcMain.handle('user:download-csv-template', handler(async (evt) => {
+    await requireSuperAdmin()
+    const win = BrowserWindow.fromWebContents(evt.sender)
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: '保存批量新增模板',
+      defaultPath: path.join(app.getPath('documents'), '批量新增用户模板.csv'),
+      filters: [{ name: 'CSV', extensions: ['csv'] }]
+    })
+    if (canceled || !filePath) return { canceled: true }
+    fs.writeFileSync(filePath, '\uFEFF' + BATCH_CSV_TEMPLATE, 'utf8')
+    return { canceled: false, path: filePath }
   }))
 
   // 删除用户（物理删除）

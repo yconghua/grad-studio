@@ -30,6 +30,18 @@ export function batchUpdateStatus(ids, status) {
 export function batchDeleteUsers(ids) {
   return window.api.user.batchDelete({ ids })
 }
+// 批量新增用户（超管）：rows 为解析后的用户数组
+export function batchCreateUsers(rows) {
+  return window.api.user.batchCreate({ rows })
+}
+// 全部用户名（批量导入预览预检用）
+export function listAllUsernames() {
+  return window.api.user.usernames()
+}
+// 下载批量新增 CSV 模板（超管，主进程保存对话框）
+export function downloadCsvTemplate() {
+  return window.api.user.downloadCsvTemplate()
+}
 export function deleteUser(id) {
   return window.api.user.delete({ id })
 }

@@ -169,6 +169,15 @@ class UserRepository extends BaseRepository {
   }
 
   /**
+   * 全部用户名（批量导入预览预检用）：仅超级管理员调用
+   * @returns {Array<string>}
+   */
+  async findAllUsernames() {
+    const [rows] = await this._execute('SELECT username FROM `users`', [], 'findAllUsernames')
+    return (rows || []).map((r) => r.username)
+  }
+
+  /**
    * 导师名下学生列表（分页）：role=student 且 mentor_id=当前导师
    * @param {number} mentorId
    * @param {{ keyword?: string, page?: number }} filters
