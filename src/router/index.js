@@ -47,13 +47,13 @@ const routes = [
     component: SuperAdminLayout,
     meta: { role: ROLE_SUPER_ADMIN },
     children: [
-      { path: 'dashboard', name: 'admin-dashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { title: '工作台' } },
-      { path: 'users', name: 'admin-users', component: () => import('../views/admin/AdminUserList.vue'), meta: { title: '用户管理' } },
-      { path: 'users/:id/edit', name: 'admin-user-edit', component: () => import('../views/admin/AdminUserEdit.vue'), meta: { title: '编辑用户' } },
-      { path: 'groups', name: 'admin-groups', component: () => import('../views/admin/AdminGroupList.vue'), meta: { title: '课题组设置' } },
-      { path: 'system', name: 'admin-system', component: () => import('../views/admin/AdminSystemConfig.vue'), meta: { title: '系统配置' } },
-      { path: 'profile', name: 'admin-profile', component: () => import('../views/admin/AdminProfile.vue'), meta: { title: '个人资料' } },
-      { path: 'settings', name: 'admin-settings', component: () => import('../views/admin/AdminSettings.vue'), meta: { title: '设置' } },
+      { path: 'dashboard', name: 'admin-dashboard', component: () => import('../pages/admin/AdminDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'users', name: 'admin-users', component: () => import('../pages/admin/AdminUserList.vue'), meta: { title: '用户管理' } },
+      { path: 'users/:id/edit', name: 'admin-user-edit', component: () => import('../pages/admin/AdminUserEdit.vue'), meta: { title: '编辑用户' } },
+      { path: 'groups', name: 'admin-groups', component: () => import('../pages/admin/AdminGroupList.vue'), meta: { title: '课题组设置' } },
+      { path: 'system', name: 'admin-system', component: () => import('../pages/admin/AdminSystemConfig.vue'), meta: { title: '系统配置' } },
+      { path: 'profile', name: 'admin-profile', component: () => import('../pages/admin/AdminProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'settings', name: 'admin-settings', component: () => import('../pages/admin/AdminSettings.vue'), meta: { title: '设置' } },
       { path: '', redirect: SUPER_ADMIN_HOME }
     ]
   },
@@ -63,11 +63,11 @@ const routes = [
     component: GroupAdminLayout,
     meta: { role: ROLE_GROUP_ADMIN },
     children: [
-      { path: 'dashboard', name: 'group-admin-dashboard', component: () => import('../views/group-admin/GroupAdminDashboard.vue'), meta: { title: '工作台' } },
-      { path: 'group', name: 'group-admin-group', component: () => import('../views/group-admin/GroupAdminGroupSetting.vue'), meta: { title: '课题组设置' } },
-      { path: 'members', name: 'group-admin-members', component: () => import('../views/group-admin/GroupAdminMemberManage.vue'), meta: { title: '课题组成员' } },
-      { path: 'profile', name: 'group-admin-profile', component: () => import('../views/group-admin/GroupAdminProfile.vue'), meta: { title: '个人资料' } },
-      { path: 'settings', name: 'group-admin-settings', component: () => import('../views/group-admin/GroupAdminSettings.vue'), meta: { title: '设置' } },
+      { path: 'dashboard', name: 'group-admin-dashboard', component: () => import('../pages/group-admin/GroupAdminDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'group', name: 'group-admin-group', component: () => import('../pages/group-admin/GroupAdminGroupSetting.vue'), meta: { title: '课题组设置' } },
+      { path: 'members', name: 'group-admin-members', component: () => import('../pages/group-admin/GroupAdminMemberManage.vue'), meta: { title: '课题组成员' } },
+      { path: 'profile', name: 'group-admin-profile', component: () => import('../pages/group-admin/GroupAdminProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'settings', name: 'group-admin-settings', component: () => import('../pages/group-admin/GroupAdminSettings.vue'), meta: { title: '设置' } },
       { path: '', redirect: GROUP_ADMIN_HOME }
     ]
   },
@@ -77,10 +77,10 @@ const routes = [
     component: MentorLayout,
     meta: { role: ROLE_MENTOR },
     children: [
-      { path: 'dashboard', name: 'mentor-dashboard', component: () => import('../views/mentor/MentorDashboard.vue'), meta: { title: '工作台' } },
-      { path: 'students', name: 'mentor-students', component: () => import('../views/mentor/MentorStudentList.vue'), meta: { title: '我的学生' } },
-      { path: 'profile', name: 'mentor-profile', component: () => import('../views/mentor/MentorProfile.vue'), meta: { title: '个人资料' } },
-      { path: 'settings', name: 'mentor-settings', component: () => import('../views/mentor/MentorSettings.vue'), meta: { title: '设置' } },
+      { path: 'dashboard', name: 'mentor-dashboard', component: () => import('../pages/mentor/MentorDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'students', name: 'mentor-students', component: () => import('../pages/mentor/MentorStudentList.vue'), meta: { title: '我的学生' } },
+      { path: 'profile', name: 'mentor-profile', component: () => import('../pages/mentor/MentorProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'settings', name: 'mentor-settings', component: () => import('../pages/mentor/MentorSettings.vue'), meta: { title: '设置' } },
       { path: '', redirect: MENTOR_HOME }
     ]
   },
@@ -90,9 +90,9 @@ const routes = [
     component: StudentLayout,
     meta: { role: ROLE_STUDENT },
     children: [
-      { path: 'dashboard', name: 'student-dashboard', component: () => import('../views/student/StudentDashboard.vue'), meta: { title: '工作台' } },
-      { path: 'profile', name: 'student-profile', component: () => import('../views/student/StudentProfile.vue'), meta: { title: '个人资料' } },
-      { path: 'settings', name: 'student-settings', component: () => import('../views/student/StudentSettings.vue'), meta: { title: '设置' } },
+      { path: 'dashboard', name: 'student-dashboard', component: () => import('../pages/student/StudentDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'profile', name: 'student-profile', component: () => import('../pages/student/StudentProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'settings', name: 'student-settings', component: () => import('../pages/student/StudentSettings.vue'), meta: { title: '设置' } },
       { path: '', redirect: STUDENT_HOME }
     ]
   },
