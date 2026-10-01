@@ -1,7 +1,7 @@
 <template>
   <div class="avatar-menu" ref="rootRef">
     <button type="button" class="trigger" @click.stop="open = !open">
-      <img v-if="user && user.avatar" :src="user.avatar" class="avatar" alt="头像" />
+      <img v-if="user && user.avatar" :src="avatarUrl(user.avatar)" class="avatar" alt="头像" />
       <span v-else class="avatar avatar-empty">{{ avatarChar }}</span>
       <span class="uname">{{ user ? user.realName || user.username : '' }}</span>
       <span class="caret">▾</span>
@@ -30,6 +30,7 @@ import { useRouter } from 'vue-router'
 import { useSession } from '../../composables/useSession'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { checkUpdate, logout } from '../../api'
+import { avatarUrl } from '../../utils/avatar'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 
 // 头像下拉公共组件：菜单项顺序固定

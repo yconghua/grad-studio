@@ -144,6 +144,7 @@ const loading = ref(false)
 
 // 登录：成功后按角色跳转对应工作台；首次登录（mustChangePassword）先强制改密
 async function onSubmit() {
+  if (loading.value) return
   errorMsg.value = ''
   if (!username.value || !password.value) {
     errorMsg.value = '请输入账号和密码'

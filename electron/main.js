@@ -15,9 +15,10 @@
  * 渲染层（Vue3）仍通过 preload 暴露的 window.api 与本进程通信，
  * 页面脚本拿不到 Node 能力（nodeIntegration:false + contextIsolation:true）。
  */
-const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeImage } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeImage, protocol, net } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
+const { pathToFileURL } = require('node:url')
 // 连接服务：启动时调用 init() 加载连接清单并注入连接池
 const connectionService = require('./services/connectionService')
 // 路由聚合：一行注册全部 auth:* / sys:* 等 IPC 接口
@@ -25,6 +26,12 @@ const { registerAll } = require('./ipc')
 
 const isDev = !app.isPackaged
 const DEV_URL = 'http://localhost:5173'
+
+// 自定义协议：gradapp://uploads/<文件名> → 用户数据目录 uploads/ 下的文件，
+// 供渲染层在 http / file 页面加载本地头像等附件，规避 file:// 跨协议拦截
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'gradapp', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
+])
 
 // 解析窗口 / 程序图标：复用 build/icon.ico（缺失时回退到系统默认）
 function resolveIcon() {
@@ -125,6 +132,14 @@ function createWindow() {
 app.whenReady().then(() => {
   // 移除窗口自带的菜单栏（文件 / 编辑 / 视图等那一行）
   Menu.setApplicationMenu(null)
+  // 注册 gradapp 协议：仅映射用户数据目录 uploads/ 内的文件，basename 防路径穿越
+  const uploadsDir = path.join(app.getPath('userData'), 'uploads')
+  protocol.handle('gradapp', (request) => {
+    const name = decodeURIComponent(new URL(request.url).pathname.replace(/^\//, ''))
+    const filePath = path.join(uploadsDir, path.basename(name))
+    if (!fs.existsSync(filePath)) return new Response('Not Found', { status: 404 })
+    return net.fetch(pathToFileURL(filePath).toString())
+  })
   // 初始化连接服务（加载连接清单、建立连接池）——须在 app ready 之后
   connectionService.init()
   // 注册全部 IPC 路由（auth: / sys: 等），渲染层即可通信

@@ -139,7 +139,7 @@
               <div class="field field-full">
                 <label>头像</label>
                 <div class="avatar-preview">
-                  <img v-if="form.avatar" :src="form.avatar" class="avatar-lg" alt="头像" />
+                  <img v-if="form.avatar" :src="avatarUrl(form.avatar)" class="avatar-lg" alt="头像" />
                   <span v-else class="avatar avatar-empty avatar-lg">?</span>
                   <div>
                     <button type="button" class="btn btn-sm" @click="chooseAvatar">选择头像</button>
@@ -179,6 +179,7 @@ import { useRouter } from 'vue-router'
 import { listUsers, createUser, listGroups, listCandidates, deleteUser, pickAttachment } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { avatarUrl } from '../../utils/avatar'
 import { fetchAll } from '../../utils/fetchAll'
 import { roleText, statusText, statusTagClass, ROLE_TEXT } from '../../utils/labels'
 import { DEFAULT_PASSWORD_BY_ROLE } from '../../config/constants'

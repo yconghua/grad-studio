@@ -77,7 +77,7 @@
           <div class="field field-full">
             <label>头像</label>
             <div class="avatar-preview">
-              <img v-if="profile.avatar" :src="profile.avatar" class="avatar-lg" alt="头像" />
+              <img v-if="profile.avatar" :src="avatarUrl(profile.avatar)" class="avatar-lg" alt="头像" />
               <span v-else class="avatar avatar-empty avatar-lg">?</span>
               <div>
                 <button type="button" class="btn btn-sm" @click="chooseAvatar">选择头像</button>
@@ -114,6 +114,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getUser, updateAccount, updateProfile, listGroups, listUsers, pickAttachment } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
+import { avatarUrl } from '../../utils/avatar'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { roleText } from '../../utils/labels'
