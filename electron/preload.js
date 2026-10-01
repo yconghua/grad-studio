@@ -68,6 +68,9 @@ contextBridge.exposeInMainWorld('api', {
     updateAccount: createInvoke('user:update-account'),
     updateProfile: createInvoke('user:update-profile'),
     updateOwnProfile: createInvoke('user:update-own-profile'),
+    resetPassword: createInvoke('user:reset-password'),
+    batchStatus: createInvoke('user:batch-status'),
+    batchDelete: createInvoke('user:batch-delete'),
     delete: createInvoke('user:delete'),
     candidates: createInvoke('user:candidates')
   },
@@ -86,6 +89,8 @@ contextBridge.exposeInMainWorld('api', {
     membersList: createInvoke('group-admin:members-list'),
     membersAdd: createInvoke('group-admin:members-add'),
     memberRemove: createInvoke('group-admin:member-remove'),
+    membersBatchRemove: createInvoke('group-admin:members-batch-remove'),
+    membersBatchAssignMentor: createInvoke('group-admin:members-batch-assign-mentor'),
     studentsList: createInvoke('group-admin:students-list'),
     setStudentMentor: createInvoke('group-admin:set-student-mentor')
   },

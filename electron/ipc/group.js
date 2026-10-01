@@ -66,6 +66,15 @@ function register(ipcMain) {
     await requireRole(ROLE_GROUP_ADMIN)
     return groupService.removeMember(payload && payload.userId)
   }))
+  ipcMain.handle('group-admin:members-batch-remove', handler(async (_evt, payload) => {
+    await requireRole(ROLE_GROUP_ADMIN)
+    return groupService.batchRemoveMembers((payload && payload.ids) || [])
+  }))
+  ipcMain.handle('group-admin:members-batch-assign-mentor', handler(async (_evt, payload) => {
+    await requireRole(ROLE_GROUP_ADMIN)
+    const { ids, mentorId } = payload || {}
+    return groupService.batchAssignMentor(ids, mentorId)
+  }))
   ipcMain.handle('group-admin:students-list', handler(async (_evt, payload) => {
     await requireRole(ROLE_GROUP_ADMIN)
     return groupService.listStudents(payload || {})

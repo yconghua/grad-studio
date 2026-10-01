@@ -51,7 +51,9 @@ async function getGroupAudience(groupId) {
   return userRepository.countAudienceByGroup(groupId)
 }
 
-// 公告标题/内容长度校验（与表列宽一致：title 100 / content 5000）
+// 公告标题/内容长度校验（与表列宽一致：title 100 / content 10000）；
+// 内容按 Markdown 纯文本存储，服务端只做第一道安全闸（拒绝明显 HTML 标签），
+// 主要 XSS 防护由渲染层 DOMPurify 白名单过滤承担。
 function assertTitle(title) {
   const t = String(title).trim()
   if (!t) throw new ApiError('请输入公告标题', 400)
@@ -61,7 +63,10 @@ function assertTitle(title) {
 function assertContent(content) {
   const c = content === undefined || content === null ? '' : String(content).trim()
   if (!c) throw new ApiError('请输入公告内容', 400)
-  if (c.length > 5000) throw new ApiError('公告内容不能超过 5000 个字符', 400)
+  if (c.length > 10000) throw new ApiError('公告内容不能超过 10000 个字符', 400)
+  if (/<script|<iframe|javascript:/i.test(c)) {
+    throw new ApiError('公告内容包含不允许的代码片段', 400)
+  }
   return c
 }
 

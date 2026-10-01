@@ -18,7 +18,7 @@ const { ACCOUNT_STATUS_ENABLED } = require('../../../shared/constants')
 const SAFE_COLUMNS = [
   'id', 'username', 'real_name', 'role', 'status', 'email', 'phone',
   'gender', 'avatar', 'group_id', 'mentor_id', 'must_change_password',
-  'created_at', 'updated_at'
+  'password_reset_at', 'created_at', 'updated_at'
 ]
 
 // 档案白名单：管理员「资料」Tab 可写字段（账号 / 密码 / 角色 / 状态由服务层显式处理）
@@ -147,7 +147,7 @@ class UserRepository extends BaseRepository {
    */
   async updateById(id, data) {
     const clean = pickProfile(data)
-    for (const k of ['username', 'role', 'status', 'password_hash', 'must_change_password']) {
+    for (const k of ['username', 'role', 'status', 'password_hash', 'must_change_password', 'password_reset_at']) {
       if (data && data[k] !== undefined && data[k] !== '') clean[k] = data[k]
     }
     const { clause, values } = buildUpdateSet(clean)

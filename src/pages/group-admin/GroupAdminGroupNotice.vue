@@ -70,7 +70,7 @@
 
     <!-- 发布 / 编辑公告弹窗（发布固定发到本组，无选组） -->
     <div v-if="showModal" class="modal-mask" @click.self="showModal = false">
-      <div class="modal">
+      <div class="modal lg">
         <div class="modal-head">
           <h3>{{ isEdit ? '编辑公告' : '发布公告' }}</h3>
           <button type="button" class="modal-close" @click="showModal = false">×</button>
@@ -87,9 +87,25 @@
             <p class="hint">不超过 100 个字符</p>
           </div>
           <div class="field">
-            <label>公告内容</label>
-            <textarea v-model.trim="form.content" placeholder="请输入公告内容" maxlength="5000" style="min-height: 160px"></textarea>
-            <p class="hint">不超过 5000 个字符</p>
+            <label>公告内容（支持 Markdown 排版，或直接输入纯文本）</label>
+            <div class="md-toolbar">
+              <button type="button" class="btn btn-sm" @click="insertMd('**', '**', '加粗文本')">加粗</button>
+              <button type="button" class="btn btn-sm" @click="insertMd('*', '*', '斜体文本')">斜体</button>
+              <button type="button" class="btn btn-sm" @click="insertMd('\n- ', '', '列表项')">列表</button>
+              <button type="button" class="btn btn-sm" @click="insertMd('\n1. ', '', '列表项')">有序列表</button>
+              <button type="button" class="btn btn-sm" @click="insertMd('[', '](https://)', '链接文字')">链接</button>
+              <button type="button" class="btn btn-sm" @click="insertMd('\n> ', '', '引用内容')">引用</button>
+              <button type="button" class="btn btn-sm" @click="insertMd('`', '`', '代码')">代码</button>
+              <button type="button" class="btn btn-sm" @click="insertMd('\n```\n', '\n```', '代码块')">代码块</button>
+            </div>
+            <div class="md-editor">
+              <textarea ref="contentEl" v-model="form.content" placeholder="支持 Markdown 排版，或直接输入纯文本" maxlength="10000" style="min-height: 220px"></textarea>
+              <div class="md-preview">
+                <NoticeContent :content="form.content" />
+                <p v-if="!form.content" class="hint">输入内容后此处实时预览</p>
+              </div>
+            </div>
+            <p class="hint">不超过 10000 个字符；支持加粗、斜体、列表、链接、引用、代码块</p>
           </div>
           <div class="field" v-if="isEdit">
             <label>状态</label>
@@ -148,6 +164,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import RowDetailDialog from '../../components/RowDetailDialog.vue'
+import NoticeContent from '../../components/NoticeContent.vue'
 import { listNotices, createNotice, updateNotice, deleteNotice, toggleNoticeTop, getNoticeReadStats } from '../../api'
 import { getOwnGroup } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
@@ -188,7 +205,7 @@ const noticeDetailFields = [
   { key: 'isTop', label: '置顶', render: (v) => (v ? '是' : '否') },
   { key: 'status', label: '状态', render: noticeStatusText },
   { key: 'publishTime', label: '发布时间' },
-  { key: 'content', label: '内容' }
+  { key: 'content', label: '内容', markdown: true }
 ]
 function openDetail(row, fields, title) {
   detailRow.value = row
@@ -235,6 +252,7 @@ async function openEdit(n) {
 async function save() {
   if (!form.title) return dialogAlert('请输入公告标题')
   if (!form.content) return dialogAlert('请输入公告内容')
+  if (form.content.length > 10000) return dialogAlert('公告内容不能超过 10000 个字符')
   saving.value = true
   try {
     // 不传 groupId：服务端强制发布到当前绑定课题组
@@ -282,6 +300,25 @@ async function doStats(n) {
   }
 }
 
+// Markdown 工具栏：在光标处插入语法标记（有选区则包住选区，无选区插入示例文本）
+const contentEl = ref(null)
+function insertMd(before, after, placeholder) {
+  const ta = contentEl.value
+  const cur = form.content || ''
+  if (!ta) {
+    form.content = cur + before + placeholder + after
+    return
+  }
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  const sel = cur.slice(start, end) || placeholder
+  const prefix = start > 0 && cur[start - 1] !== '\n' && before.startsWith('\n') ? '\n' : ''
+  form.content = cur.slice(0, start) + prefix + before + sel + after + cur.slice(end)
+  ta.focus()
+  const pos = start + prefix.length + before.length + sel.length + after.length
+  ta.setSelectionRange(pos, pos)
+}
+
 onMounted(async () => {
   const res = await getOwnGroup()
   if (res && res.success && res.data) {
@@ -292,3 +329,31 @@ onMounted(async () => {
   load()
 })
 </script>
+
+<style scoped>
+.md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.md-editor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.md-preview {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 220px;
+  max-height: 260px;
+  overflow: auto;
+  background: #fafbfc;
+}
+@media (max-width: 900px) {
+  .md-editor {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

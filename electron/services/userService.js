@@ -40,6 +40,7 @@ function toUserDto(row) {
     groupId: row.group_id == null ? null : Number(row.group_id),
     mentorId: row.mentor_id == null ? null : Number(row.mentor_id),
     mustChangePassword: row.must_change_password === 1,
+    passwordResetAt: row.password_reset_at || null,
     gender: row.gender || 0,
     phone: row.phone || '',
     email: row.email || '',
@@ -277,6 +278,86 @@ async function updateOwnProfile(payload = {}) {
 }
 
 /**
+ * 批量启用/禁用（超级管理员）：逐条校验并独立执行，
+ * 一条失败不影响其余；不能操作当前登录账号、超级管理员不可禁用。
+ * 返回 { successCount, failCount, failList: [{ id, reason }] }
+ */
+async function batchUpdateStatus(ids, status) {
+  const me = await authService.getCurrentUser()
+  if (!me) throw new ApiError('未登录，请重新登录', 401)
+  if (!Array.isArray(ids) || ids.length === 0) throw new ApiError('请选择要操作的用户', 400)
+  const st = Number(status)
+  if (st !== ACCOUNT_STATUS_ENABLED && st !== ACCOUNT_STATUS_DISABLED) throw new ApiError('状态参数不合法', 400)
+
+  let successCount = 0
+  const failList = []
+  for (const rawId of ids) {
+    const idNum = Number(rawId)
+    try {
+      if (me.id === idNum) throw new ApiError('不能操作当前登录账号', 400)
+      const row = await userRepository.findById(idNum)
+      if (!row) throw new ApiError('用户不存在', 404)
+      if (row.role === ROLE_SUPER_ADMIN && st === ACCOUNT_STATUS_DISABLED) {
+        throw new ApiError('超级管理员不能被禁用', 400)
+      }
+      if (row.status === st) throw new ApiError('已是目标状态', 400)
+      await userRepository.updateById(idNum, { status: st })
+      successCount++
+    } catch (e) {
+      failList.push({ id: idNum, reason: (e && e.message) ? e.message : '操作失败' })
+    }
+  }
+  return { successCount, failCount: failList.length, failList }
+}
+
+/**
+ * 批量删除用户（超级管理员）：逐条复用单条删除的级联逻辑（独立执行），
+ * 一条失败不影响其余；不能删除当前登录账号。
+ */
+async function batchDelete(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) throw new ApiError('请选择要删除的用户', 400)
+  let successCount = 0
+  const failList = []
+  for (const rawId of ids) {
+    const idNum = Number(rawId)
+    try {
+      await deleteUser(idNum)
+      successCount++
+    } catch (e) {
+      failList.push({ id: idNum, reason: (e && e.message) ? e.message : '删除失败' })
+    }
+  }
+  return { successCount, failCount: failList.length, failList }
+}
+
+/**
+ * 重置密码（超级管理员）：取目标角色默认密码重新哈希写入，
+ * 并置 must_change_password=1（该用户下次登录强制改密）+ 记录最近重置时间。
+ * 不能重置自己的密码（自己改密走个人资料页）。
+ */
+async function resetPassword(id) {
+  const me = await authService.getCurrentUser()
+  if (!me) throw new ApiError('未登录，请重新登录', 401)
+  const idNum = Number(id)
+  if (me.id === idNum) throw new ApiError('不能重置自己的密码，请到个人资料页修改', 400)
+
+  const row = await userRepository.findById(idNum)
+  if (!row) throw new ApiError('用户不存在', 404)
+  if (row.status !== ACCOUNT_STATUS_ENABLED) throw new ApiError('用户已被禁用，无法重置密码', 400)
+
+  const hash = passwordService.hashPassword(passwordService.defaultPasswordForRole(row.role))
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  const now = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  await userRepository.updateById(idNum, {
+    password_hash: hash,
+    must_change_password: 1,
+    password_reset_at: now
+  })
+  return getUser(idNum)
+}
+
+/**
  * 删除用户（物理删除）：
  *   - 不能删除当前登录账号（含超级管理员自身）；
  *   - 超级管理员不可删除；
@@ -328,6 +409,9 @@ module.exports = {
   updateAccount,
   updateProfile,
   updateOwnProfile,
+  resetPassword,
+  batchUpdateStatus,
+  batchDelete,
   deleteUser,
   listCandidates,
   toUserDto

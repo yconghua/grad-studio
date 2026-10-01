@@ -271,6 +271,65 @@ async function removeMember(userId) {
 }
 
 /**
+ * 批量移除本课题组成员（课题组管理员）：逐条复用单条移除逻辑，
+ * 一条失败不影响其余；不能移除当前登录账号（组管自身）。
+ * 返回 { successCount, failCount, failList: [{ id, reason }] }
+ */
+async function batchRemoveMembers(ids) {
+  const me = await authService.getCurrentUser()
+  if (!me) throw new ApiError('未登录，请重新登录', 401)
+  if (!Array.isArray(ids) || ids.length === 0) throw new ApiError('请选择要移除的成员', 400)
+
+  let successCount = 0
+  const failList = []
+  for (const rawId of ids) {
+    const idNum = Number(rawId)
+    try {
+      if (me.id === idNum) throw new ApiError('不能移除当前登录账号', 400)
+      await removeMember(idNum)
+      successCount++
+    } catch (e) {
+      failList.push({ id: idNum, reason: (e && e.message) ? e.message : '移除失败' })
+    }
+  }
+  return { successCount, failCount: failList.length, failList }
+}
+
+/**
+ * 批量给学生指定导师（课题组管理员）：仅对「属于本组的学生」生效，
+ * 非学生跳过进 failList；已绑定其他导师的直接覆盖并计入 replacedCount。
+ * 导师先整体校验（存在 / mentor 角色 / 属于本组）。
+ */
+async function batchAssignMentor(ids, mentorId) {
+  const group = await ownGroup()
+  if (!Array.isArray(ids) || ids.length === 0) throw new ApiError('请选择要指定导师的学生', 400)
+  const mid = Number(mentorId)
+  if (!mid) throw new ApiError('请选择导师', 400)
+  const mentor = await userRepository.findById(mid)
+  if (!mentor || mentor.role !== ROLE_MENTOR) throw new ApiError('所选导师不存在', 400)
+  if (mentor.group_id !== group.id) throw new ApiError('导师与学生必须属于同一课题组', 400)
+
+  let successCount = 0
+  let replacedCount = 0
+  const failList = []
+  for (const rawId of ids) {
+    const idNum = Number(rawId)
+    try {
+      const student = await userRepository.findById(idNum)
+      if (!student) throw new ApiError('用户不存在', 404)
+      if (student.role !== ROLE_STUDENT) throw new ApiError('仅学生可指定导师，非学生已跳过', 400)
+      if (student.group_id !== group.id) throw new ApiError('该学生不属于当前课题组', 400)
+      if (student.mentor_id) replacedCount++
+      await userRepository.updateById(idNum, { mentor_id: mid })
+      successCount++
+    } catch (e) {
+      failList.push({ id: idNum, reason: (e && e.message) ? e.message : '操作失败' })
+    }
+  }
+  return { successCount, replacedCount, failCount: failList.length, failList }
+}
+
+/**
  * 本课题组学生列表（分页）
  */
 async function listStudents({ page, keyword } = {}) {
@@ -323,6 +382,8 @@ module.exports = {
   listMembers,
   addMembers,
   removeMember,
+  batchRemoveMembers,
+  batchAssignMentor,
   listStudents,
   setStudentMentor,
   listMentorStudents,

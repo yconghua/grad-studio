@@ -6,10 +6,18 @@
         <button type="button" class="modal-close" @click="close">×</button>
       </div>
       <div class="modal-body">
-        <div v-for="f in fields" :key="f.key" class="d-row">
-          <div class="d-label">{{ f.label }}</div>
-          <div class="d-value">{{ displayValue(f) }}</div>
-        </div>
+        <template v-for="f in fields" :key="f.key">
+          <div v-if="!f.markdown" class="d-row">
+            <div class="d-label">{{ f.label }}</div>
+            <div class="d-value">{{ displayValue(f) }}</div>
+          </div>
+          <div v-else class="d-row">
+            <div class="d-label">{{ f.label }}</div>
+            <div class="d-value" style="white-space: normal">
+              <NoticeContent :content="row ? row[f.key] : ''" />
+            </div>
+          </div>
+        </template>
       </div>
       <div class="modal-foot">
         <button class="btn" @click="close">关闭</button>
@@ -20,9 +28,11 @@
 
 <script setup>
 import { computed } from 'vue'
+import NoticeContent from './NoticeContent.vue'
 
 // 通用行详情弹窗：由页面传入一行数据 + 字段映射配置，纯只读展示，不含任何操作按钮。
-// fields: [{ key, label, render? }]，render(value, row) 返回格式化后的展示文本；
+// fields: [{ key, label, render?, markdown? }]，render(value, row) 返回格式化后的展示文本；
+// markdown: true 时该字段用 NoticeContent 渲染（公告全文等）。
 // 空值统一显示 '-'；详情区 pre-wrap 展示，长文本（如公告全文）完整换行可见，
 // 弹窗复用 .modal 的 max-height + 滚动容器，内容超长不会撑出屏幕。
 const props = defineProps({

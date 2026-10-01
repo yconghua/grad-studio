@@ -18,6 +18,18 @@ export function updateProfile(id, data = {}) {
 export function updateOwnProfile(data = {}) {
   return window.api.user.updateOwnProfile(data)
 }
+// 重置密码（超管）：重置为该角色默认密码，用户下次登录强制改密
+export function resetPassword(id) {
+  return window.api.user.resetPassword({ id })
+}
+// 批量启用/禁用（超管）
+export function batchUpdateStatus(ids, status) {
+  return window.api.user.batchStatus({ ids, status })
+}
+// 批量删除（超管）
+export function batchDeleteUsers(ids) {
+  return window.api.user.batchDelete({ ids })
+}
 export function deleteUser(id) {
   return window.api.user.delete({ id })
 }

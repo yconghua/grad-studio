@@ -22,8 +22,8 @@
         </span>
       </div>
       <p style="font-size: 12px; color: #9ca3af; margin: 6px 0 10px">发布于 {{ n.publishTime }} · {{ n.publisherName }}</p>
-      <div style="font-size: 14px; color: #374151; line-height: 1.7; white-space: pre-wrap; word-break: break-word">
-        {{ n.content }}
+      <div style="word-break: break-word">
+        <NoticeContent :content="n.content" />
       </div>
       <div style="margin-top: 12px; text-align: right">
         <button v-if="!n.read" class="btn btn-primary btn-sm" :disabled="readingId === n.id" @click="doRead(n)">
@@ -48,6 +48,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { listNotices, markNoticeRead } from '../../api'
+import NoticeContent from '../../components/NoticeContent.vue'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 

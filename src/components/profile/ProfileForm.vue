@@ -60,13 +60,35 @@
       <div class="modal-foot" style="padding: 0; border: none">
         <button class="btn btn-primary" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
       </div>
+
+      <!-- 修改密码（个人资料页入口；改密成功后清会话强制重新登录） -->
+      <p class="panel-title" style="margin-top: 24px">修改密码</p>
+      <div class="form-grid">
+        <div class="field">
+          <label>原密码</label>
+          <input v-model="oldPassword" type="password" class="input" placeholder="请输入原密码" />
+        </div>
+        <div class="field">
+          <label>新密码</label>
+          <input v-model="newPassword" type="password" class="input" placeholder="至少 6 位，须包含大小写字母" maxlength="50" />
+          <p class="hint">至少 6 位且包含大小写字母</p>
+        </div>
+        <div class="field">
+          <label>确认新密码</label>
+          <input v-model="confirmPassword" type="password" class="input" placeholder="请再次输入新密码" maxlength="50" />
+        </div>
+      </div>
+      <div class="modal-foot" style="padding: 0; border: none">
+        <button class="btn btn-primary" :disabled="changingPwd" @click="changePwd">{{ changingPwd ? '修改中…' : '修改密码' }}</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getCurrentUser, updateOwnProfile, pickAttachment } from '../../api'
+import { useRouter } from 'vue-router'
+import { getCurrentUser, updateOwnProfile, changePassword, pickAttachment } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useSession } from '../../composables/useSession'
@@ -81,7 +103,8 @@ defineProps({
   subtitle: { type: String, default: '' }
 })
 
-const { setSession } = useSession()
+const { setSession, clearSession } = useSession()
+const router = useRouter()
 
 const user = ref(null)
 const realName = ref('')
@@ -90,6 +113,10 @@ const email = ref('')
 const gender = ref(0)
 const avatar = ref('')
 const saving = ref(false)
+const oldPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const changingPwd = ref(false)
 
 async function load() {
   const res = await getCurrentUser()
@@ -131,6 +158,36 @@ async function save() {
     }
   } finally {
     saving.value = false
+  }
+}
+
+// 修改密码：复用 auth:change-password（校验原密码 → 新密码强度 → 清强制改密标记），
+// 成功后清除本地会话并回到登录页，强制用新密码重新登录
+async function changePwd() {
+  if (!oldPassword.value) return dialogAlert('请输入原密码')
+  if (!newPassword.value) return dialogAlert('请输入新密码')
+  if (newPassword.value.length < 6) return dialogAlert('新密码长度至少 6 位')
+  if (!/[A-Z]/.test(newPassword.value) || !/[a-z]/.test(newPassword.value)) {
+    return dialogAlert('新密码必须包含大小写字母')
+  }
+  if (newPassword.value !== confirmPassword.value) return dialogAlert('两次输入的新密码不一致')
+  changingPwd.value = true
+  try {
+    const res = await changePassword({
+      username: (user.value && user.value.username) || '',
+      oldPassword: oldPassword.value,
+      newPassword: newPassword.value,
+      confirmPassword: confirmPassword.value
+    })
+    if (res && res.success) {
+      clearSession()
+      router.replace('/login')
+      dialogAlert('密码已修改，请使用新密码重新登录')
+    } else {
+      dialogAlert((res && res.message) || '修改失败')
+    }
+  } finally {
+    changingPwd.value = false
   }
 }
 

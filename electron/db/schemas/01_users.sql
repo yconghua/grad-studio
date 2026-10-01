@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `group_id`      BIGINT       DEFAULT NULL COMMENT '所属课题组ID',
   `mentor_id`     BIGINT       DEFAULT NULL COMMENT '学生对应导师用户ID',
   `must_change_password` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否必须修改初始密码：1首次登录强制改密/0已修改',
+  `password_reset_at`    DATETIME     DEFAULT NULL COMMENT '最近密码重置时间（管理员重置时写入）',
   `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),

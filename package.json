@@ -19,7 +19,9 @@
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
     "bcryptjs": "^2.4.3",
+    "dompurify": "^3.4.16",
     "electron-updater": "^6.3.9",
+    "marked": "^18.0.14",
     "mysql2": "^3.11.0",
     "vue": "^3.4.27",
     "vue-router": "^4.3.2"

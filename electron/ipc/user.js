@@ -70,6 +70,25 @@ function register(ipcMain) {
     return userService.updateOwnProfile(payload || {})
   }))
 
+  // 重置密码（超管）：取目标角色默认密码，置强制改密标记与最近重置时间
+  ipcMain.handle('user:reset-password', handler(async (_evt, payload) => {
+    await requireSuperAdmin()
+    return userService.resetPassword(payload && payload.id)
+  }))
+
+  // 批量启用/禁用（超管）
+  ipcMain.handle('user:batch-status', handler(async (_evt, payload) => {
+    await requireSuperAdmin()
+    const { ids, status } = payload || {}
+    return userService.batchUpdateStatus(ids, status)
+  }))
+
+  // 批量删除（超管）
+  ipcMain.handle('user:batch-delete', handler(async (_evt, payload) => {
+    await requireSuperAdmin()
+    return userService.batchDelete((payload && payload.ids) || [])
+  }))
+
   // 删除用户（物理删除）
   ipcMain.handle('user:delete', handler(async (_evt, payload) => {
     await requireSuperAdmin()

@@ -14,6 +14,13 @@ export function addMembers(data = {}) {
 export function removeMember(userId) {
   return window.api.groupAdmin.memberRemove({ userId })
 }
+// 批量移除成员 / 批量指定导师（课题组管理员）
+export function batchRemoveMembers(ids) {
+  return window.api.groupAdmin.membersBatchRemove({ ids })
+}
+export function batchAssignMentor(ids, mentorId) {
+  return window.api.groupAdmin.membersBatchAssignMentor({ ids, mentorId })
+}
 export function listGroupStudents(params = {}) {
   return window.api.groupAdmin.studentsList(params)
 }

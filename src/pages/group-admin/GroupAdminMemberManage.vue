@@ -27,10 +27,20 @@
         <button class="btn btn-primary" @click="openAdd">添加成员</button>
       </div>
 
+      <!-- 批量移除操作条 -->
+      <div v-if="selMembers.length" class="toolbar" style="background: #eef2ff; border-color: #c7d2fe">
+        <span style="font-size: 13px; color: #1f2329">已选 <b>{{ selMembers.length }}</b> 项（仅当前页）</span>
+        <button class="btn btn-sm btn-danger" @click="batchRemove">批量移除</button>
+        <button class="btn btn-sm" @click="selMembers = []">取消选择</button>
+      </div>
+
       <div class="tbl-wrap">
         <table class="tbl">
           <thead>
             <tr>
+              <th style="width: 40px">
+                <input type="checkbox" :checked="allCheckedMembers" @change="toggleAllMembers" />
+              </th>
               <th>ID</th>
               <th>用户名</th>
               <th>真实姓名</th>
@@ -42,6 +52,7 @@
           </thead>
           <tbody>
             <tr v-for="u in members" :key="u.id" @click="openDetail(u, memberDetailFields, '成员详情')">
+              <td @click.stop><input type="checkbox" :value="u.id" v-model="selMembers" /></td>
               <td>{{ u.id }}</td>
               <td class="ellipsis">{{ u.username }}</td>
               <td class="ellipsis">{{ u.realName || '-' }}</td>
@@ -55,7 +66,7 @@
               </td>
             </tr>
             <tr v-if="members.length === 0">
-              <td colspan="7"><div class="empty">暂无成员</div></td>
+              <td colspan="8"><div class="empty">暂无成员</div></td>
             </tr>
           </tbody>
         </table>
@@ -76,10 +87,20 @@
         <button class="btn" @click="sReset">重置</button>
       </div>
 
+      <!-- 批量指定导师操作条 -->
+      <div v-if="selStudents.length" class="toolbar" style="background: #eef2ff; border-color: #c7d2fe">
+        <span style="font-size: 13px; color: #1f2329">已选 <b>{{ selStudents.length }}</b> 名学生（仅当前页）</span>
+        <button class="btn btn-sm btn-primary" @click="openMentorPick">批量指定导师</button>
+        <button class="btn btn-sm" @click="selStudents = []">取消选择</button>
+      </div>
+
       <div class="tbl-wrap">
         <table class="tbl">
           <thead>
             <tr>
+              <th style="width: 40px">
+                <input type="checkbox" :checked="allCheckedStudents" @change="toggleAllStudents" />
+              </th>
               <th>ID</th>
               <th>用户名</th>
               <th>真实姓名</th>
@@ -90,6 +111,7 @@
           </thead>
           <tbody>
             <tr v-for="u in students" :key="u.id" @click="openDetail(u, studentDetailFields, '学生详情')">
+              <td @click.stop><input type="checkbox" :value="u.id" v-model="selStudents" /></td>
               <td>{{ u.id }}</td>
               <td class="ellipsis">{{ u.username }}</td>
               <td class="ellipsis">{{ u.realName || '-' }}</td>
@@ -106,7 +128,7 @@
               </td>
             </tr>
             <tr v-if="students.length === 0">
-              <td colspan="6"><div class="empty">暂无学生</div></td>
+              <td colspan="7"><div class="empty">暂无学生</div></td>
             </tr>
           </tbody>
         </table>
@@ -152,6 +174,32 @@
         </div>
       </div>
     </div>
+
+    <!-- 批量指定导师弹窗：仅列本组导师，确认后一步执行 -->
+    <div v-if="showMentorPick" class="modal-mask" @click.self="showMentorPick = false">
+      <div class="modal sm">
+        <div class="modal-head">
+          <h3>批量指定导师</h3>
+          <button type="button" class="modal-close" @click="showMentorPick = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>选择导师（仅本组导师）</label>
+            <select v-model="mentorPickId" class="select">
+              <option value="">请选择导师</option>
+              <option v-for="m in mentors" :key="m.id" :value="m.id">{{ m.realName || m.username }}</option>
+            </select>
+          </div>
+          <p class="hint">
+            将把选中的 {{ selStudents.length }} 名学生指定给所选导师；已绑定其他导师的学生将被替换。
+          </p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" @click="showMentorPick = false">取消</button>
+          <button class="btn btn-primary" :disabled="!mentorPickId" @click="doBatchAssign">确认指定</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 成员 / 学生行详情弹窗 -->
@@ -159,9 +207,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import RowDetailDialog from '../../components/RowDetailDialog.vue'
-import { listMembers, listGroupStudents, removeMember, addMembers, setStudentMentor, listCandidates } from '../../api'
+import { listMembers, listGroupStudents, removeMember, addMembers, setStudentMentor, listCandidates, batchRemoveMembers, batchAssignMentor } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'
@@ -206,6 +254,7 @@ const mTotal = ref(0)
 const mTotalPages = ref(1)
 
 async function loadMembers() {
+  selMembers.value = []
   const res = await listMembers({ page: mPage.value, role: mRole.value, keyword: mKeyword.value })
   if (res && res.success) {
     members.value = (res.data && res.data.list) || []
@@ -236,6 +285,29 @@ async function doRemove(u) {
   }
 }
 
+// ===== 批量移除成员 =====
+const selMembers = ref([])
+const allCheckedMembers = computed(() => members.value.length > 0 && selMembers.value.length === members.value.length)
+function toggleAllMembers(e) {
+  selMembers.value = e.target.checked ? members.value.map((u) => u.id) : []
+}
+async function batchRemove() {
+  const ok = await dialogConfirm(`确定将选中的 ${selMembers.value.length} 名成员移出课题组吗？`)
+  if (!ok) return
+  // 展开为普通数组：Vue ref 数组是响应式 Proxy，直接传 IPC 会克隆失败
+  const res = await batchRemoveMembers([...selMembers.value])
+  if (res && res.success) {
+    const d = res.data || {}
+    const parts = [`已移除 ${d.successCount || 0} 条`]
+    if (d.failCount) parts.push(`失败 ${d.failCount} 条`)
+    const reasons = (d.failList || []).map((f) => `用户 #${f.id}：${f.reason}`).join('；')
+    if (reasons) parts.push(reasons.slice(0, 120))
+    await refreshAfterWrite(parts.join('，'))
+  } else {
+    dialogAlert((res && res.message) || '批量移除失败')
+  }
+}
+
 // ===== 学生与导师 =====
 const sKeyword = ref('')
 const sPage = ref(1)
@@ -246,6 +318,7 @@ const mentors = ref([])
 const mentorPick = reactive({})
 
 async function loadStudents() {
+  selStudents.value = []
   const res = await listGroupStudents({ page: sPage.value, keyword: sKeyword.value })
   if (res && res.success) {
     students.value = (res.data && res.data.list) || []
@@ -280,6 +353,35 @@ async function doSetMentor(u) {
     await refreshAfterWrite('指定导师成功')
   } else {
     dialogAlert((res && res.message) || '指定导师失败')
+  }
+}
+
+// ===== 批量指定导师 =====
+const selStudents = ref([])
+const allCheckedStudents = computed(() => students.value.length > 0 && selStudents.value.length === students.value.length)
+function toggleAllStudents(e) {
+  selStudents.value = e.target.checked ? students.value.map((u) => u.id) : []
+}
+const showMentorPick = ref(false)
+const mentorPickId = ref('')
+function openMentorPick() {
+  mentorPickId.value = ''
+  showMentorPick.value = true
+}
+async function doBatchAssign() {
+  if (!mentorPickId.value) return dialogAlert('请选择导师')
+  const res = await batchAssignMentor([...selStudents.value], mentorPickId.value)
+  if (res && res.success) {
+    const d = res.data || {}
+    const parts = [`成功 ${d.successCount || 0} 条`]
+    if (d.replacedCount) parts.push(`${d.replacedCount} 名原导师被替换`)
+    if (d.failCount) parts.push(`失败 ${d.failCount} 条`)
+    const reasons = (d.failList || []).map((f) => `用户 #${f.id}：${f.reason}`).join('；')
+    if (reasons) parts.push(reasons.slice(0, 120))
+    showMentorPick.value = false
+    await refreshAfterWrite(parts.join('，'))
+  } else {
+    dialogAlert((res && res.message) || '批量指定导师失败')
   }
 }
 
