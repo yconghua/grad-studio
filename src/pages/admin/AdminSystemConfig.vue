@@ -116,7 +116,8 @@
         <div class="modal-body">
           <div class="field">
             <label>参数键</label>
-            <input v-model.trim="form.configKey" class="input" placeholder="例如 system.name" />
+            <input v-model.trim="form.configKey" class="input" placeholder="例如 system.name" maxlength="100" />
+            <p class="hint">不超过 100 个字符</p>
           </div>
           <div class="field">
             <label>参数值</label>
@@ -134,7 +135,8 @@
           </div>
           <div class="field">
             <label>描述</label>
-            <input v-model.trim="form.description" class="input" placeholder="参数描述（选填）" />
+            <input v-model.trim="form.description" class="input" placeholder="参数描述（选填）" maxlength="255" />
+            <p class="hint">不超过 255 个字符</p>
           </div>
         </div>
         <div class="modal-foot">

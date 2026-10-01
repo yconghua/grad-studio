@@ -122,6 +122,10 @@ async function listParams({ page, keyword } = {}) {
 async function createParam({ configKey, configValue, configType, description } = {}) {
   if (!configKey || !String(configKey).trim()) throw new ApiError('请输入参数键', 400)
   const key = String(configKey).trim()
+  if (key.length > 100) throw new ApiError('参数键不能超过 100 个字符', 400)
+  if (description !== undefined && description !== null && String(description).trim().length > 255) {
+    throw new ApiError('参数描述不能超过 255 个字符', 400)
+  }
   const exists = await systemConfigRepository.findByKey(key)
   if (exists) throw new ApiError('参数键已存在', 400)
   const type = configType && String(configType).trim() ? String(configType).trim() : 'string'
@@ -147,13 +151,18 @@ async function updateParam(id, { configKey, configValue, configType, description
   if (configKey !== undefined) {
     if (!String(configKey).trim()) throw new ApiError('请输入参数键', 400)
     const key = String(configKey).trim()
+    if (key.length > 100) throw new ApiError('参数键不能超过 100 个字符', 400)
     const exists = await systemConfigRepository.findByKey(key)
     if (exists && exists.id !== idNum) throw new ApiError('参数键已存在', 400)
     data.config_key = key
   }
   if (configValue !== undefined) data.config_value = configValue == null ? '' : String(configValue)
   if (configType !== undefined && String(configType).trim()) data.config_type = String(configType).trim()
-  if (description !== undefined) data.description = String(description).trim() || null
+  if (description !== undefined) {
+    const desc = String(description).trim()
+    if (desc.length > 255) throw new ApiError('参数描述不能超过 255 个字符', 400)
+    data.description = desc || null
+  }
 
   await systemConfigRepository.updateById(idNum, data)
   const updated = await systemConfigRepository.findById(idNum)

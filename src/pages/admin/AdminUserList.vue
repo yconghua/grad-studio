@@ -87,7 +87,8 @@
             <div class="form-grid">
               <div class="field">
                 <label>用户名（区分大小写）</label>
-                <input v-model.trim="form.username" class="input" placeholder="请输入用户名" />
+                <input v-model.trim="form.username" class="input" placeholder="请输入用户名" maxlength="50" />
+                <p class="hint">不超过 50 个字符，区分大小写</p>
               </div>
               <div class="field">
                 <label>角色</label>
@@ -98,7 +99,7 @@
               <div class="field">
                 <label>密码</label>
                 <input v-model="form.password" type="password" class="input" placeholder="留空则使用默认密码" />
-                <p class="hint">留空将使用该角色默认密码：{{ DEFAULT_PASSWORD_BY_ROLE[form.role] }}</p>
+                <p class="hint">留空将使用该角色默认密码：{{ DEFAULT_PASSWORD_BY_ROLE[form.role] }}；自定义密码至少 6 位且包含大小写字母</p>
               </div>
               <div class="field">
                 <label>确认密码</label>
@@ -118,15 +119,18 @@
             <div class="form-grid">
               <div class="field">
                 <label>真实姓名</label>
-                <input v-model.trim="form.realName" class="input" placeholder="请输入真实姓名" />
+                <input v-model.trim="form.realName" class="input" placeholder="请输入真实姓名" maxlength="50" />
+                <p class="hint">不超过 50 个字符</p>
               </div>
               <div class="field">
                 <label>手机号</label>
-                <input v-model.trim="form.phone" class="input" placeholder="请输入手机号" />
+                <input v-model.trim="form.phone" class="input" placeholder="请输入手机号" maxlength="20" />
+                <p class="hint">不超过 20 个字符</p>
               </div>
               <div class="field">
                 <label>邮箱</label>
-                <input v-model.trim="form.email" class="input" placeholder="请输入邮箱" />
+                <input v-model.trim="form.email" class="input" placeholder="请输入邮箱" maxlength="100" />
+                <p class="hint">不超过 100 个字符</p>
               </div>
               <div class="field">
                 <label>性别</label>

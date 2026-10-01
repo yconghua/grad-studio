@@ -83,6 +83,17 @@ async function createUser(payload = {}) {
   if (!ALL_ROLES.includes(role)) throw new ApiError('角色参数不合法', 400)
 
   const name = String(username).trim()
+  if (name.length > 50) throw new ApiError('用户名不能超过 50 个字符', 400)
+  // 资料字段长度（与 users 表列宽一致）
+  if (payload.realName !== undefined && String(payload.realName).trim().length > 50) {
+    throw new ApiError('真实姓名不能超过 50 个字符', 400)
+  }
+  if (payload.phone !== undefined && String(payload.phone).trim().length > 20) {
+    throw new ApiError('手机号不能超过 20 个字符', 400)
+  }
+  if (payload.email !== undefined && String(payload.email).trim().length > 100) {
+    throw new ApiError('邮箱不能超过 100 个字符', 400)
+  }
   const exists = await userRepository.findByUsername(name)
   if (exists) throw new ApiError('用户名已存在（用户名区分大小写）', 400)
 
@@ -139,6 +150,7 @@ async function updateAccount(id, payload = {}) {
   if (username !== undefined && username !== '') {
     const name = String(username).trim()
     if (!name) throw new ApiError('请输入用户名', 400)
+    if (name.length > 50) throw new ApiError('用户名不能超过 50 个字符', 400)
     const exists = await userRepository.findByUsername(name)
     if (exists && exists.id !== idNum) throw new ApiError('用户名已存在（用户名区分大小写）', 400)
     data.username = name
@@ -173,9 +185,21 @@ async function updateProfile(id, payload = {}) {
   const { realName, phone, email, gender, avatar, groupId, mentorId } = payload
   const data = {}
 
-  if (realName !== undefined) data.real_name = String(realName).trim()
-  if (phone !== undefined) data.phone = String(phone).trim() || null
-  if (email !== undefined) data.email = String(email).trim() || null
+  if (realName !== undefined) {
+    const rn = String(realName).trim()
+    if (rn.length > 50) throw new ApiError('真实姓名不能超过 50 个字符', 400)
+    data.real_name = rn
+  }
+  if (phone !== undefined) {
+    const ph = String(phone).trim()
+    if (ph.length > 20) throw new ApiError('手机号不能超过 20 个字符', 400)
+    data.phone = ph || null
+  }
+  if (email !== undefined) {
+    const em = String(email).trim()
+    if (em.length > 100) throw new ApiError('邮箱不能超过 100 个字符', 400)
+    data.email = em || null
+  }
   if (gender !== undefined) {
     const g = Number(gender)
     if (![0, 1, 2].includes(g)) throw new ApiError('性别参数不合法', 400)
@@ -226,9 +250,21 @@ async function updateOwnProfile(payload = {}) {
   const { realName, phone, email, gender, avatar } = payload
   const data = {}
 
-  if (realName !== undefined) data.real_name = String(realName).trim()
-  if (phone !== undefined) data.phone = String(phone).trim() || null
-  if (email !== undefined) data.email = String(email).trim() || null
+  if (realName !== undefined) {
+    const rn = String(realName).trim()
+    if (rn.length > 50) throw new ApiError('真实姓名不能超过 50 个字符', 400)
+    data.real_name = rn
+  }
+  if (phone !== undefined) {
+    const ph = String(phone).trim()
+    if (ph.length > 20) throw new ApiError('手机号不能超过 20 个字符', 400)
+    data.phone = ph || null
+  }
+  if (email !== undefined) {
+    const em = String(email).trim()
+    if (em.length > 100) throw new ApiError('邮箱不能超过 100 个字符', 400)
+    data.email = em || null
+  }
   if (gender !== undefined) {
     const g = Number(gender)
     if (![0, 1, 2].includes(g)) throw new ApiError('性别参数不合法', 400)

@@ -22,15 +22,18 @@
       <div class="form-grid">
         <div class="field">
           <label>真实姓名</label>
-          <input v-model.trim="realName" class="input" placeholder="请输入真实姓名" />
+          <input v-model.trim="realName" class="input" placeholder="请输入真实姓名" maxlength="50" />
+          <p class="hint">不超过 50 个字符</p>
         </div>
         <div class="field">
           <label>手机号</label>
-          <input v-model.trim="phone" class="input" placeholder="请输入手机号" />
+          <input v-model.trim="phone" class="input" placeholder="请输入手机号" maxlength="20" />
+          <p class="hint">不超过 20 个字符</p>
         </div>
         <div class="field">
           <label>邮箱</label>
-          <input v-model.trim="email" class="input" placeholder="请输入邮箱" />
+          <input v-model.trim="email" class="input" placeholder="请输入邮箱" maxlength="100" />
+          <p class="hint">不超过 100 个字符</p>
         </div>
         <div class="field">
           <label>性别</label>

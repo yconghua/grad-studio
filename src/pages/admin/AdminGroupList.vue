@@ -72,10 +72,12 @@
           <div class="field">
             <label>课题组名称</label>
             <input v-model.trim="form.name" class="input" placeholder="请输入课题组名称" maxlength="100" />
+            <p class="hint">不超过 100 个字符</p>
           </div>
           <div class="field">
             <label>描述</label>
             <textarea v-model.trim="form.description" placeholder="请输入课题组描述（选填）" maxlength="500"></textarea>
+            <p class="hint">不超过 500 个字符</p>
           </div>
           <div class="field">
             <label>课题组管理员（从已有用户中选择，一个管理员只能管理一个课题组）</label>
