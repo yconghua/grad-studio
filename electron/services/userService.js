@@ -120,23 +120,19 @@ async function getUser(id) {
  * 账号密码 Tab 保存：
  *   - 用户名区分大小写且不可重复；
  *   - 密码为空表示不修改；修改则校验强度与确认密码一致，并置 must_change_password=1；
- *   - 不能将其他用户修改为超级管理员；超级管理员的角色不可修改、不可禁用。
+ *   - 角色一经创建不可修改（编辑用户时下拉框锁定），此处不处理 role 字段；
+ *   - 超级管理员不可禁用。
  */
 async function updateAccount(id, payload = {}) {
   const idNum = Number(id)
   const row = await userRepository.findById(idNum)
   if (!row) throw new ApiError('用户不存在', 404)
 
-  const { username, password, confirmPassword, role, status } = payload
+  const { username, password, confirmPassword, status } = payload
   const isSuper = row.role === ROLE_SUPER_ADMIN
 
-  if (isSuper) {
-    if (role && role !== ROLE_SUPER_ADMIN) throw new ApiError('超级管理员角色不能被修改', 400)
-    if (Number(status) === ACCOUNT_STATUS_DISABLED) throw new ApiError('超级管理员不能被禁用', 400)
-  }
-  if (role) {
-    if (!ALL_ROLES.includes(role)) throw new ApiError('角色参数不合法', 400)
-    if (role === ROLE_SUPER_ADMIN && !isSuper) throw new ApiError('不允许新增超级管理员', 400)
+  if (isSuper && Number(status) === ACCOUNT_STATUS_DISABLED) {
+    throw new ApiError('超级管理员不能被禁用', 400)
   }
 
   const data = {}
@@ -154,7 +150,6 @@ async function updateAccount(id, payload = {}) {
     data.password_hash = passwordService.hashPassword(password)
     data.must_change_password = 1 // 管理员重置密码后，该用户下次登录需修改密码
   }
-  if (role !== undefined) data.role = role
   if (status !== undefined) {
     const st = Number(status)
     if (st !== ACCOUNT_STATUS_ENABLED && st !== ACCOUNT_STATUS_DISABLED) throw new ApiError('状态参数不合法', 400)

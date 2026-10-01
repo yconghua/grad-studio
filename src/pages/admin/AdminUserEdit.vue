@@ -23,10 +23,10 @@
           </div>
           <div class="field">
             <label>角色</label>
-            <select v-model="account.role" class="select" :disabled="isSuper()">
+            <select v-model="account.role" class="select" disabled>
               <option v-for="(t, r) in ALL_ROLES_TEXT" :key="r" :value="r">{{ t }}</option>
             </select>
-            <p v-if="isSuper()" class="hint">超级管理员角色不可修改</p>
+            <p class="hint">角色一经创建不可修改</p>
           </div>
           <div class="field">
             <label>密码（留空表示不修改）</label>
@@ -194,7 +194,6 @@ async function saveAccount() {
       username: account.username,
       password: account.password,
       confirmPassword: account.confirmPassword,
-      role: account.role,
       status: Number(account.status)
     })
     if (res && res.success) {
