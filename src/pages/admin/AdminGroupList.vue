@@ -29,16 +29,16 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="g in list" :key="g.id">
+          <tr v-for="g in list" :key="g.id" @click="openDetail(g, groupDetailFields, '课题组详情')">
             <td>{{ g.id }}</td>
-            <td>{{ g.name }}</td>
-            <td style="font-family: monospace; font-size: 12px">{{ g.code }}</td>
-            <td>{{ g.description || '-' }}</td>
+            <td class="ellipsis">{{ g.name }}</td>
+            <td style="font-family: monospace; font-size: 12px" class="ellipsis">{{ g.code }}</td>
+            <td class="ellipsis">{{ g.description || '-' }}</td>
             <td>{{ adminName(g.adminUserId) }}</td>
             <td><span :class="statusTagClass(g.status)">{{ statusText(g.status) }}</span></td>
             <td>{{ g.createdAt || '-' }}</td>
             <td>
-              <div class="ops">
+              <div class="ops" @click.stop>
                 <button class="btn btn-sm" @click="openEdit(g)">编辑</button>
                 <button class="btn btn-sm btn-danger" @click="doDelete(g)">删除</button>
               </div>
@@ -103,10 +103,14 @@
       </div>
     </div>
   </div>
+
+  <!-- 课题组行详情弹窗 -->
+  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { listGroups, createGroup, getGroup, updateGroup, deleteGroup, listUsers } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -152,6 +156,28 @@ function adminName(adminUserId) {
   if (!adminUserId) return '-'
   const a = admins.value.find((x) => x.id === Number(adminUserId))
   return a ? a.realName || a.username : `用户 #${adminUserId}`
+}
+
+// ===== 行详情 =====
+const detailVisible = ref(false)
+const detailRow = ref(null)
+const detailFields = ref([])
+const detailTitle = ref('')
+// 课题组详情字段：管理员显示名复用列表反查逻辑
+const groupDetailFields = [
+  { key: 'id', label: 'ID' },
+  { key: 'name', label: '课题组名称' },
+  { key: 'code', label: '唯一标识号' },
+  { key: 'description', label: '描述' },
+  { key: 'adminUserId', label: '管理员', render: adminName },
+  { key: 'status', label: '状态', render: statusText },
+  { key: 'createdAt', label: '创建时间' }
+]
+function openDetail(row, fields, title) {
+  detailRow.value = row
+  detailFields.value = fields
+  detailTitle.value = title
+  detailVisible.value = true
 }
 
 async function openCreate() {

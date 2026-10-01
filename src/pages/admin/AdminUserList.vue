@@ -42,16 +42,16 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="u in list" :key="u.id">
+          <tr v-for="u in list" :key="u.id" @click="openDetail(u, userDetailFields, '用户详情')">
             <td>{{ u.id }}</td>
-            <td>{{ u.username }}</td>
-            <td>{{ u.realName || '-' }}</td>
+            <td class="ellipsis">{{ u.username }}</td>
+            <td class="ellipsis">{{ u.realName || '-' }}</td>
             <td><span class="tag tag-blue">{{ roleText(u.role) }}</span></td>
             <td><span :class="statusTagClass(u.status)">{{ statusText(u.status) }}</span></td>
             <td>{{ u.groupId ? '课题组 #' + u.groupId : '-' }}</td>
             <td>{{ u.createdAt || '-' }}</td>
             <td>
-              <div class="ops">
+              <div class="ops" @click.stop>
                 <button class="btn btn-sm" @click="goEdit(u)">编辑</button>
                 <button class="btn btn-sm btn-danger" @click="doDelete(u)">删除</button>
               </div>
@@ -175,11 +175,15 @@
       </div>
     </div>
   </div>
+
+  <!-- 用户行详情弹窗 -->
+  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { listUsers, createUser, listGroups, listCandidates, deleteUser, pickAttachment } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -240,6 +244,31 @@ async function doDelete(u) {
   } else {
     dialogAlert((res && res.message) || '删除失败')
   }
+}
+
+// ===== 行详情 =====
+const detailVisible = ref(false)
+const detailRow = ref(null)
+const detailFields = ref([])
+const detailTitle = ref('')
+// 用户详情字段：不含密码等敏感字段；所属课题组显示编号
+const userDetailFields = [
+  { key: 'id', label: 'ID' },
+  { key: 'username', label: '用户名' },
+  { key: 'realName', label: '真实姓名' },
+  { key: 'role', label: '角色', render: roleText },
+  { key: 'status', label: '状态', render: statusText },
+  { key: 'groupId', label: '所属课题组', render: (v) => (v ? `课题组 #${v}` : '-') },
+  { key: 'phone', label: '手机号' },
+  { key: 'email', label: '邮箱' },
+  { key: 'gender', label: '性别', render: (v) => (Number(v) === 1 ? '男' : Number(v) === 2 ? '女' : '未知') },
+  { key: 'createdAt', label: '创建时间' }
+]
+function openDetail(row, fields, title) {
+  detailRow.value = row
+  detailFields.value = fields
+  detailTitle.value = title
+  detailVisible.value = true
 }
 
 // ===== 新增用户 =====

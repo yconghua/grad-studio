@@ -79,14 +79,14 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in params" :key="p.id">
+            <tr v-for="p in params" :key="p.id" @click="openDetail(p, paramDetailFields, '系统参数详情')">
               <td>{{ p.id }}</td>
-              <td style="font-family: monospace">{{ p.configKey }}</td>
-              <td style="max-width: 260px">{{ p.configValue || '-' }}</td>
+              <td class="ellipsis" style="font-family: monospace">{{ p.configKey }}</td>
+              <td class="ellipsis" style="max-width: 260px">{{ p.configValue || '-' }}</td>
               <td><span class="tag tag-blue">{{ p.configType }}</span></td>
-              <td>{{ p.description || '-' }}</td>
+              <td class="ellipsis">{{ p.description || '-' }}</td>
               <td>
-                <div class="ops">
+                <div class="ops" @click.stop>
                   <button class="btn btn-sm" @click="openEdit(p)">编辑</button>
                   <button class="btn btn-sm btn-danger" @click="doDelete(p)">删除</button>
                 </div>
@@ -146,10 +146,14 @@
       </div>
     </div>
   </div>
+
+  <!-- 系统参数行详情弹窗 -->
+  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, deleteParam, exportDb, openDevConsole, openAppFolder, openDataFolder, clearCache } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -170,6 +174,26 @@ const isEdit = ref(false)
 const saving = ref(false)
 const editId = ref(null)
 const form = reactive({ configKey: '', configValue: '', configType: 'string', description: '' })
+
+// ===== 行详情 =====
+const detailVisible = ref(false)
+const detailRow = ref(null)
+const detailFields = ref([])
+const detailTitle = ref('')
+// 系统参数详情字段：完整参数值在弹窗中查看（表格内单行省略）
+const paramDetailFields = [
+  { key: 'id', label: 'ID' },
+  { key: 'configKey', label: '参数键' },
+  { key: 'configValue', label: '参数值' },
+  { key: 'configType', label: '类型' },
+  { key: 'description', label: '描述' }
+]
+function openDetail(row, fields, title) {
+  detailRow.value = row
+  detailFields.value = fields
+  detailTitle.value = title
+  detailVisible.value = true
+}
 
 async function loadInfo() {
   const res = await getSystemInfo()

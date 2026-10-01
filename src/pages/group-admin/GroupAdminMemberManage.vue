@@ -41,15 +41,17 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="u in members" :key="u.id">
+            <tr v-for="u in members" :key="u.id" @click="openDetail(u, memberDetailFields, '成员详情')">
               <td>{{ u.id }}</td>
-              <td>{{ u.username }}</td>
-              <td>{{ u.realName || '-' }}</td>
+              <td class="ellipsis">{{ u.username }}</td>
+              <td class="ellipsis">{{ u.realName || '-' }}</td>
               <td><span class="tag tag-blue">{{ roleText(u.role) }}</span></td>
               <td><span :class="statusTagClass(u.status)">{{ statusText(u.status) }}</span></td>
               <td>{{ u.phone || '-' }}</td>
               <td>
-                <button class="btn btn-sm btn-danger" @click="doRemove(u)">移除</button>
+                <div class="ops" @click.stop>
+                  <button class="btn btn-sm btn-danger" @click="doRemove(u)">移除</button>
+                </div>
               </td>
             </tr>
             <tr v-if="members.length === 0">
@@ -87,14 +89,14 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="u in students" :key="u.id">
+            <tr v-for="u in students" :key="u.id" @click="openDetail(u, studentDetailFields, '学生详情')">
               <td>{{ u.id }}</td>
-              <td>{{ u.username }}</td>
-              <td>{{ u.realName || '-' }}</td>
+              <td class="ellipsis">{{ u.username }}</td>
+              <td class="ellipsis">{{ u.realName || '-' }}</td>
               <td>{{ u.phone || '-' }}</td>
               <td>{{ mentorName(u.mentorId) }}</td>
               <td>
-                <div class="ops">
+                <div class="ops" @click.stop>
                   <select v-model="mentorPick[u.id]" class="select" style="flex: 1">
                     <option value="">暂不指定</option>
                     <option v-for="m in mentors" :key="m.id" :value="m.id">{{ m.realName || m.username }}</option>
@@ -151,10 +153,14 @@
       </div>
     </div>
   </div>
+
+  <!-- 成员 / 学生行详情弹窗 -->
+  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { listMembers, listGroupStudents, removeMember, addMembers, setStudentMentor, listCandidates } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -163,6 +169,33 @@ import { roleText, statusText, statusTagClass } from '../../utils/labels'
 
 // 课题组管理员独立页面：课题组成员管理（仅本课题组）
 const tab = ref('members')
+
+// ===== 行详情（成员 / 学生两张表共用） =====
+const detailVisible = ref(false)
+const detailRow = ref(null)
+const detailFields = ref([])
+const detailTitle = ref('')
+const memberDetailFields = [
+  { key: 'id', label: 'ID' },
+  { key: 'username', label: '用户名' },
+  { key: 'realName', label: '真实姓名' },
+  { key: 'role', label: '角色', render: roleText },
+  { key: 'status', label: '状态', render: statusText },
+  { key: 'phone', label: '手机号' }
+]
+const studentDetailFields = [
+  { key: 'id', label: 'ID' },
+  { key: 'username', label: '用户名' },
+  { key: 'realName', label: '真实姓名' },
+  { key: 'phone', label: '手机号' },
+  { key: 'mentorId', label: '当前导师', render: mentorName }
+]
+function openDetail(row, fields, title) {
+  detailRow.value = row
+  detailFields.value = fields
+  detailTitle.value = title
+  detailVisible.value = true
+}
 
 // ===== 成员列表 =====
 const mRole = ref('')

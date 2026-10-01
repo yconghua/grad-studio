@@ -28,12 +28,12 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="u in list" :key="u.id">
+          <tr v-for="u in list" :key="u.id" @click="openDetail(u, studentDetailFields, '学生详情')">
             <td>{{ u.id }}</td>
-            <td>{{ u.username }}</td>
-            <td>{{ u.realName || '-' }}</td>
+            <td class="ellipsis">{{ u.username }}</td>
+            <td class="ellipsis">{{ u.realName || '-' }}</td>
             <td>{{ u.phone || '-' }}</td>
-            <td>{{ u.email || '-' }}</td>
+            <td class="ellipsis">{{ u.email || '-' }}</td>
             <td><span :class="statusTagClass(u.status)">{{ statusText(u.status) }}</span></td>
           </tr>
           <tr v-if="list.length === 0">
@@ -49,10 +49,14 @@
       </div>
     </div>
   </div>
+
+  <!-- 学生行详情弹窗 -->
+  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { listMyStudents } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { statusText, statusTagClass } from '../../utils/labels'
@@ -63,6 +67,26 @@ const page = ref(1)
 const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
+
+// ===== 行详情 =====
+const detailVisible = ref(false)
+const detailRow = ref(null)
+const detailFields = ref([])
+const detailTitle = ref('')
+const studentDetailFields = [
+  { key: 'id', label: 'ID' },
+  { key: 'username', label: '用户名' },
+  { key: 'realName', label: '真实姓名' },
+  { key: 'phone', label: '手机号' },
+  { key: 'email', label: '邮箱' },
+  { key: 'status', label: '状态', render: statusText }
+]
+function openDetail(row, fields, title) {
+  detailRow.value = row
+  detailFields.value = fields
+  detailTitle.value = title
+  detailVisible.value = true
+}
 
 async function load() {
   const res = await listMyStudents({ page: page.value, keyword: keyword.value })

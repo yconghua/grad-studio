@@ -35,23 +35,23 @@
             <th>课题组</th>
             <th>标题</th>
             <th>发布人</th>
-            <th>置顶</th>
             <th>状态</th>
             <th>发布时间</th>
-            <th style="width: 230px">操作</th>
+            <th style="width: 240px">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="n in list" :key="n.id">
+          <tr v-for="n in list" :key="n.id" @click="openDetail(n, noticeDetailFields, '公告详情')">
             <td>{{ n.id }}</td>
-            <td>{{ n.groupName }}</td>
-            <td style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ n.title }}</td>
-            <td>{{ n.publisherName }}</td>
-            <td><span v-if="n.isTop" class="tag">置顶</span><span v-else>-</span></td>
+            <td class="ellipsis">{{ n.groupName }}</td>
+            <td class="ellipsis" style="max-width: 180px">
+              <span v-if="n.isTop" class="tag tag-orange" style="margin-right: 4px">置顶</span>{{ n.title }}
+            </td>
+            <td class="ellipsis">{{ n.publisherName }}</td>
             <td><span :class="noticeStatusClass(n.status)">{{ noticeStatusText(n.status) }}</span></td>
             <td>{{ n.publishTime }}</td>
             <td>
-              <div class="ops">
+              <div class="ops" @click.stop>
                 <button class="btn btn-sm" @click="openEdit(n)">编辑</button>
                 <button class="btn btn-sm" @click="doTop(n)">{{ n.isTop ? '取消置顶' : '置顶' }}</button>
                 <button class="btn btn-sm" @click="doStats(n)">统计</button>
@@ -60,7 +60,7 @@
             </td>
           </tr>
           <tr v-if="list.length === 0">
-            <td colspan="8"><div class="empty">暂无公告数据</div></td>
+            <td colspan="7"><div class="empty">暂无公告数据</div></td>
           </tr>
         </tbody>
       </table>
@@ -147,10 +147,14 @@
       </div>
     </div>
   </div>
+
+  <!-- 公告行详情弹窗 -->
+  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { listNotices, createNotice, updateNotice, deleteNotice, toggleNoticeTop, getNoticeReadStats } from '../../api'
 import { listGroups } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
@@ -179,6 +183,29 @@ const stats = ref({ title: '', totalMembers: 0, readCount: 0, list: [] })
 // 公告状态文案与标签样式
 const noticeStatusText = (s) => (Number(s) === 2 ? '下架' : '已发布')
 const noticeStatusClass = (s) => (Number(s) === 2 ? 'tag' : 'tag tag-blue')
+
+// ===== 行详情 =====
+const detailVisible = ref(false)
+const detailRow = ref(null)
+const detailFields = ref([])
+const detailTitle = ref('')
+// 公告详情字段：内容全文在弹窗内完整展示；不含内部发布人 id
+const noticeDetailFields = [
+  { key: 'id', label: 'ID' },
+  { key: 'groupId', label: '所属课题组', render: (v, row) => row.groupName || (v ? `课题组 #${v}` : '-') },
+  { key: 'title', label: '标题' },
+  { key: 'publisherName', label: '发布人' },
+  { key: 'isTop', label: '置顶', render: (v) => (v ? '是' : '否') },
+  { key: 'status', label: '状态', render: noticeStatusText },
+  { key: 'publishTime', label: '发布时间' },
+  { key: 'content', label: '内容' }
+]
+function openDetail(row, fields, title) {
+  detailRow.value = row
+  detailFields.value = fields
+  detailTitle.value = title
+  detailVisible.value = true
+}
 
 async function load() {
   const res = await listNotices({ page: page.value, keyword: keyword.value, status: status.value, groupId: groupId.value })
