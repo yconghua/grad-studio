@@ -14,9 +14,9 @@
           <div class="mu-role">{{ roleText }}</div>
         </div>
         <button type="button" class="menu-item" @click="go(profilePath)">个人资料</button>
-        <button type="button" class="menu-item" @click="go(introductionPath)">系统简介</button>
-        <button type="button" class="menu-item" @click="go(settingsPath)">设置</button>
-        <button type="button" class="menu-item" @click="showUpdate">检查更新</button>
+        <button v-if="!minimal" type="button" class="menu-item" @click="go(introductionPath)">系统简介</button>
+        <button v-if="!minimal" type="button" class="menu-item" @click="go(settingsPath)">设置</button>
+        <button v-if="!minimal" type="button" class="menu-item" @click="showUpdate">检查更新</button>
         <div class="menu-divider"></div>
         <button type="button" class="menu-item danger" @click="doLogout">退出登录</button>
       </div>
@@ -35,11 +35,13 @@ import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '.
 
 // 头像下拉公共组件：菜单项顺序固定
 // 1 个人资料 / 2 系统简介 / 3 设置 / 4 检查更新 / 5 退出登录
-// 个人资料、系统简介、设置的跳转地址由各角色布局传入（按角色路由不同）
+// 个人资料、系统简介、设置的跳转地址由各角色布局传入（按角色路由不同）；
+// minimal=true 时只保留「个人资料 + 退出登录」（引导页等无完整布局场景使用）。
 const props = defineProps({
   profilePath: { type: String, required: true },
-  introductionPath: { type: String, required: true },
-  settingsPath: { type: String, required: true }
+  introductionPath: { type: String, required: false, default: '' },
+  settingsPath: { type: String, required: false, default: '' },
+  minimal: { type: Boolean, default: false }
 })
 
 const router = useRouter()

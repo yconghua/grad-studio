@@ -16,19 +16,22 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import LoginView from '../pages/auth/LoginView.vue'
 import ForcePasswordView from '../pages/auth/ForcePassword.vue'
+import GuideView from '../pages/guide/GuideView.vue'
+import GuideProfileView from '../pages/guide/GuideProfileView.vue'
 import SuperAdminLayout from '../layouts/SuperAdminLayout.vue'
 import GroupAdminLayout from '../layouts/GroupAdminLayout.vue'
 import MentorLayout from '../layouts/MentorLayout.vue'
 import StudentLayout from '../layouts/StudentLayout.vue'
 import NotFoundView from '../pages/notfound/index.vue'
 import { useSession } from '../composables/useSession'
+import { getCurrentUser } from '../api/auth'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../config/constants'
 import { SUPER_ADMIN_HOME } from '../config/nav/super-admin'
 import { GROUP_ADMIN_HOME } from '../config/nav/group-admin'
 import { MENTOR_HOME } from '../config/nav/mentor'
 import { STUDENT_HOME } from '../config/nav/student'
 
-const { getSessionUser, isSessionValid } = useSession()
+const { getSessionUser, updateSessionUser, isSessionValid } = useSession()
 
 // 角色 → 登录后工作台
 export const ROLE_HOME = {
@@ -41,6 +44,10 @@ export const ROLE_HOME = {
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
   { path: '/force-password', name: 'force-password', component: ForcePasswordView },
+  // 引导页：未入组 / 未指定导师 / 组管异常未绑定（无侧栏独立布局，角色判定在守卫）
+  { path: '/guide', name: 'guide', component: GuideView },
+  // 引导页风格的个人资料：引导状态下点「个人资料」进入，无侧栏，复用公共 ProfileForm
+  { path: '/guide/profile', name: 'guide-profile', component: GuideProfileView },
   // ===== 超级管理员 =====
   {
     path: '/admin',
@@ -118,9 +125,29 @@ const router = createRouter({
   routes
 })
 
-// 登录守卫：会话校验 + 强制改密拦截 + 角色越权拦截
-router.beforeEach((to) => {
-  const user = getSessionUser()
+// 引导页判定：按角色与组/导师绑定状态计算是否需要引导
+// mentor/student：groupId 为空 → 未入组；student 已入组但未指定导师 → 未指定导师；
+// group_admin：groupId 为空（账号未绑定课题组，异常态）→ 兜底引导。
+// 超管不属于任何组，不参与判定。
+export function guideStateOf(user) {
+  if (!user) return null
+  if (user.role === ROLE_MENTOR || user.role === ROLE_STUDENT) {
+    if (!user.groupId) return user.role === ROLE_MENTOR ? 'mentor-no-group' : 'student-no-group'
+    if (user.role === ROLE_STUDENT && !user.mentorId) return 'student-no-mentor'
+  }
+  if (user.role === ROLE_GROUP_ADMIN && !user.groupId) return 'admin-no-group'
+  return null
+}
+
+// 引导状态下的放行路径：引导页本身 + 引导页风格的个人资料页（其他页面一律重定向引导页）；
+// 各角色个人资料页（/mentor/profile 等嵌套在角色布局内、带侧栏）在引导状态下
+// 统一重定向到 /guide/profile，避免引导用户被带出左侧导航。
+const GUIDE_ALLOWED_PATHS = ['/guide', '/guide/profile']
+const GUIDE_ROLE_PROFILE_PATHS = ['/mentor/profile', '/student/profile', '/group-admin/profile']
+
+// 登录守卫：会话校验 + 强制改密拦截 + 角色越权拦截 + 引导页判定
+router.beforeEach(async (to) => {
+  let user = getSessionUser()
   const valid = isSessionValid()
 
   // 登录页：已登录直接进本角色工作台
@@ -143,6 +170,31 @@ router.beforeEach((to) => {
   if (needRole && needRole !== user.role) {
     return ROLE_HOME[user.role] || '/login'
   }
+
+  // 引导页判定：导师/学生/组管每次导航用主进程实时回库的用户刷新会话快照
+  // （不重置过期时间），会话期间被移出组/重新入组后下一次导航即按最新状态判断
+  if (user.role === ROLE_MENTOR || user.role === ROLE_STUDENT || user.role === ROLE_GROUP_ADMIN) {
+    try {
+      const res = await getCurrentUser()
+      if (res && res.success && res.data) {
+        user = res.data
+        updateSessionUser(user)
+      }
+    } catch (e) {
+      // 拉取失败沿用会话快照，不阻断导航
+    }
+  }
+  const guideState = guideStateOf(user)
+  if (guideState) {
+    // 引导状态下只放行引导页本身 + 引导页风格的个人资料页；
+    // 访问嵌套在角色布局内的个人资料页时重定向到无侧栏版本
+    if (GUIDE_ALLOWED_PATHS.includes(to.path)) return true
+    if (GUIDE_ROLE_PROFILE_PATHS.includes(to.path)) return '/guide/profile'
+    return '/guide'
+  }
+  // 无需引导但目标是引导页：回本角色工作台
+  if (to.path === '/guide') return ROLE_HOME[user.role] || '/login'
+
   return true
 })
 

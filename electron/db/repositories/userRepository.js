@@ -158,6 +158,30 @@ class UserRepository extends BaseRepository {
   }
 
   /**
+   * 清空某导师名下所有学生的导师绑定（导师被移除/删除时防孤儿）：
+   * 全平台范围，含跨组脏绑定；返回受影响行数。
+   * @param {number} mentorId
+   * @returns {number}
+   */
+  async clearMentorBindings(mentorId) {
+    const sql = 'UPDATE `users` SET `mentor_id` = NULL WHERE `mentor_id` = ?'
+    const [result] = await this._execute(sql, [Number(mentorId)], 'clearMentorBindings')
+    return result.affectedRows
+  }
+
+  /**
+   * 清空某课题组下所有用户的组归属与导师绑定（删除课题组时清理残留，
+   * 含停用成员；组管绑定同样归零）。返回受影响行数。
+   * @param {number} groupId
+   * @returns {number}
+   */
+  async clearGroupAssignments(groupId) {
+    const sql = 'UPDATE `users` SET `group_id` = NULL, `mentor_id` = NULL WHERE `group_id` = ?'
+    const [result] = await this._execute(sql, [Number(groupId)], 'clearGroupAssignments')
+    return result.affectedRows
+  }
+
+  /**
    * 物理删除用户（需求约定：用户删除为物理删除）
    * @param {number} id
    * @returns {number} 受影响行数
@@ -283,13 +307,14 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * 课题组内导师/学生成员分页（成员管理列表）：LEFT JOIN 取导师姓名
+   * 课题组内导师/学生成员分页（成员管理列表）：LEFT JOIN 取导师姓名。
+   * 含停用成员（status=0 也展示，供「已停用」标签），启停过滤交给上层展示。
    * @param {number} groupId
    * @param {{ keyword?: string, role?: string, page?: number }} filters
    */
   async pagedGroupMembers(groupId, filters = {}) {
-    const where = ['u.group_id = ?', "u.role IN ('mentor', 'student')", 'u.status = ?']
-    const values = [Number(groupId), ACCOUNT_STATUS_ENABLED]
+    const where = ['u.group_id = ?', "u.role IN ('mentor', 'student')"]
+    const values = [Number(groupId)]
     if (filters.role) {
       where.push('u.role = ?')
       values.push(filters.role)

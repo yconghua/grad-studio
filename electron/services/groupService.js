@@ -216,9 +216,9 @@ async function updateGroup(id, { name, description, adminUserId, status } = {}) 
 }
 
 /**
- * 删除课题组（物理删除）：课题组下仍有导师/学生成员时禁止删除。
- * 级联顺序（同一事务）：解除管理员绑定 → 删组会参与人 → 删组会 →
- * 删公告已读 → 删公告 → 删课题组；任一步失败整体回滚。
+ * 删除课题组（物理删除）：课题组下仍有启用状态的导师/学生成员时禁止删除。
+ * 级联顺序（同一事务）：清空该组全部用户的组归属与导师绑定（含停用成员、组管）
+ * → 删组会参与人 → 删组会 → 删公告已读 → 删公告 → 删课题组；任一步失败整体回滚。
  */
 async function deleteGroup(id) {
   const idNum = Number(id)
@@ -227,8 +227,8 @@ async function deleteGroup(id) {
   const members = await userRepository.countByGroup(idNum)
   if (members > 0) throw new ApiError('课题组下仍有成员，请先移除全部成员后再删除', 400)
   await runTransaction(async () => {
-    // 解除管理员绑定后再删除课题组
-    if (row.admin_user_id) await userRepository.updateById(row.admin_user_id, { group_id: null })
+    // 清空该组所有用户的组归属与导师绑定（含停用成员；组管绑定同样归零），防孤儿残留
+    await userRepository.clearGroupAssignments(idNum)
     // 组会级联：先删参与人（经会议归属定位），再删会议
     await groupMeetingParticipantRepository.deleteByGroupId(idNum)
     await groupMeetingRepository.deleteByGroupId(idNum)
@@ -312,8 +312,10 @@ async function addMembers({ groupId, userIds, role } = {}) {
 }
 
 /**
- * 移除课题组成员（超管任意组 / 组管仅本组）：导师名下还有学生时禁止移除；
+ * 移除课题组成员（超管任意组 / 组管仅本组）：
+ * 导师移除时同步清空名下所有学生的导师绑定（全平台，防孤儿）；
  * 学生移除时同步解除导师关系、清理本组组会参与关系，放同一事务。
+ * 返回 { removedStudentCount }（导师场景为解绑的学生数，其余为 0）。
  */
 async function removeMember(groupId, userId) {
   const me = await authService.getCurrentUser()
@@ -323,19 +325,20 @@ async function removeMember(groupId, userId) {
   if (!u) throw new ApiError('用户不存在', 404)
   if (u.group_id !== gid) throw new ApiError('该用户不属于当前课题组', 400)
 
-  if (u.role === ROLE_MENTOR) {
-    const { total } = await userRepository.pagedStudentsByMentor(idNum, {})
-    if (total > 0) throw new ApiError('该导师名下还有学生，请先重新指定导师后再移除', 400)
-  }
-  const data = { group_id: null }
-  if (u.role === ROLE_STUDENT) data.mentor_id = null
+  let removedStudentCount = 0
   await runTransaction(async () => {
-    await userRepository.updateById(idNum, data)
-    if (u.role === ROLE_STUDENT) {
-      await userRepository.clearGroupMeetingParticipation(idNum, gid)
+    if (u.role === ROLE_MENTOR) {
+      // 移除导师：无条件清空名下学生绑定（含跨组脏数据），学生变为已入组未指定导师
+      removedStudentCount = await userRepository.clearMentorBindings(idNum)
+      await userRepository.updateById(idNum, { group_id: null })
+    } else {
+      await userRepository.updateById(idNum, { group_id: null, mentor_id: null })
+      if (u.role === ROLE_STUDENT) {
+        await userRepository.clearGroupMeetingParticipation(idNum, gid)
+      }
     }
   })
-  return true
+  return { removedStudentCount }
 }
 
 /**
@@ -442,11 +445,16 @@ async function getGroupMemberStats(groupId) {
 // ===== 导师：我的学生 =====
 
 /**
- * 当前导师名下的学生（分页）：只能查看自己的学生
+ * 当前导师名下的学生（分页）：只能查看自己的学生。
+ * 导师不在任何课题组（group_id 为空）时视为未入组，返回空页并带 notInGroup 标志，
+ * 避免脏数据下仍能看到跨组学生。
  */
 async function listMentorStudents({ page, keyword } = {}) {
   const me = await authService.getCurrentUser()
   if (!me) throw new ApiError('未登录，请重新登录', 401)
+  if (!me.groupId) {
+    return { list: [], total: 0, page: 1, pageSize: 8, totalPages: 1, notInGroup: true }
+  }
   const result = await userRepository.pagedStudentsByMentor(me.id, { page, keyword })
   return pageResult(result, userService.toUserDto)
 }

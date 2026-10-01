@@ -33,6 +33,7 @@
             <th>姓名</th>
             <th>用户名</th>
             <th>角色</th>
+            <th>状态</th>
             <th>导师</th>
             <th>加入时间</th>
             <th style="width: 200px">操作</th>
@@ -44,6 +45,10 @@
             <td class="ellipsis">{{ u.realName || '-' }}</td>
             <td class="ellipsis">{{ u.username }}</td>
             <td><span class="tag tag-blue">{{ roleText(u.role) }}</span></td>
+            <td>
+              <span v-if="u.status === 0" class="tag tag-red">已停用</span>
+              <span v-else style="color: #9ca3af">启用</span>
+            </td>
             <td class="ellipsis">{{ u.role === 'student' ? (u.mentorName || '-') : '-' }}</td>
             <td>{{ u.joinTime || '-' }}</td>
             <td>
@@ -54,7 +59,7 @@
             </td>
           </tr>
           <tr v-if="members.length === 0">
-            <td colspan="7"><div class="empty">暂无成员</div></td>
+            <td colspan="8"><div class="empty">暂无成员</div></td>
           </tr>
         </tbody>
       </table>
@@ -215,11 +220,22 @@ function openDetail(row) {
 
 // ===== 移除 =====
 async function doRemove(u) {
-  const ok = await dialogConfirm(`确定将「${u.realName || u.username}」移出课题组吗？`)
+  const isMentor = u.role === 'mentor'
+  const ok = await dialogConfirm(
+    isMentor
+      ? `确定将「${u.realName || u.username}」移出课题组吗？移除导师将同时解除其名下学生的导师绑定，学生变为已入组未指定导师。`
+      : `确定将「${u.realName || u.username}」移出课题组吗？`
+  )
   if (!ok) return
-  const res = await removeApi(props.groupId, u.id)
+  // 组管通道不带 groupId（服务端强制本组），仅超管通道需要显式传 groupId
+  const res = await (props.isSuper ? removeApi(props.groupId, u.id) : removeApi(u.id))
   if (res && res.success) {
-    await refreshAfterWrite('移除成功')
+    const d = res.data || {}
+    if (isMentor && d.removedStudentCount > 0) {
+      await refreshAfterWrite(`移除成功，已解绑 ${d.removedStudentCount} 名学生的导师绑定`)
+    } else {
+      await refreshAfterWrite('移除成功')
+    }
   } else {
     dialogAlert((res && res.message) || '移除失败')
   }
@@ -228,10 +244,13 @@ async function doRemove(u) {
 async function batchRemove() {
   const isAll = selMembers.value.length === mTotal.value
   const ok = await dialogConfirm(
-    `确定将选中的 ${selMembers.value.length} 名成员移出课题组吗？${isAll ? '该课题组将被清空成员。' : ''}`
+    `确定将选中的 ${selMembers.value.length} 名成员移出课题组吗？${isAll ? '该课题组将被清空成员。' : ''}导师被移除将同步解除其名下学生的导师绑定。`
   )
   if (!ok) return
-  const res = await batchRemoveApi(props.groupId, [...selMembers.value])
+  // 组管通道不带 groupId，仅超管通道显式传
+  const res = await (props.isSuper
+    ? batchRemoveApi(props.groupId, [...selMembers.value])
+    : batchRemoveApi([...selMembers.value]))
   if (res && res.success) {
     const d = res.data || {}
     const parts = [`已移除 ${d.successCount || 0} 条`]
@@ -315,9 +334,14 @@ async function doMentorPick() {
   try {
     let res
     if (mentorPickTarget.value) {
-      res = await setMentorApi(props.groupId, mentorPickTarget.value.id, { mentorId: Number(mentorPickId.value) })
+      // 组管通道不带 groupId，仅超管通道显式传
+      res = await (props.isSuper
+        ? setMentorApi(props.groupId, mentorPickTarget.value.id, { mentorId: Number(mentorPickId.value) })
+        : setMentorApi(mentorPickTarget.value.id, { mentorId: Number(mentorPickId.value) }))
     } else {
-      res = await batchAssignApi(props.groupId, [...selMembers.value], Number(mentorPickId.value))
+      res = await (props.isSuper
+        ? batchAssignApi(props.groupId, [...selMembers.value], Number(mentorPickId.value))
+        : batchAssignApi([...selMembers.value], Number(mentorPickId.value)))
     }
     if (res && res.success) {
       if (mentorPickTarget.value) {

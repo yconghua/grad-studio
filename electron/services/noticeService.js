@@ -160,7 +160,7 @@ async function listNotices({ page, keyword, groupId, status } = {}) {
     // 导师/学生：仅当前有效课题组的已发布公告
     effectiveGroupId = await memberGroupId(me)
     if (!effectiveGroupId) {
-      return { list: [], total: 0, page: 1, pageSize: 8, totalPages: 1, groupId: null }
+      return { list: [], total: 0, page: 1, pageSize: 8, totalPages: 1, groupId: null, notInGroup: true }
     }
     status = NOTICE_STATUS_PUBLISHED
   }
@@ -312,14 +312,17 @@ async function markRead(id) {
  * 当前用户未读公告数（导师/学生侧边菜单角标专用）：
  * 口径 = 当前有效课题组 + 已发布 + 没有已读记录。
  * 导师/学生每次实时查当前有效课题组（换组/离组立即按新组重算）；
- * 超管/组管不产生角标（固定返回 0），他们只看已读统计。
+ * 超管/组管不产生角标（固定 0），他们只看已读统计。
+ * 统一返回 { unreadCount, notInGroup }：无组用户 notInGroup=true，
+ * 供前端区分「未入组」与「组内无未读」。
  */
 async function unreadCount() {
   const me = await currentUser()
-  if (me.role !== ROLE_MENTOR && me.role !== ROLE_STUDENT) return 0
+  if (me.role !== ROLE_MENTOR && me.role !== ROLE_STUDENT) return { unreadCount: 0, notInGroup: false }
   const myGroupId = await memberGroupId(me)
-  if (!myGroupId) return 0
-  return groupNoticeRepository.countUnreadByGroup(myGroupId, me.id)
+  if (!myGroupId) return { unreadCount: 0, notInGroup: true }
+  const count = await groupNoticeRepository.countUnreadByGroup(myGroupId, me.id)
+  return { unreadCount: count, notInGroup: false }
 }
 
 module.exports = {

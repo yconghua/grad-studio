@@ -370,7 +370,9 @@ async function resetPassword(id) {
  * 删除用户（物理删除）：
  *   - 不能删除当前登录账号（含超级管理员自身）；
  *   - 超级管理员不可删除；
- *   - 导师名下有关联学生、课题组管理员仍绑定课题组时禁止删除。
+ *   - 导师：无条件清空名下所有学生的导师绑定（全平台，含跨组脏数据）后再删；
+ *   - 课题组管理员仍绑定课题组时禁止删除（需先更换管理员）。
+ * 返回 { removedStudentCount }（导师场景为解绑的学生数）。
  */
 async function deleteUser(id) {
   const me = await authService.getCurrentUser()
@@ -383,8 +385,13 @@ async function deleteUser(id) {
   if (row.role === ROLE_SUPER_ADMIN) throw new ApiError('超级管理员不能被删除', 400)
 
   if (row.role === ROLE_MENTOR) {
-    const { total } = await userRepository.pagedStudentsByMentor(idNum, {})
-    if (total > 0) throw new ApiError('该导师名下还有学生，请先解绑或转移后再删除', 400)
+    let removedStudentCount = 0
+    await runTransaction(async () => {
+      // 删除导师：先清空名下学生绑定，再物理删除，学生变为已入组未指定导师
+      removedStudentCount = await userRepository.clearMentorBindings(idNum)
+      await userRepository.deleteById(idNum)
+    })
+    return { removedStudentCount }
   }
   if (row.role === ROLE_GROUP_ADMIN) {
     const group = await groupRepository.findByAdminUserId(idNum)
@@ -510,12 +517,15 @@ async function listAllUsernames() {
 /**
  * 候选人列表（供「选择导师/学生加入课题组」下拉使用）：
  * 仅返回未入组（group_id 为空）且启用的导师 / 学生。
+ * 后端强制角色白名单：前端传空/传错 role 一律按导师/学生收敛，超管/组管永不出现。
  */
 async function listCandidates({ page, keyword, role } = {}) {
+  const safeRole = role && CANDIDATE_ROLES.includes(role) ? role : null
   const result = await userRepository.pagedList({
     page,
     keyword,
-    role,
+    roles: CANDIDATE_ROLES, // 恒定白名单：超管/组管永不出现
+    role: safeRole,
     unassigned: true,
     status: ACCOUNT_STATUS_ENABLED
   })

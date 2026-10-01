@@ -52,6 +52,13 @@ export function useSession() {
     return user
   }
 
+  // 仅刷新用户信息（不重置过期时间）：路由守卫用主进程实时回库的用户
+  // 覆盖会话快照，保证会话期间组/导师状态变化后下一次导航即按最新判断
+  function updateSessionUser(user) {
+    if (!user || typeof user !== 'object') return
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user))
+  }
+
   // 会话是否有效：存在过期时间且未超时
   function isSessionValid() {
     const exp = sessionStorage.getItem(EXP_KEY)
@@ -65,5 +72,5 @@ export function useSession() {
     sessionStorage.removeItem(EXP_KEY)
   }
 
-  return { SESSION_MS, USER_KEY, EXP_KEY, setSession, getSessionUser, isSessionValid, clearSession }
+  return { SESSION_MS, USER_KEY, EXP_KEY, setSession, getSessionUser, updateSessionUser, isSessionValid, clearSession }
 }

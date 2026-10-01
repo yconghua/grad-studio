@@ -18,6 +18,8 @@
       <div class="card">
         <div class="card-head"><h3>基本信息</h3></div>
         <div v-if="groupStopped" class="banner-warn">课题组已停用，仅可查看与维护存量，不能加入新成员</div>
+        <div v-else-if="!group.adminUserId" class="banner-warn">本组暂无管理员，超管可指定新组管；公告、组会的日常运营由超管兜底</div>
+        <div v-else-if="adminStopped" class="banner-warn">课题组管理员已停用，无法登录处理组内事务，超管可指定新组管或临时接管</div>
         <div class="info-grid">
           <div class="info-item"><label>课题组名称</label><span>{{ group.name }}</span></div>
           <div class="info-item"><label>唯一标识号</label><span class="mono">{{ group.code }}</span></div>
@@ -65,6 +67,12 @@ const noticeTotal = ref(0)
 const meetingStats = ref(null)
 const admins = ref([])
 const groupStopped = computed(() => group.value != null && group.value.status === 0)
+// 管理员已停用：adminUserId 指向的用户账号为停用状态
+const adminStopped = computed(() => {
+  if (!group.value || !group.value.adminUserId) return false
+  const a = admins.value.find((x) => x.id === Number(group.value.adminUserId))
+  return !!a && a.status === 0
+})
 
 async function load() {
   group.value = null

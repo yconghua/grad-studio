@@ -247,7 +247,7 @@ async function listMeetings({ page, keyword, groupId, status, hostId, startTime,
     // 导师/学生：自己参与 + 当前有效组；默认只看已发布
     const myGroupId = await memberGroupId(me)
     if (!myGroupId) {
-      return { list: [], total: 0, page: 1, pageSize: 8, totalPages: 1, groupId: null }
+      return { list: [], total: 0, page: 1, pageSize: 8, totalPages: 1, groupId: null, notInGroup: true }
     }
     effectiveGroupId = myGroupId
     filters.participantUserId = me.id

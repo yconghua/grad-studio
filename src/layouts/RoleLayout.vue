@@ -78,12 +78,14 @@ const isNoticePage = computed(() => route.path.endsWith('/notices'))
 // 拉取一次未读数：服务端按「当前有效课题组 + 已发布 + 无已读记录」计算，
 // 换组/离组后下一次拉取即按新组重算；未读数变化且正停在公告页时，
 // 派发全局事件让公告页重新拉列表（新公告标为未读展示出来）。
+// 服务端返回 { unreadCount, notInGroup }：无组用户恒 0，角标不显示。
 async function refreshUnread() {
   if (!showBadge.value) return
   try {
     const res = await window.api.notice.unreadCount()
     if (res && res.success) {
-      const next = Number(res.data) || 0
+      const d = res.data || {}
+      const next = Number(d.unreadCount) || 0
       if (next !== unreadCount.value) {
         unreadCount.value = next
         if (isNoticePage.value) {
