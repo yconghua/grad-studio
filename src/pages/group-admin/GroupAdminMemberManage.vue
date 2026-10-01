@@ -7,7 +7,9 @@
       </div>
     </div>
 
-    <MemberManagePanel v-if="groupId" :group-id="groupId" :is-super="false" />
+    <div v-if="groupStopped" class="banner banner-warn">课题组已停用，仅可查看与维护存量，不能加入新成员</div>
+
+    <MemberManagePanel v-if="groupId" :group-id="groupId" :is-super="false" :disabled="groupStopped" />
   </div>
 </template>
 
@@ -17,9 +19,25 @@ import MemberManagePanel from '../../components/MemberManagePanel.vue'
 import { getOwnGroup } from '../../api'
 
 const groupId = ref(null)
+const groupStopped = ref(false)
 
 onMounted(async () => {
   const res = await getOwnGroup()
-  if (res && res.success) groupId.value = res.data.id
+  if (res && res.success) {
+    groupId.value = res.data.id
+    groupStopped.value = res.data.status === 0
+  }
 })
 </script>
+
+<style scoped>
+.banner-warn {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  color: #d46b08;
+  font-size: 13px;
+}
+</style>

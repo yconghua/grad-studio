@@ -65,11 +65,11 @@
         <div class="empty">{{ loadError || '加载中…' }}</div>
       </div>
       <div class="modal-foot">
-        <!-- 发布为公告：仅超管/组管、仅已发布且未发布过公告 -->
+        <!-- 发布为公告：仅超管/组管、仅已发布且未发布过公告；停用组禁用 -->
         <button
           v-if="canManage && detail && detail.status === 2 && !detail.noticeId"
           class="btn btn-primary"
-          :disabled="publishing"
+          :disabled="publishing || groupStopped"
           @click="doPublishAsNotice"
         >
           {{ publishing ? '发布中…' : '发布为公告' }}
@@ -92,7 +92,8 @@ import { dialogAlert, dialogConfirm } from '../composables/useDialog'
 const props = defineProps({
   visible: { type: Boolean, default: false },
   meetingId: { type: [Number, String], default: null },
-  canManage: { type: Boolean, default: false } // 当前用户是否为超管/组管
+  canManage: { type: Boolean, default: false }, // 当前用户是否为超管/组管
+  groupStopped: { type: Boolean, default: false } // 课题组已停用：禁用发布为公告
 })
 const emit = defineEmits(['update:visible', 'published'])
 

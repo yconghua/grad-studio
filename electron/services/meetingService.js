@@ -17,6 +17,7 @@ const groupMeetingRepository = require('../db/repositories/groupMeetingRepositor
 const groupMeetingParticipantRepository = require('../db/repositories/groupMeetingParticipantRepository')
 const groupNoticeRepository = require('../db/repositories/groupNoticeRepository')
 const authService = require('./authService')
+const groupService = require('./groupService')
 const ApiError = require('./apiError')
 const {
   ROLE_SUPER_ADMIN,
@@ -335,6 +336,9 @@ async function createMeeting(data = {}) {
     throw new ApiError('无权限：无权创建会议', 403)
   }
 
+  // 状态校验：停用组禁止新建会议
+  await groupService.assertGroupWritable(targetGroupId)
+
   const status = assertCreateStatus(data.status)
   const participantIds = await assertParticipants(targetGroupId, data.participantIds)
   if (status === MEETING_STATUS_PUBLISHED && participantIds.length === 0) {
@@ -374,6 +378,9 @@ async function updateMeeting(id, data = {}) {
   } else {
     await assertManagePublished(me, meeting)
   }
+
+  // 状态校验：停用组禁止编辑会议
+  await groupService.assertGroupWritable(meeting.group_id)
 
   const patch = {}
   if (data.title !== undefined) patch.title = assertTitle(data.title)
@@ -415,6 +422,8 @@ async function publishMeeting(id) {
   const meeting = await groupMeetingRepository.findById(Number(id))
   if (!meeting) throw new ApiError('会议不存在', 404)
   assertPublishable(me, meeting)
+  // 状态校验：停用组禁止发布草稿
+  await groupService.assertGroupWritable(meeting.group_id)
 
   const currentIds = (await groupMeetingParticipantRepository.listByMeeting(meeting.id)).map((p) => Number(p.user_id))
   const memberSet = await enabledMemberIds(meeting.group_id)
@@ -482,6 +491,8 @@ async function publishAsNotice(id) {
     throw new ApiError('仅已发布的会议可发布为公告', 400)
   }
   await assertManagePublished(me, meeting)
+  // 状态校验：停用组禁止发布为公告
+  await groupService.assertGroupWritable(meeting.group_id)
 
   const participants = await groupMeetingParticipantRepository.listByMeeting(meeting.id)
   const title = buildNoticeTitle(meeting)

@@ -5,8 +5,10 @@
         <h2 class="page-title">课题组公告管理</h2>
         <p class="page-sub">全平台课题组公告统一管理（超级管理员权限，可发布到任意课题组）</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate">发布公告</button>
+      <button class="btn btn-primary" :disabled="groupStopped" @click="openCreate">发布公告</button>
     </div>
+
+    <div v-if="groupStopped" class="banner-warn">当前课题组已停用，不能发布 / 编辑 / 置顶公告，历史公告照常可查看与管理</div>
 
     <!-- 筛选区 -->
     <div class="toolbar">
@@ -52,8 +54,8 @@
             <td>{{ n.publishTime }}</td>
             <td>
               <div class="ops" @click.stop>
-                <button class="btn btn-sm" @click="openEdit(n)">编辑</button>
-                <button class="btn btn-sm" @click="doTop(n)">{{ n.isTop ? '取消置顶' : '置顶' }}</button>
+                <button class="btn btn-sm" :disabled="groupStoppedOf(n.groupId)" @click="openEdit(n)">编辑</button>
+                <button class="btn btn-sm" :disabled="groupStoppedOf(n.groupId)" @click="doTop(n)">{{ n.isTop ? '取消置顶' : '置顶' }}</button>
                 <button class="btn btn-sm" @click="doStats(n)">统计</button>
                 <button class="btn btn-sm btn-danger" @click="doDelete(n)">删除</button>
               </div>
@@ -169,7 +171,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import NoticeContent from '../../components/NoticeContent.vue'
 import { listNotices, createNotice, updateNotice, deleteNotice, toggleNoticeTop, getNoticeReadStats } from '../../api'
@@ -187,6 +189,14 @@ const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
 const groups = ref([])
+
+// 指定课题组是否已停用（超管全部课题组视图下按行归属判断）
+function groupStoppedOf(gid) {
+  if (gid === undefined || gid === null || gid === '') return false
+  const g = groups.value.find((x) => x.id === Number(gid))
+  return !!g && g.status === 0
+}
+const groupStopped = computed(() => groupStoppedOf(groupId.value))
 
 const showModal = ref(false)
 const isEdit = ref(false)
@@ -254,6 +264,7 @@ async function openCreate() {
 }
 
 async function openEdit(n) {
+  if (groupStoppedOf(n.groupId)) return dialogAlert('课题组已停用，不能编辑公告')
   isEdit.value = true
   editId.value = n.id
   Object.assign(form, { groupId: n.groupId, groupName: n.groupName, title: n.title, content: n.content, status: n.status })
@@ -265,6 +276,7 @@ async function save() {
   if (!form.content) return dialogAlert('请输入公告内容')
   if (form.content.length > 10000) return dialogAlert('公告内容不能超过 10000 个字符')
   if (!isEdit.value && !form.groupId) return dialogAlert('请选择要发布公告的课题组')
+  if (groupStoppedOf(form.groupId)) return dialogAlert('课题组已停用，不能发布公告')
   saving.value = true
   try {
     const res = isEdit.value
@@ -282,6 +294,7 @@ async function save() {
 }
 
 async function doTop(n) {
+  if (groupStoppedOf(n.groupId)) return dialogAlert('课题组已停用，不能置顶公告')
   const res = await toggleNoticeTop(n.id)
   if (res && res.success) {
     await refreshAfterWrite(n.isTop ? '已取消置顶' : '已置顶')
@@ -337,6 +350,15 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.banner-warn {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  color: #d46b08;
+  font-size: 13px;
+}
 .md-toolbar {
   display: flex;
   flex-wrap: wrap;

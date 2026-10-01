@@ -11,7 +11,7 @@
       <button class="btn btn-primary" @click="mSearch">查询</button>
       <button class="btn" @click="mReset">重置</button>
       <div class="spacer"></div>
-      <button class="btn btn-primary" @click="openAdd">添加成员</button>
+      <button class="btn btn-primary" :disabled="disabled" @click="openAdd">添加成员</button>
     </div>
 
     <!-- 批量操作条 -->
@@ -144,7 +144,8 @@ import { roleText, statusText } from '../utils/labels'
 // 课题组成员管理公共面板：超管（任意组，group:* + groupId）与组管（本组，group-admin:*）共用
 const props = defineProps({
   groupId: { type: Number, required: true },
-  isSuper: { type: Boolean, default: false }
+  isSuper: { type: Boolean, default: false },
+  disabled: { type: Boolean, default: false } // 课题组停用：禁止加入新成员
 })
 
 const listApi = props.isSuper ? superListMembers : listMembers
@@ -255,6 +256,9 @@ async function loadCandidates() {
   candidates.value = await fetchAll(listCandidates, { role: addRole.value, keyword: addKeyword.value })
 }
 function openAdd() {
+  if (props.disabled) {
+    return dialogAlert('课题组已停用，不能加入新成员')
+  }
   addRole.value = 'mentor'
   addKeyword.value = ''
   checkedIds.value = []

@@ -5,8 +5,10 @@
         <h2 class="page-title">会议记录管理</h2>
         <p class="page-sub">全平台课题组组会统一管理（超级管理员权限，可管理任意课题组会议）</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate">新建会议</button>
+      <button class="btn btn-primary" :disabled="groupStopped" @click="openCreate">新建会议</button>
     </div>
+
+    <div v-if="groupStopped" class="banner-warn">当前课题组已停用，不能新建 / 编辑 / 发布会议，历史会议照常可查看、归档与删除</div>
 
     <!-- 筛选区 -->
     <div class="toolbar">
@@ -61,13 +63,13 @@
             <td>
               <div class="ops" @click.stop>
                                 <template v-if="viewMode !== 'published'">
-                  <button class="btn btn-sm" @click="openEdit(m)">编辑</button>
+                  <button class="btn btn-sm" :disabled="groupStoppedOf(m.groupId)" @click="openEdit(m)">编辑</button>
                   <button class="btn btn-sm btn-danger" @click="doDelete(m)">删除</button>
                 </template>
                 <template v-else>
-                  <button class="btn btn-sm" @click="openEdit(m)">编辑</button>
+                  <button class="btn btn-sm" :disabled="groupStoppedOf(m.groupId)" @click="openEdit(m)">编辑</button>
                   <button class="btn btn-sm" @click="doArchive(m)">{{ m.status === 3 ? '取消归档' : '归档' }}</button>
-                  <button v-if="m.status === 2 && !m.noticeId" class="btn btn-sm" @click="doPublishAsNotice(m)">发布为公告</button>
+                  <button v-if="m.status === 2 && !m.noticeId" class="btn btn-sm" :disabled="groupStoppedOf(m.groupId)" @click="doPublishAsNotice(m)">发布为公告</button>
                   <button v-else-if="m.noticeId" class="btn btn-sm" disabled style="color: #9ca3af">已发布公告</button>
                   <button class="btn btn-sm" @click="doStats(m)">统计</button>
                   <button class="btn btn-sm btn-danger" @click="doDelete(m)">删除</button>
@@ -124,13 +126,14 @@
       v-model:visible="detailVisible"
       :meeting-id="detailMeetingId"
       :can-manage="true"
+      :group-stopped="groupStoppedOf(detailGroupId)"
       @published="onPublished"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import MeetingFormDialog from '../../components/MeetingFormDialog.vue'
 import MeetingDetailDialog from '../../components/MeetingDetailDialog.vue'
 import { listMeetings, listMyDrafts, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleMeetingArchive, publishMeetingAsNotice, getMeetingStats } from '../../api'
@@ -151,6 +154,14 @@ const total = ref(0)
 const totalPages = ref(1)
 const groups = ref([])
 
+// 指定课题组是否已停用（超管全部课题组视图下按行归属判断）
+function groupStoppedOf(gid) {
+  if (gid === undefined || gid === null || gid === '') return false
+  const g = groups.value.find((x) => x.id === Number(gid))
+  return !!g && g.status === 0
+}
+const groupStopped = computed(() => groupStoppedOf(groupId.value))
+
 // 视图：published 已发布/已归档列表；myDrafts 我的草稿；groupDrafts 本组草稿（只读）
 const viewMode = ref('published')
 
@@ -164,6 +175,7 @@ const formInitial = ref(null)
 
 const detailVisible = ref(false)
 const detailMeetingId = ref(null)
+const detailGroupId = ref(null)
 
 const showStats = ref(false)
 const stats = ref({ groupId: '', groupName: '', total: 0, monthTotal: 0, latestTime: null, latestTitle: null, audience: 0, participationRate: 0 })
@@ -218,12 +230,14 @@ function switchView(mode) {
 }
 
 function openCreate() {
+  if (groupStopped.value) return dialogAlert('课题组已停用，不能新建会议')
   formMode.value = 'create'
   formInitial.value = null
   showForm.value = true
 }
 
 async function openEdit(m) {
+  if (groupStoppedOf(m.groupId)) return dialogAlert('课题组已停用，不能编辑会议')
   const res = await getMeetingDetail(m.id)
   if (!res || !res.success) return dialogAlert((res && res.message) || '加载会议详情失败')
   formMode.value = 'edit'
@@ -237,6 +251,7 @@ function onFormSaved() {
 
 function openDetail(m) {
   detailMeetingId.value = m.id
+  detailGroupId.value = m.groupId
   detailVisible.value = true
 }
 
@@ -254,6 +269,7 @@ async function doArchive(m) {
 }
 
 async function doPublishAsNotice(m) {
+  if (groupStoppedOf(m.groupId)) return dialogAlert('课题组已停用，不能发布为公告')
   const ok = await dialogConfirm(`确认将该组会「${m.title}」发布为课题组公告？生成后公告独立存在，改/删组会不会联动公告。`)
   if (!ok) return
   const res = await publishMeetingAsNotice(m.id)
@@ -297,3 +313,15 @@ onMounted(async () => {
   load()
 })
 </script>
+
+<style scoped>
+.banner-warn {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  color: #d46b08;
+  font-size: 13px;
+}
+</style>

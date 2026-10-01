@@ -16,11 +16,11 @@ export function roleText(role) {
 
 export const STATUS_TEXT = {
   1: '启用',
-  0: '禁用'
+  0: '停用'
 }
 
 export function statusText(status) {
-  return status === 0 ? '禁用' : '启用'
+  return status === 0 ? '停用' : '启用'
 }
 
 export function statusTagClass(status) {

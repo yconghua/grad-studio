@@ -5,8 +5,10 @@
         <h2 class="page-title">会议记录管理</h2>
         <p class="page-sub">仅可管理当前绑定课题组的会议（不能操作其他课题组）</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate">新建会议</button>
+      <button class="btn btn-primary" :disabled="groupStopped" @click="openCreate">新建会议</button>
     </div>
+
+    <div v-if="groupStopped" class="banner-warn">课题组已停用，不能新建 / 编辑 / 发布会议，历史会议照常可查看、归档与删除</div>
 
     <!-- 筛选区：课题组固定为本组，不可切换 -->
     <div class="toolbar">
@@ -57,13 +59,13 @@
             <td>
               <div class="ops" @click.stop>
                                 <template v-if="viewMode !== 'published'">
-                  <button class="btn btn-sm" @click="openEdit(m)">编辑</button>
+                  <button class="btn btn-sm" :disabled="groupStopped" @click="openEdit(m)">编辑</button>
                   <button class="btn btn-sm btn-danger" @click="doDelete(m)">删除</button>
                 </template>
                 <template v-else>
-                  <button class="btn btn-sm" @click="openEdit(m)">编辑</button>
+                  <button class="btn btn-sm" :disabled="groupStopped" @click="openEdit(m)">编辑</button>
                   <button class="btn btn-sm" @click="doArchive(m)">{{ m.status === 3 ? '取消归档' : '归档' }}</button>
-                  <button v-if="m.status === 2 && !m.noticeId" class="btn btn-sm" @click="doPublishAsNotice(m)">发布为公告</button>
+                  <button v-if="m.status === 2 && !m.noticeId" class="btn btn-sm" :disabled="groupStopped" @click="doPublishAsNotice(m)">发布为公告</button>
                   <button v-else-if="m.noticeId" class="btn btn-sm" disabled style="color: #9ca3af">已发布公告</button>
                   <button class="btn btn-sm" @click="doStats">统计</button>
                   <button class="btn btn-sm btn-danger" @click="doDelete(m)">删除</button>
@@ -121,6 +123,7 @@
       v-model:visible="detailVisible"
       :meeting-id="detailMeetingId"
       :can-manage="true"
+      :group-stopped="groupStopped"
       @published="onPublished"
     />
   </div>
@@ -147,6 +150,7 @@ const total = ref(0)
 const totalPages = ref(1)
 const groupId = ref(null)
 const groupName = ref('')
+const groupStopped = ref(false)
 
 const viewMode = ref('published')
 
@@ -206,12 +210,14 @@ function switchView(mode) {
 }
 
 function openCreate() {
+  if (groupStopped.value) return dialogAlert('课题组已停用，不能新建会议')
   formMode.value = 'create'
   formInitial.value = null
   showForm.value = true
 }
 
 async function openEdit(m) {
+  if (groupStopped.value) return dialogAlert('课题组已停用，不能编辑会议')
   const res = await getMeetingDetail(m.id)
   if (!res || !res.success) return dialogAlert((res && res.message) || '加载会议详情失败')
   formMode.value = 'edit'
@@ -242,6 +248,7 @@ async function doArchive(m) {
 }
 
 async function doPublishAsNotice(m) {
+  if (groupStopped.value) return dialogAlert('课题组已停用，不能发布为公告')
   const ok = await dialogConfirm(`确认将该组会「${m.title}」发布为课题组公告？生成后公告独立存在，改/删组会不会联动公告。`)
   if (!ok) return
   const res = await publishMeetingAsNotice(m.id)
@@ -280,7 +287,20 @@ onMounted(async () => {
   if (res && res.success && res.data) {
     groupId.value = res.data.id
     groupName.value = res.data.name || ''
+    groupStopped.value = res.data.status === 0
   }
   load()
 })
 </script>
+
+<style scoped>
+.banner-warn {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  color: #d46b08;
+  font-size: 13px;
+}
+</style>

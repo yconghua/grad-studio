@@ -17,6 +17,7 @@
       <!-- 基本信息 -->
       <div class="card">
         <div class="card-head"><h3>基本信息</h3></div>
+        <div v-if="groupStopped" class="banner-warn">课题组已停用，仅可查看与维护存量，不能加入新成员</div>
         <div class="info-grid">
           <div class="info-item"><label>课题组名称</label><span>{{ group.name }}</span></div>
           <div class="info-item"><label>唯一标识号</label><span class="mono">{{ group.code }}</span></div>
@@ -39,14 +40,14 @@
       </div>
 
       <!-- 成员管理 -->
-      <MemberManagePanel :group-id="currentId" :is-super="true" />
+      <MemberManagePanel :group-id="currentId" :is-super="true" :disabled="groupStopped" />
     </template>
     <div v-else class="empty">{{ groups.length ? '加载中…' : '暂无课题组数据' }}</div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MemberManagePanel from '../../components/MemberManagePanel.vue'
 import { listGroups, getGroup, listUsers, listNotices, getMeetingStats } from '../../api'
@@ -63,6 +64,7 @@ const memberStats = ref(null)
 const noticeTotal = ref(0)
 const meetingStats = ref(null)
 const admins = ref([])
+const groupStopped = computed(() => group.value != null && group.value.status === 0)
 
 async function load() {
   group.value = null
@@ -141,6 +143,15 @@ onMounted(async () => {
 .mono {
   font-family: monospace;
   font-size: 12px;
+}
+.banner-warn {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  color: #d46b08;
+  font-size: 13px;
 }
 .stat-grid {
   display: flex;

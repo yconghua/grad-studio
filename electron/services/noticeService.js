@@ -14,6 +14,7 @@ const groupRepository = require('../db/repositories/groupRepository')
 const groupNoticeRepository = require('../db/repositories/groupNoticeRepository')
 const groupNoticeReadRepository = require('../db/repositories/groupNoticeReadRepository')
 const authService = require('./authService')
+const groupService = require('./groupService')
 const ApiError = require('./apiError')
 const {
   ROLE_SUPER_ADMIN,
@@ -193,6 +194,9 @@ async function createNotice({ groupId, title, content } = {}) {
     throw new ApiError('无权限：无权发布公告', 403)
   }
 
+  // 状态校验：停用组禁止发布新公告
+  await groupService.assertGroupWritable(targetGroupId)
+
   const id = await groupNoticeRepository.create({
     group_id: targetGroupId,
     publisher_id: me.id,
@@ -212,6 +216,8 @@ async function createNotice({ groupId, title, content } = {}) {
 async function updateNotice(id, { title, content, status } = {}) {
   const me = await currentUser()
   const notice = await assertManageable(me, id)
+  // 状态校验：停用组禁止编辑公告
+  await groupService.assertGroupWritable(notice.group_id)
 
   const data = {}
   if (title !== undefined) data.title = assertTitle(title)
@@ -240,6 +246,8 @@ async function deleteNotice(id) {
 async function toggleTop(id) {
   const me = await currentUser()
   const notice = await assertManageable(me, id)
+  // 状态校验：停用组禁止置顶操作
+  await groupService.assertGroupWritable(notice.group_id)
   await groupNoticeRepository.updateById(notice.id, { is_top: notice.is_top ? 0 : 1 })
   return getNotice(notice.id)
 }

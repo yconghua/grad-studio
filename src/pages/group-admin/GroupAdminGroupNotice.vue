@@ -5,8 +5,10 @@
         <h2 class="page-title">本组公告管理</h2>
         <p class="page-sub">仅可管理当前绑定课题组的公告（不能操作其他课题组）</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate">发布公告</button>
+      <button class="btn btn-primary" :disabled="groupStopped" @click="openCreate">发布公告</button>
     </div>
+
+    <div v-if="groupStopped" class="banner-warn">课题组已停用，不能发布 / 编辑 / 置顶公告，历史公告照常可查看与管理</div>
 
     <!-- 筛选区：课题组固定为本组，不可切换 -->
     <div class="toolbar">
@@ -49,8 +51,8 @@
             <td>{{ n.publishTime }}</td>
             <td>
               <div class="ops" @click.stop>
-                <button class="btn btn-sm" @click="openEdit(n)">编辑</button>
-                <button class="btn btn-sm" @click="doTop(n)">{{ n.isTop ? '取消置顶' : '置顶' }}</button>
+                <button class="btn btn-sm" :disabled="groupStopped" @click="openEdit(n)">编辑</button>
+                <button class="btn btn-sm" :disabled="groupStopped" @click="doTop(n)">{{ n.isTop ? '取消置顶' : '置顶' }}</button>
                 <button class="btn btn-sm" @click="doStats(n)">统计</button>
                 <button class="btn btn-sm btn-danger" @click="doDelete(n)">删除</button>
               </div>
@@ -178,6 +180,7 @@ const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
 const groupName = ref('')
+const groupStopped = ref(false)
 
 const showModal = ref(false)
 const isEdit = ref(false)
@@ -236,6 +239,7 @@ function reset() {
 }
 
 async function openCreate() {
+  if (groupStopped.value) return dialogAlert('课题组已停用，不能发布公告')
   isEdit.value = false
   editId.value = null
   Object.assign(form, { groupId: '', groupName: groupName.value, title: '', content: '', status: 1 })
@@ -243,6 +247,7 @@ async function openCreate() {
 }
 
 async function openEdit(n) {
+  if (groupStopped.value) return dialogAlert('课题组已停用，不能编辑公告')
   isEdit.value = true
   editId.value = n.id
   Object.assign(form, { groupId: n.groupId, groupName: n.groupName, title: n.title, content: n.content, status: n.status })
@@ -271,6 +276,7 @@ async function save() {
 }
 
 async function doTop(n) {
+  if (groupStopped.value) return dialogAlert('课题组已停用，不能置顶公告')
   const res = await toggleNoticeTop(n.id)
   if (res && res.success) {
     await refreshAfterWrite(n.isTop ? '已取消置顶' : '已置顶')
@@ -323,6 +329,7 @@ onMounted(async () => {
   const res = await getOwnGroup()
   if (res && res.success && res.data) {
     groupName.value = res.data.name || ''
+    groupStopped.value = res.data.status === 0
   } else {
     dialogAlert((res && res.message) || '未绑定课题组')
   }
@@ -331,6 +338,15 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.banner-warn {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  color: #d46b08;
+  font-size: 13px;
+}
 .md-toolbar {
   display: flex;
   flex-wrap: wrap;

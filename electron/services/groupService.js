@@ -97,6 +97,17 @@ function memberDto(row) {
   }
 }
 
+/**
+ * 课题组可写校验：停用（status=0）时禁止产生新数据（加入成员、发公告、发组会）。
+ * 调用顺序固定：取当前用户 → 角色/组定位 → 本校验 → 业务校验 → 执行。
+ */
+async function assertGroupWritable(groupId) {
+  const group = await groupRepository.findById(Number(groupId))
+  if (!group) throw new ApiError('课题组不存在', 404)
+  if (group.status === 0) throw new ApiError('课题组已停用，不能产生新数据', 400)
+  return group
+}
+
 // ===== 超级管理员：课题组管理 =====
 
 /**
@@ -272,6 +283,7 @@ async function listMembers({ groupId, page, keyword, role } = {}) {
 async function addMembers({ groupId, userIds, role } = {}) {
   const me = await authService.getCurrentUser()
   const gid = await resolveGroupId(me, groupId)
+  await assertGroupWritable(gid)
   if (!Array.isArray(userIds) || userIds.length === 0) throw new ApiError('请选择要加入的用户', 400)
   if (![ROLE_MENTOR, ROLE_STUDENT].includes(role)) throw new ApiError('角色参数不合法', 400)
 
@@ -447,6 +459,7 @@ module.exports = {
   deleteGroup,
   getOwnGroup,
   updateOwnGroup,
+  assertGroupWritable,
   listMembers,
   addMembers,
   removeMember,
