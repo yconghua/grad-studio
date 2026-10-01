@@ -5,6 +5,8 @@
     profile-path="/student/profile"
     introduction-path="/student/system-intro"
     settings-path="/student/settings"
+    unread-polling
+    unread-badge-key="student-notices"
   />
 </template>
 

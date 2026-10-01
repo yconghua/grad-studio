@@ -10,6 +10,8 @@
 const crypto = require('node:crypto')
 const userRepository = require('../db/repositories/userRepository')
 const groupRepository = require('../db/repositories/groupRepository')
+const groupNoticeRepository = require('../db/repositories/groupNoticeRepository')
+const groupNoticeReadRepository = require('../db/repositories/groupNoticeReadRepository')
 const authService = require('./authService')
 const userService = require('./userService')
 const ApiError = require('./apiError')
@@ -164,7 +166,8 @@ async function updateGroup(id, { name, description, adminUserId, status } = {}) 
 
 /**
  * 删除课题组（物理删除）：课题组下仍有导师/学生成员时禁止删除；
- * 删除时解除管理员用户的课题组绑定。
+ * 删除时解除管理员用户的课题组绑定，并级联硬删该组全部公告及其已读记录
+ * （公告属于课题组，组删除公告一并删除）。
  */
 async function deleteGroup(id) {
   const idNum = Number(id)
@@ -174,6 +177,9 @@ async function deleteGroup(id) {
   if (members > 0) throw new ApiError('课题组下仍有成员，请先移除全部成员后再删除', 400)
   // 解除管理员绑定后再删除课题组
   if (row.admin_user_id) await userRepository.updateById(row.admin_user_id, { group_id: null })
+  // 级联硬删公告及其已读记录（先清已读，再删公告，最后删课题组）
+  await groupNoticeReadRepository.deleteByGroupId(idNum)
+  await groupNoticeRepository.deleteByGroupId(idNum)
   await groupRepository.deleteById(idNum)
   return true
 }

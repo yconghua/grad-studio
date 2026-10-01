@@ -5,6 +5,8 @@
     profile-path="/mentor/profile"
     introduction-path="/mentor/system-intro"
     settings-path="/mentor/settings"
+    unread-polling
+    unread-badge-key="mentor-notices"
   />
 </template>
 

@@ -1,0 +1,273 @@
+<template>
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">课题组公告管理</h2>
+        <p class="page-sub">全平台课题组公告统一管理（超级管理员权限，可发布到任意课题组）</p>
+      </div>
+      <button class="btn btn-primary" @click="openCreate">发布公告</button>
+    </div>
+
+    <!-- 筛选区 -->
+    <div class="toolbar">
+      <select v-model="groupId" class="select" style="width: 200px" @change="search">
+        <option value="">全部课题组</option>
+        <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+      </select>
+      <select v-model="status" class="select" @change="search">
+        <option value="">全部状态</option>
+        <option :value="1">已发布</option>
+        <option :value="2">下架</option>
+      </select>
+      <input v-model="keyword" class="input" style="width: 220px" placeholder="公告标题" @keyup.enter="search" />
+      <button class="btn btn-primary" @click="search">查询</button>
+      <button class="btn" @click="reset">重置</button>
+      <div class="spacer"></div>
+      <span style="font-size: 13px; color: #4b5563">共 <b>{{ total }}</b> 条公告</span>
+    </div>
+
+    <!-- 公告表格 -->
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>课题组</th>
+            <th>标题</th>
+            <th>发布人</th>
+            <th>置顶</th>
+            <th>状态</th>
+            <th>发布时间</th>
+            <th style="width: 230px">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="n in list" :key="n.id">
+            <td>{{ n.id }}</td>
+            <td>{{ n.groupName }}</td>
+            <td style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ n.title }}</td>
+            <td>{{ n.publisherName }}</td>
+            <td><span v-if="n.isTop" class="tag">置顶</span><span v-else>-</span></td>
+            <td><span :class="noticeStatusClass(n.status)">{{ noticeStatusText(n.status) }}</span></td>
+            <td>{{ n.publishTime }}</td>
+            <td>
+              <div class="ops">
+                <button class="btn btn-sm" @click="openEdit(n)">编辑</button>
+                <button class="btn btn-sm" @click="doTop(n)">{{ n.isTop ? '取消置顶' : '置顶' }}</button>
+                <button class="btn btn-sm" @click="doStats(n)">统计</button>
+                <button class="btn btn-sm btn-danger" @click="doDelete(n)">删除</button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="list.length === 0">
+            <td colspan="8"><div class="empty">暂无公告数据</div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pager">
+        <button class="btn btn-sm" :disabled="page <= 1" @click="page--; load()">上一页</button>
+        <span>第 {{ page }} / {{ totalPages || 1 }} 页</span>
+        <button class="btn btn-sm" :disabled="page >= totalPages" @click="page++; load()">下一页</button>
+      </div>
+    </div>
+
+    <!-- 发布 / 编辑公告弹窗 -->
+    <div v-if="showModal" class="modal-mask" @click.self="showModal = false">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>{{ isEdit ? '编辑公告' : '发布公告' }}</h3>
+          <button type="button" class="modal-close" @click="showModal = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>所属课题组</label>
+            <select v-if="!isEdit" v-model="form.groupId" class="select">
+              <option value="">请选择课题组</option>
+              <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+            </select>
+            <input v-else :value="form.groupName" class="input" readonly />
+            <p class="hint" v-if="isEdit">公告归属课题组不可修改</p>
+          </div>
+          <div class="field">
+            <label>公告标题</label>
+            <input v-model.trim="form.title" class="input" placeholder="请输入公告标题" maxlength="100" />
+            <p class="hint">不超过 100 个字符</p>
+          </div>
+          <div class="field">
+            <label>公告内容</label>
+            <textarea v-model.trim="form.content" placeholder="请输入公告内容" maxlength="5000" style="min-height: 160px"></textarea>
+            <p class="hint">不超过 5000 个字符</p>
+          </div>
+          <div class="field" v-if="isEdit">
+            <label>状态</label>
+            <select v-model="form.status" class="select">
+              <option :value="1">已发布</option>
+              <option :value="2">下架</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" @click="showModal = false">取消</button>
+          <button class="btn btn-primary" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 已读统计弹窗 -->
+    <div v-if="showStats" class="modal-mask" @click.self="showStats = false">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>已读统计</h3>
+          <button type="button" class="modal-close" @click="showStats = false">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="panel-sub" style="margin-bottom: 10px">公告：{{ stats.title }}</p>
+          <p style="font-size: 13px; color: #374151; margin-bottom: 10px">
+            应读 <b>{{ stats.totalMembers }}</b> 人（本组启用状态的导师 + 学生）／已读 <b>{{ stats.readCount }}</b> 人
+          </p>
+          <div class="tbl-wrap" v-if="stats.list && stats.list.length">
+            <table class="tbl">
+              <thead>
+                <tr><th>姓名</th><th>用户名</th><th>已读时间</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in stats.list" :key="r.userId">
+                  <td>{{ r.realName || '-' }}</td>
+                  <td>{{ r.username }}</td>
+                  <td>{{ r.readAt }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="empty">暂无已读记录</div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" @click="showStats = false">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { listNotices, createNotice, updateNotice, deleteNotice, toggleNoticeTop, getNoticeReadStats } from '../../api'
+import { listGroups } from '../../api'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { fetchAll } from '../../utils/fetchAll'
+
+// 超级管理员独立页面：课题组公告管理（可发布/编辑/删除/置顶任意课题组公告，查看全部已读统计）
+const keyword = ref('')
+const status = ref('')
+const groupId = ref('')
+const page = ref(1)
+const list = ref([])
+const total = ref(0)
+const totalPages = ref(1)
+const groups = ref([])
+
+const showModal = ref(false)
+const isEdit = ref(false)
+const saving = ref(false)
+const editId = ref(null)
+const form = reactive({ groupId: '', groupName: '', title: '', content: '', status: 1 })
+
+const showStats = ref(false)
+const stats = ref({ title: '', totalMembers: 0, readCount: 0, list: [] })
+
+// 公告状态文案与标签样式
+const noticeStatusText = (s) => (Number(s) === 2 ? '下架' : '已发布')
+const noticeStatusClass = (s) => (Number(s) === 2 ? 'tag' : 'tag tag-blue')
+
+async function load() {
+  const res = await listNotices({ page: page.value, keyword: keyword.value, status: status.value, groupId: groupId.value })
+  if (res && res.success) {
+    list.value = (res.data && res.data.list) || []
+    total.value = (res.data && res.data.total) || 0
+    totalPages.value = (res.data && res.data.totalPages) || 1
+  } else {
+    dialogAlert((res && res.message) || '加载失败')
+  }
+}
+function search() {
+  page.value = 1
+  load()
+}
+function reset() {
+  keyword.value = ''
+  status.value = ''
+  groupId.value = ''
+  page.value = 1
+  load()
+}
+
+async function openCreate() {
+  isEdit.value = false
+  editId.value = null
+  Object.assign(form, { groupId: '', groupName: '', title: '', content: '', status: 1 })
+  showModal.value = true
+}
+
+async function openEdit(n) {
+  isEdit.value = true
+  editId.value = n.id
+  Object.assign(form, { groupId: n.groupId, groupName: n.groupName, title: n.title, content: n.content, status: n.status })
+  showModal.value = true
+}
+
+async function save() {
+  if (!form.title) return dialogAlert('请输入公告标题')
+  if (!form.content) return dialogAlert('请输入公告内容')
+  if (!isEdit.value && !form.groupId) return dialogAlert('请选择要发布公告的课题组')
+  saving.value = true
+  try {
+    const res = isEdit.value
+      ? await updateNotice(editId.value, { title: form.title, content: form.content, status: form.status })
+      : await createNotice({ groupId: form.groupId, title: form.title, content: form.content })
+    if (res && res.success) {
+      showModal.value = false
+      await refreshAfterWrite(isEdit.value ? '保存成功' : '发布成功')
+    } else {
+      dialogAlert((res && res.message) || '保存失败')
+    }
+  } finally {
+    saving.value = false
+  }
+}
+
+async function doTop(n) {
+  const res = await toggleNoticeTop(n.id)
+  if (res && res.success) {
+    await refreshAfterWrite(n.isTop ? '已取消置顶' : '已置顶')
+  } else {
+    dialogAlert((res && res.message) || '操作失败')
+  }
+}
+
+async function doDelete(n) {
+  const ok = await dialogConfirm(`确定删除公告「${n.title}」吗？删除后不可恢复。`)
+  if (!ok) return
+  const res = await deleteNotice(n.id)
+  if (res && res.success) {
+    await refreshAfterWrite('删除成功')
+  } else {
+    dialogAlert((res && res.message) || '删除失败')
+  }
+}
+
+async function doStats(n) {
+  const res = await getNoticeReadStats(n.id)
+  if (res && res.success) {
+    stats.value = res.data || { title: '', totalMembers: 0, readCount: 0, list: [] }
+    showStats.value = true
+  } else {
+    dialogAlert((res && res.message) || '加载统计失败')
+  }
+}
+
+onMounted(async () => {
+  groups.value = await fetchAll(listGroups)
+  load()
+})
+</script>

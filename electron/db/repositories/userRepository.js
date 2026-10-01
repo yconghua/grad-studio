@@ -222,6 +222,32 @@ class UserRepository extends BaseRepository {
   }
 
   /**
+   * 导师/学生当前有效课题组（公告可见范围用）：
+   * 实时查询、不读会话缓存——换组/离组立即生效；
+   * 仅「启用状态 + 导师/学生角色 + 已入组」才算有效成员，脏数据一律不可见。
+   * @param {number} userId
+   * @returns {{ group_id: number }|null}
+   */
+  async findActiveGroupOfUser(userId) {
+    const sql =
+      `SELECT \`group_id\` FROM \`users\` WHERE id = ? AND role IN ('mentor', 'student') AND status = ? AND \`group_id\` IS NOT NULL`
+    const [rows] = await this._execute(sql, [Number(userId), ACCOUNT_STATUS_ENABLED], 'findActiveGroupOfUser')
+    return rows[0] || null
+  }
+
+  /**
+   * 公告应读基数：该组启用状态的导师/学生人数（已读统计 totalMembers 专用，独立口径）
+   * @param {number} groupId
+   * @returns {number}
+   */
+  async countAudienceByGroup(groupId) {
+    const sql =
+      `SELECT COUNT(*) AS total FROM \`users\` WHERE \`group_id\` = ? AND role IN ('mentor', 'student') AND status = ?`
+    const [rows] = await this._execute(sql, [Number(groupId), ACCOUNT_STATUS_ENABLED], 'countAudienceByGroup')
+    return Number(rows[0] && rows[0].total) || 0
+  }
+
+  /**
    * 通用条件分页（内部复用）：固定条件 + 可选关键字（账号/真实姓名）
    */
   async _pagedByCondition(condArr, condValues, filters, action) {

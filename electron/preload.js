@@ -93,6 +93,17 @@ contextBridge.exposeInMainWorld('api', {
   mentor: {
     studentsList: createInvoke('mentor:students-list')
   },
+  // 课题组公告（对应 ipc/notice.js，通道前缀 notice:*）
+  notice: {
+    list: createInvoke('notice:list'),
+    create: createInvoke('notice:create'),
+    update: createInvoke('notice:update'),
+    remove: createInvoke('notice:delete'),
+    top: createInvoke('notice:top'),
+    readStats: createInvoke('notice:read-stats'),
+    readSelf: createInvoke('notice:read-self'),
+    unreadCount: createInvoke('notice:unread-count')
+  },
   // 系统配置与公共系统接口（对应 ipc/system.js，通道前缀 system:*）
   system: {
     info: createInvoke('system:info'),

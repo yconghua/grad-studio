@@ -21,6 +21,7 @@
 const authRoutes = require('./auth')
 const userRoutes = require('./user')
 const groupRoutes = require('./group')
+const noticeRoutes = require('./notice')
 const systemRoutes = require('./system')
 const sysRoutes = require('./sys')
 
@@ -68,6 +69,7 @@ function registerAll(ipcMain) {
   authRoutes.register(logger)
   userRoutes.register(logger)
   groupRoutes.register(logger)
+  noticeRoutes.register(logger)
   systemRoutes.register(logger)
   sysRoutes.register(logger)
 }
