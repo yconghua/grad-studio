@@ -138,6 +138,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, deleteParam, exportDb } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 
 // 超级管理员独立页面：系统配置（系统信息 / 数据库信息 / 系统参数 三块）
 const info = ref({})
@@ -214,9 +215,8 @@ async function save() {
     }
     const res = isEdit.value ? await updateParam(editId.value, data) : await createParam(data)
     if (res && res.success) {
-      dialogAlert(isEdit.value ? '保存成功' : '新增成功')
       showModal.value = false
-      loadParams()
+      await refreshAfterWrite(isEdit.value ? '保存成功' : '新增成功')
     } else {
       dialogAlert((res && res.message) || '保存失败')
     }
@@ -230,8 +230,7 @@ async function doDelete(p) {
   if (!ok) return
   const res = await deleteParam(p.id)
   if (res && res.success) {
-    dialogAlert('删除成功')
-    loadParams()
+    await refreshAfterWrite('删除成功')
   } else {
     dialogAlert((res && res.message) || '删除失败')
   }

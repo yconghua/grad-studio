@@ -114,6 +114,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getUser, updateAccount, updateProfile, listGroups, listUsers, pickAttachment } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { roleText } from '../../utils/labels'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
@@ -196,10 +197,7 @@ async function saveAccount() {
       status: Number(account.status)
     })
     if (res && res.success) {
-      dialogAlert('保存成功')
-      account.password = ''
-      account.confirmPassword = ''
-      load()
+      await refreshAfterWrite('保存成功')
     } else {
       dialogAlert((res && res.message) || '保存失败')
     }
@@ -222,8 +220,7 @@ async function saveProfile() {
       mentorId: profile.mentorId === '' ? null : Number(profile.mentorId)
     })
     if (res && res.success) {
-      dialogAlert('保存成功')
-      load()
+      await refreshAfterWrite('保存成功')
     } else {
       dialogAlert((res && res.message) || '保存失败')
     }

@@ -37,6 +37,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { getOwnGroup, updateOwnGroup } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useSession } from '../../composables/useSession'
 
 // 课题组管理员独立页面：本课题组设置（UUID 与管理员绑定不可修改）
@@ -63,8 +64,7 @@ async function save() {
   try {
     const res = await updateOwnGroup({ name: form.name, description: form.description })
     if (res && res.success) {
-      dialogAlert('保存成功')
-      load()
+      await refreshAfterWrite('保存成功')
     } else {
       dialogAlert((res && res.message) || '保存失败')
     }

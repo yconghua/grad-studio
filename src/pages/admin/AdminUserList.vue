@@ -178,6 +178,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listUsers, createUser, listGroups, listCandidates, deleteUser, pickAttachment } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { roleText, statusText, statusTagClass, ROLE_TEXT } from '../../utils/labels'
 import { DEFAULT_PASSWORD_BY_ROLE } from '../../config/constants'
@@ -230,8 +231,7 @@ async function doDelete(u) {
   if (!ok) return
   const res = await deleteUser(u.id)
   if (res && res.success) {
-    dialogAlert('删除成功')
-    load()
+    await refreshAfterWrite('删除成功')
   } else {
     dialogAlert((res && res.message) || '删除失败')
   }
@@ -289,9 +289,8 @@ async function saveCreate() {
   if (form.password && form.password !== form.confirmPassword) return dialogAlert('两次输入的密码不一致')
   const res = await createUser({ ...form })
   if (res && res.success) {
-    dialogAlert('新增成功')
     showModal.value = false
-    load()
+    await refreshAfterWrite('新增成功')
   } else {
     dialogAlert((res && res.message) || '新增失败')
   }

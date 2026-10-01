@@ -107,6 +107,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { listGroups, createGroup, getGroup, updateGroup, deleteGroup, listUsers } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { statusText, statusTagClass } from '../../utils/labels'
 
@@ -189,9 +190,8 @@ async function save() {
     }
     const res = isEdit.value ? await updateGroup(editId.value, data) : await createGroup(data)
     if (res && res.success) {
-      dialogAlert(isEdit.value ? '保存成功' : '新增成功')
       showModal.value = false
-      load()
+      await refreshAfterWrite(isEdit.value ? '保存成功' : '新增成功')
     } else {
       dialogAlert((res && res.message) || '保存失败')
     }
@@ -205,8 +205,7 @@ async function doDelete(g) {
   if (!ok) return
   const res = await deleteGroup(g.id)
   if (res && res.success) {
-    dialogAlert('删除成功')
-    load()
+    await refreshAfterWrite('删除成功')
   } else {
     dialogAlert((res && res.message) || '删除失败')
   }

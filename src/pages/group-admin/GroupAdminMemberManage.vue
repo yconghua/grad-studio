@@ -157,6 +157,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { listMembers, listGroupStudents, removeMember, addMembers, setStudentMentor, listCandidates } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { roleText, statusText, statusTagClass } from '../../utils/labels'
 
@@ -196,8 +197,7 @@ async function doRemove(u) {
   if (!ok) return
   const res = await removeMember(u.id)
   if (res && res.success) {
-    dialogAlert('移除成功')
-    loadMembers()
+    await refreshAfterWrite('移除成功')
   } else {
     dialogAlert((res && res.message) || '移除失败')
   }
@@ -244,8 +244,7 @@ async function doSetMentor(u) {
   const mentorId = mentorPick[u.id]
   const res = await setStudentMentor(u.id, { mentorId: mentorId === '' ? null : Number(mentorId) })
   if (res && res.success) {
-    dialogAlert('指定导师成功')
-    loadStudents()
+    await refreshAfterWrite('指定导师成功')
   } else {
     dialogAlert((res && res.message) || '指定导师失败')
   }
@@ -277,9 +276,8 @@ async function doAdd() {
   try {
     const res = await addMembers({ userIds: [...checkedIds.value], role: addRole.value })
     if (res && res.success) {
-      dialogAlert(`成功加入 ${(res.data && res.data.added) || 0} 人`)
       showAdd.value = false
-      loadMembers()
+      await refreshAfterWrite(`成功加入 ${(res.data && res.data.added) || 0} 人`)
     } else {
       dialogAlert((res && res.message) || '加入失败')
     }
