@@ -65,19 +65,33 @@ async function listGroups({ page, keyword } = {}) {
   return pageResult(result, toGroupDto)
 }
 
+// 课题组名称 / 描述长度校验（与 groups 表列宽一致：name 100、description 500）
+function assertGroupName(name) {
+  const trimmed = String(name).trim()
+  if (!trimmed) throw new ApiError('请输入课题组名称', 400)
+  if (trimmed.length > 100) throw new ApiError('课题组名称不能超过 100 个字符', 400)
+  return trimmed
+}
+function assertGroupDescription(description) {
+  const trimmed = description === undefined || description === null ? '' : String(description).trim()
+  if (trimmed.length > 500) throw new ApiError('课题组描述不能超过 500 个字符', 400)
+  return trimmed || null
+}
+
 /**
  * 新增课题组：后端生成 UUID 作为唯一标识号（code），前端不可指定；
  * adminUserId 指定的用户必须是未绑定其他课题组的课题组管理员。
  */
 async function createGroup({ name, description, adminUserId, status } = {}) {
-  if (!name || !String(name).trim()) throw new ApiError('请输入课题组名称', 400)
+  const trimmedName = assertGroupName(name)
+  const trimmedDesc = assertGroupDescription(description)
   if (adminUserId) {
     await assertAdminAvailable(Number(adminUserId))
   }
   const id = await groupRepository.create({
-    name: String(name).trim(),
+    name: trimmedName,
     code: crypto.randomUUID(),
-    description: description && String(description).trim() ? String(description).trim() : null,
+    description: trimmedDesc,
     admin_user_id: adminUserId ? Number(adminUserId) : null,
     status: status === undefined || status === '' ? 1 : Number(status)
   })
@@ -118,11 +132,8 @@ async function updateGroup(id, { name, description, adminUserId, status } = {}) 
   if (!row) throw new ApiError('课题组不存在', 404)
 
   const data = {}
-  if (name !== undefined) {
-    if (!String(name).trim()) throw new ApiError('请输入课题组名称', 400)
-    data.name = String(name).trim()
-  }
-  if (description !== undefined) data.description = String(description).trim() || null
+  if (name !== undefined) data.name = assertGroupName(name)
+  if (description !== undefined) data.description = assertGroupDescription(description)
   if (status !== undefined) {
     const st = Number(status)
     if (st !== 0 && st !== 1) throw new ApiError('状态参数不合法', 400)
@@ -184,11 +195,8 @@ async function getOwnGroup() {
 async function updateOwnGroup({ name, description } = {}) {
   const group = await ownGroup()
   const data = {}
-  if (name !== undefined) {
-    if (!String(name).trim()) throw new ApiError('请输入课题组名称', 400)
-    data.name = String(name).trim()
-  }
-  if (description !== undefined) data.description = String(description).trim() || null
+  if (name !== undefined) data.name = assertGroupName(name)
+  if (description !== undefined) data.description = assertGroupDescription(description)
   await groupRepository.updateById(group.id, data)
   return getGroup(group.id)
 }

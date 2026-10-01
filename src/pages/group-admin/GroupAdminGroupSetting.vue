@@ -15,11 +15,11 @@
       </div>
       <div class="field">
         <label>课题组名称</label>
-        <input v-model.trim="form.name" class="input" placeholder="请输入课题组名称" />
+        <input v-model.trim="form.name" class="input" placeholder="请输入课题组名称" maxlength="100" />
       </div>
       <div class="field">
         <label>描述</label>
-        <textarea v-model.trim="form.description" placeholder="请输入课题组描述（选填）"></textarea>
+        <textarea v-model.trim="form.description" placeholder="请输入课题组描述（选填）" maxlength="500"></textarea>
       </div>
       <div class="field">
         <label>课题组管理员</label>

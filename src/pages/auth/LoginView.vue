@@ -157,6 +157,7 @@ async function onSubmit() {
       const user = res.data && res.data.user
       if (!user) {
         errorMsg.value = '登录响应异常，请重试'
+        loading.value = false
         return
       }
       setSession(user)
@@ -165,14 +166,14 @@ async function onSubmit() {
       } else {
         router.replace(ROLE_HOME[user.role] || '/login')
       }
-    } else {
-      errorMsg.value = (res && res.message) || '登录失败，请重试'
+      // 登录成功：保持 loading，防止页面跳转完成前重复提交
+      return
     }
+    errorMsg.value = (res && res.message) || '登录失败，请重试'
   } catch (e) {
     errorMsg.value = '登录过程出现异常，请重试'
-  } finally {
-    loading.value = false
   }
+  loading.value = false
 }
 
 // 登录卡片右上角数据库状态：挂载时 + 切换数据库后刷新
