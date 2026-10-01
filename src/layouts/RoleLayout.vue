@@ -1,35 +1,34 @@
 <template>
   <div class="role-layout">
-    <!-- 左侧：品牌 + 导航菜单（导航配置由各角色布局传入，互不共用） -->
-    <aside class="side">
+    <!-- 顶栏：左侧 logo + 系统名（固定字号完整显示），右侧头像下拉 -->
+    <header class="topbar">
       <div class="brand">
         <img :src="logoUrl" class="brand-logo" alt="平台标识" />
         <span class="brand-name">{{ appName }}</span>
       </div>
-      <nav class="nav">
-        <router-link
-          v-for="item in navItems"
-          :key="item.path"
-          :to="item.path"
-          class="nav-item"
-          active-class="active"
-        >
-          <span class="nav-label">{{ item.title }}</span>
-          <span
-            v-if="showBadge && item.key === unreadBadgeKey && unreadCount > 0"
-            class="nav-badge"
-          >{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-        </router-link>
-      </nav>
-      <div class="side-foot">Gra Studio · 课题组科研管理平台</div>
-    </aside>
+      <UserAvatarMenu :profile-path="profilePath" :introduction-path="introductionPath" :settings-path="settingsPath" />
+    </header>
 
-    <!-- 右侧：顶栏（页面标题 + 头像下拉）+ 内容区 -->
-    <div class="main">
-      <header class="topbar">
-        <div class="crumb">{{ pageTitle }}</div>
-        <UserAvatarMenu :profile-path="profilePath" :introduction-path="introductionPath" :settings-path="settingsPath" />
-      </header>
+    <!-- 主体：左侧导航（固定 220px）+ 右侧内容区 -->
+    <div class="body">
+      <aside class="side">
+        <nav class="nav">
+          <router-link
+            v-for="item in navItems"
+            :key="item.path"
+            :to="item.path"
+            class="nav-item"
+            active-class="active"
+          >
+            <span class="nav-label">{{ item.title }}</span>
+            <span
+              v-if="showBadge && item.key === unreadBadgeKey && unreadCount > 0"
+              class="nav-badge"
+            >{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </router-link>
+        </nav>
+      </aside>
+
       <main class="content">
         <router-view />
       </main>
@@ -60,13 +59,6 @@ const props = defineProps({
 
 const route = useRoute()
 const { appName } = useAppName()
-
-// 顶栏标题：优先取路由 meta.title，未配置时回退菜单第一项标题
-const pageTitle = computed(() => {
-  const t = route.meta && route.meta.title
-  if (t) return t
-  return (props.navItems[0] && props.navItems[0].title) || ''
-})
 
 // ===== 公告未读角标（轻量轮询，仅导师/学生布局开启） =====
 const unreadCount = ref(0)
@@ -123,8 +115,42 @@ onUnmounted(() => {
 <style scoped>
 .role-layout {
   display: flex;
+  flex-direction: column;
   height: 100%;
   background: #f5f7fa;
+}
+.topbar {
+  flex-shrink: 0;
+  height: 56px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.brand-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+.brand-name {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2329;
+  white-space: nowrap;
+}
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
 }
 .side {
   width: 220px;
@@ -134,32 +160,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
 }
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 18px;
-  border-bottom: 1px solid #eef0f3;
-}
-.brand-logo {
-  width: 30px;
-  height: 30px;
-  object-fit: contain;
-}
-.brand-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: #1f2329;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .nav {
   flex: 1;
   padding: 12px 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow-y: auto;
 }
 .nav-item {
   display: flex;
@@ -201,34 +208,9 @@ onUnmounted(() => {
   color: #4f6ef7;
   font-weight: 600;
 }
-.side-foot {
-  padding: 12px 18px;
-  font-size: 12px;
-  color: #9aa1ac;
-  border-top: 1px solid #eef0f3;
-}
-.main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.topbar {
-  height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-}
-.crumb {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1f2329;
-}
 .content {
   flex: 1;
+  min-width: 0;
   overflow: auto;
 }
 </style>

@@ -35,5 +35,5 @@ CREATE TABLE IF NOT EXISTS `users` (
 -- 初始化唯一超级管理员（superadmin / SuperAdmin123）：仅当不存在 super_admin 角色时写入。
 -- must_change_password 默认 1 → 首次登录强制修改密码。
 INSERT INTO `users` (`username`, `password_hash`, `role`, `real_name`)
-SELECT 'superadmin', '$2a$10$lc8GHwTQ050TX1P.dLif9unHkgrSvIvMERR8Nn99VjWeYjUrvwBVi', 'super_admin', '超级管理员'
+SELECT 'superadmin', '$2a$10$lc8GHwTQ050TX1P.dLif9unHkgrSvIvMERR8Nn99VjWeYjUrvwBVi', 'super_admin', '葱花'
 WHERE NOT EXISTS (SELECT 1 FROM `users` WHERE `role` = 'super_admin');

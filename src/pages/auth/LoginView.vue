@@ -78,7 +78,7 @@
     <!-- 下：页脚 -->
     <footer class="login-footer">
       <div class="footer-inner">
-        <span class="footer-copy">Copyright © 2025–{{ copyrightYear }} Gra Studio. All Rights Reserved. {{ appName }} 版权所有</span>
+        <span class="footer-copy">Copyright © 2025–{{ copyrightYear }} {{ appName }} 版权所有</span>
       </div>
     </footer>
 
@@ -295,10 +295,15 @@ async function onDeleteConfirmed(id) {
 }
 .brand-title {
   margin: 0;
+  max-width: 60vw;
+  min-width: 0;
   font-size: 26px;
   font-weight: 600;
   letter-spacing: 1px;
   color: #1f2329;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .login-main {
   flex: 1 1 auto;
@@ -492,8 +497,13 @@ async function onDeleteConfirmed(id) {
   justify-content: center;
 }
 .footer-copy {
+  max-width: 80vw;
+  min-width: 0;
   font-size: 12px;
   color: #8a9099;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .privacy-overlay {
   position: fixed;

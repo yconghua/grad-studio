@@ -96,9 +96,13 @@ const profilePath = '/guide/profile'
   object-fit: contain;
 }
 .brand-name {
+  min-width: 0;
   font-size: 15px;
   font-weight: 700;
   color: #1f2329;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .guide-main {
   flex: 1;

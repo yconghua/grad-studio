@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS `system_configs` (
 
 -- 初始化基础系统参数：仅在对应参数不存在时写入
 INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `description`)
-SELECT 'system.name', '课题组科研管理平台', 'string', '系统名称'
+SELECT 'system.name', 'TEST平台', 'string', '系统名称'
 WHERE NOT EXISTS (SELECT 1 FROM `system_configs` WHERE `config_key` = 'system.name');
 
 INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `description`)
-SELECT 'system.introduction', '课题组科研管理平台：面向高校课题组的协作与管理工具，支持用户管理、课题组设置、成员与师生关系管理。', 'string', '系统简介'
+SELECT 'system.introduction', 'TEST平台：面向高校的协作与管理工具，支持用户管理、课题组设置、成员与师生关系管理。', 'string', '系统简介'
 WHERE NOT EXISTS (SELECT 1 FROM `system_configs` WHERE `config_key` = 'system.introduction');
