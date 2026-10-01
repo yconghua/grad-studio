@@ -75,9 +75,11 @@ async function getDatabaseInfo() {
   if (!config) {
     return { type: 'MySQL', connected: false, version: '', tableCount: 0, activeConnections: 0, ...meta }
   }
-  let conn
+  let acquired = null
   try {
-    conn = await acquireConn()
+    // acquireConn 返回 { conn, release }，须先解构出连接再执行查询
+    acquired = await acquireConn()
+    const { conn } = acquired
     const [verRows] = await conn.execute('SELECT VERSION() AS v')
     const [tblRows] = await conn.execute(
       'SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema = DATABASE()'
@@ -96,7 +98,7 @@ async function getDatabaseInfo() {
   } catch (err) {
     return { type: 'MySQL', connected: false, version: '', tableCount: 0, activeConnections: 0, error: err.message, ...meta }
   } finally {
-    if (conn) conn.release()
+    if (acquired && acquired.release) acquired.release()
   }
 }
 
