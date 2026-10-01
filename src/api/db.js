@@ -26,3 +26,16 @@ export function pickAttachment() {
 export function openAttachment(path) {
   return window.api.sys.openAttachment({ path })
 }
+// 程序操作：打开控制台 / 程序目录 / 数据目录
+export function openDevConsole() {
+  return window.api.sys.openDevConsole()
+}
+export function openAppFolder() {
+  return window.api.sys.openAppFolder()
+}
+export function openDataFolder() {
+  return window.api.sys.openDataFolder()
+}
+export function clearCache() {
+  return window.api.sys.clearCache()
+}

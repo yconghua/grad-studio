@@ -116,6 +116,10 @@ contextBridge.exposeInMainWorld('api', {
     deleteDb: createInvoke('sys:delete-db'),
     exportDb: createInvoke('sys:export-db'),
     pickAttachment: createInvoke('sys:pick-attachment'),
-    openAttachment: createInvoke('sys:open-attachment')
+    openAttachment: createInvoke('sys:open-attachment'),
+    openDevConsole: createInvoke('sys:open-dev-console'),
+    openAppFolder: createInvoke('sys:open-app-folder'),
+    openDataFolder: createInvoke('sys:open-data-folder'),
+    clearCache: createInvoke('sys:clear-cache')
   }
 })

@@ -41,7 +41,19 @@
       </div>
     </div>
 
-    <!-- 块 3：系统参数 -->
+    <!-- 块 3：程序操作 -->
+    <div class="panel">
+      <p class="panel-title">程序操作</p>
+      <div class="toolbar" style="margin-top: 8px">
+        <button class="btn" @click="doOpenDevConsole">打开控制台</button>
+        <button class="btn" @click="doOpenAppFolder">打开程序所在文件夹目录</button>
+        <button class="btn" @click="doOpenDataFolder">打开数据文件夹目录</button>
+        <button class="btn" @click="doClearCache">清除缓存</button>
+      </div>
+      <p class="hint" style="margin-top: 10px">控制台为渲染层开发者工具；数据文件夹存放应用配置与上传附件等</p>
+    </div>
+
+    <!-- 块 4：系统参数 -->
     <div class="panel">
       <div style="display: flex; align-items: center; justify-content: space-between">
         <p class="panel-title" style="margin: 0">系统参数</p>
@@ -136,7 +148,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, deleteParam, exportDb } from '../../api'
+import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, deleteParam, exportDb, openDevConsole, openAppFolder, openDataFolder, clearCache } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 
@@ -245,6 +257,29 @@ async function doExportDb() {
     else dialogAlert((res && res.message) || '导出失败')
   } finally {
     dbExporting.value = false
+  }
+}
+
+// 程序操作：打开控制台 / 程序目录 / 数据目录
+async function doOpenDevConsole() {
+  const res = await openDevConsole()
+  if (!res || !res.success) dialogAlert((res && res.message) || '打开控制台失败')
+}
+async function doOpenAppFolder() {
+  const res = await openAppFolder()
+  if (!res || !res.success) dialogAlert((res && res.message) || '打开程序目录失败')
+}
+async function doOpenDataFolder() {
+  const res = await openDataFolder()
+  if (!res || !res.success) dialogAlert((res && res.message) || '打开数据目录失败')
+}
+// 清除缓存后全局刷新，让新资源生效
+async function doClearCache() {
+  const res = await clearCache()
+  if (res && res.success) {
+    await refreshAfterWrite('缓存清除成功')
+  } else {
+    dialogAlert((res && res.message) || '清除缓存失败')
   }
 }
 
