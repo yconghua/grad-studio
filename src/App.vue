@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import AppDialog from './components/AppDialog.vue'
+import { AppDialog } from './components/dialogs'
 // 根组件：承载路由出口 + 全局弹窗；具体布局由各角色布局（layouts/*Layout.vue）提供。
 </script>
 

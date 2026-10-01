@@ -130,7 +130,7 @@ import { login, deleteDb, getDbInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
 import { useAppName } from '../../composables/useAppName'
 import { ROLE_HOME } from '../../router'
-import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/db'
+import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/dialogs'
 import logoUrl from '../../assets/logo.ico'
 
 const { setSession } = useSession()

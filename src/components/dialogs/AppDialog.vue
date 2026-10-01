@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { dialogState, dialogClose } from '../composables/useDialog'
+import { dialogState, dialogClose } from '../../composables/useDialog'
 
 // 确定：alert/confirm 返回 true，prompt 返回输入值
 function onOk() {
