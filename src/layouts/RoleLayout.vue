@@ -24,7 +24,7 @@
     <div class="main">
       <header class="topbar">
         <div class="crumb">{{ pageTitle }}</div>
-        <UserAvatarMenu :profile-path="profilePath" :settings-path="settingsPath" />
+        <UserAvatarMenu :profile-path="profilePath" :introduction-path="introductionPath" :settings-path="settingsPath" />
       </header>
       <main class="content">
         <router-view />
@@ -46,6 +46,7 @@ const props = defineProps({
   navItems: { type: Array, required: true },
   homePath: { type: String, required: true },
   profilePath: { type: String, required: true },
+  introductionPath: { type: String, required: true },
   settingsPath: { type: String, required: true }
 })
 

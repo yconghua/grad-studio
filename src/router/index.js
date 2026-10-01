@@ -53,6 +53,7 @@ const routes = [
       { path: 'groups', name: 'admin-groups', component: () => import('../pages/admin/AdminGroupList.vue'), meta: { title: '课题组设置' } },
       { path: 'system', name: 'admin-system', component: () => import('../pages/admin/AdminSystemConfig.vue'), meta: { title: '系统配置' } },
       { path: 'profile', name: 'admin-profile', component: () => import('../pages/admin/AdminProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'system-intro', name: 'admin-system-intro', component: () => import('../pages/admin/AdminSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'admin-settings', component: () => import('../pages/admin/AdminSettings.vue'), meta: { title: '设置' } },
       { path: '', redirect: SUPER_ADMIN_HOME }
     ]
@@ -67,6 +68,7 @@ const routes = [
       { path: 'group', name: 'group-admin-group', component: () => import('../pages/group-admin/GroupAdminGroupSetting.vue'), meta: { title: '课题组设置' } },
       { path: 'members', name: 'group-admin-members', component: () => import('../pages/group-admin/GroupAdminMemberManage.vue'), meta: { title: '课题组成员' } },
       { path: 'profile', name: 'group-admin-profile', component: () => import('../pages/group-admin/GroupAdminProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'system-intro', name: 'group-admin-system-intro', component: () => import('../pages/group-admin/GroupAdminSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'group-admin-settings', component: () => import('../pages/group-admin/GroupAdminSettings.vue'), meta: { title: '设置' } },
       { path: '', redirect: GROUP_ADMIN_HOME }
     ]
@@ -80,6 +82,7 @@ const routes = [
       { path: 'dashboard', name: 'mentor-dashboard', component: () => import('../pages/mentor/MentorDashboard.vue'), meta: { title: '工作台' } },
       { path: 'students', name: 'mentor-students', component: () => import('../pages/mentor/MentorStudentList.vue'), meta: { title: '我的学生' } },
       { path: 'profile', name: 'mentor-profile', component: () => import('../pages/mentor/MentorProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'system-intro', name: 'mentor-system-intro', component: () => import('../pages/mentor/MentorSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'mentor-settings', component: () => import('../pages/mentor/MentorSettings.vue'), meta: { title: '设置' } },
       { path: '', redirect: MENTOR_HOME }
     ]
@@ -92,6 +95,7 @@ const routes = [
     children: [
       { path: 'dashboard', name: 'student-dashboard', component: () => import('../pages/student/StudentDashboard.vue'), meta: { title: '工作台' } },
       { path: 'profile', name: 'student-profile', component: () => import('../pages/student/StudentProfile.vue'), meta: { title: '个人资料' } },
+      { path: 'system-intro', name: 'student-system-intro', component: () => import('../pages/student/StudentSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'student-settings', component: () => import('../pages/student/StudentSettings.vue'), meta: { title: '设置' } },
       { path: '', redirect: STUDENT_HOME }
     ]

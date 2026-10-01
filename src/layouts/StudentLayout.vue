@@ -3,6 +3,7 @@
     :nav-items="STUDENT_NAV"
     :home-path="STUDENT_HOME"
     profile-path="/student/profile"
+    introduction-path="/student/system-intro"
     settings-path="/student/settings"
   />
 </template>

@@ -3,6 +3,7 @@
     :nav-items="SUPER_ADMIN_NAV"
     :home-path="SUPER_ADMIN_HOME"
     profile-path="/admin/profile"
+    introduction-path="/admin/system-intro"
     settings-path="/admin/settings"
   />
 </template>

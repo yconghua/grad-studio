@@ -30,12 +30,19 @@ function sanitize(value) {
   return out
 }
 
+// 把渲染层的 Vue 响应式 Proxy / 特殊对象脱壳为结构化克隆可传递的普通对象，
+// 否则 ipcRenderer.invoke 会抛 "An object could not be cloned"
+function toPlain(value) {
+  if (value === undefined || value === null) return value
+  return JSON.parse(JSON.stringify(value))
+}
+
 // 工厂：把「某个 IPC 通道」固化成一个函数，调用时把唯一 payload 透传给主进程。
 const createInvoke = (channel) => async (payload) => {
   const t0 = Date.now()
   console.log(`[API→] ${channel}`, sanitize(payload))
   try {
-    const res = await ipcRenderer.invoke(channel, payload)
+    const res = await ipcRenderer.invoke(channel, toPlain(payload))
     const status = res && res.success === false ? 'FAIL' : 'OK'
     console.log(`[API←] ${channel} ${status} ${Date.now() - t0}ms`, res)
     return res

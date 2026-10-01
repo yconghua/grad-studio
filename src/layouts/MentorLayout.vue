@@ -3,6 +3,7 @@
     :nav-items="MENTOR_NAV"
     :home-path="MENTOR_HOME"
     profile-path="/mentor/profile"
+    introduction-path="/mentor/system-intro"
     settings-path="/mentor/settings"
   />
 </template>

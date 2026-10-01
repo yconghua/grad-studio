@@ -3,6 +3,7 @@
     :nav-items="GROUP_ADMIN_NAV"
     :home-path="GROUP_ADMIN_HOME"
     profile-path="/group-admin/profile"
+    introduction-path="/group-admin/system-intro"
     settings-path="/group-admin/settings"
   />
 </template>

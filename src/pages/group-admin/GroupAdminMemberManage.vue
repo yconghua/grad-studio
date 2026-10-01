@@ -275,7 +275,7 @@ function openAdd() {
 async function doAdd() {
   saving.value = true
   try {
-    const res = await addMembers({ userIds: checkedIds.value, role: addRole.value })
+    const res = await addMembers({ userIds: [...checkedIds.value], role: addRole.value })
     if (res && res.success) {
       dialogAlert(`成功加入 ${(res.data && res.data.added) || 0} 人`)
       showAdd.value = false
