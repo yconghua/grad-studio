@@ -63,6 +63,13 @@ function register(ipcMain) {
     return userService.updateProfile(id, data || {})
   }))
 
+  // 当前登录用户更新自己的资料（个人资料页）：仅需登录，修改主体为会话用户
+  ipcMain.handle('user:update-own-profile', handler(async (_evt, payload) => {
+    const u = await authService.getCurrentUser()
+    if (!u) throw new ApiError('未登录，请重新登录', 401)
+    return userService.updateOwnProfile(payload || {})
+  }))
+
   // 删除用户（物理删除）
   ipcMain.handle('user:delete', handler(async (_evt, payload) => {
     await requireSuperAdmin()

@@ -14,6 +14,10 @@ export function updateAccount(id, data = {}) {
 export function updateProfile(id, data = {}) {
   return window.api.user.updateProfile({ id, data })
 }
+// 当前登录用户更新自己的资料（个人资料页）
+export function updateOwnProfile(data = {}) {
+  return window.api.user.updateOwnProfile(data)
+}
 export function deleteUser(id) {
   return window.api.user.delete({ id })
 }

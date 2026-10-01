@@ -1,17 +1,8 @@
 <template>
-  <div class="page">
-    <div class="page-head">
-      <div>
-        <h2 class="page-title">个人资料</h2>
-        <p class="page-sub">超级管理员个人资料</p>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="empty">个人资料页面建设中，敬请期待</div>
-    </div>
-  </div>
+  <ProfileForm title="个人资料" subtitle="超级管理员个人资料" />
 </template>
 
 <script setup>
-// 超级管理员独立页面：个人资料（内容暂空，入口与路由可用）
+import ProfileForm from '../../components/profile/ProfileForm.vue'
+// 超级管理员独立页面：个人资料（复用公共表单组件）
 </script>

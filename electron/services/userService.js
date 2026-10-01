@@ -220,6 +220,32 @@ async function updateProfile(id, payload = {}) {
 }
 
 /**
+ * 更新当前登录用户自己的资料（个人资料页）
+ * 仅允许修改基本信息（真实姓名 / 手机号 / 邮箱 / 性别 / 头像）；
+ * 课题组 / 导师 / 角色等归属字段由管理员维护，此处不开放修改。
+ * 修改主体取自登录会话（me.id），不信任前端传入的用户 id。
+ */
+async function updateOwnProfile(payload = {}) {
+  const me = await authService.getCurrentUser()
+  if (!me) throw new ApiError('未登录，请重新登录', 401)
+  const { realName, phone, email, gender, avatar } = payload
+  const data = {}
+
+  if (realName !== undefined) data.real_name = String(realName).trim()
+  if (phone !== undefined) data.phone = String(phone).trim() || null
+  if (email !== undefined) data.email = String(email).trim() || null
+  if (gender !== undefined) {
+    const g = Number(gender)
+    if (![0, 1, 2].includes(g)) throw new ApiError('性别参数不合法', 400)
+    data.gender = g
+  }
+  if (avatar !== undefined) data.avatar = String(avatar).trim() || null
+
+  await userRepository.updateById(me.id, data)
+  return getUser(me.id)
+}
+
+/**
  * 删除用户（物理删除）：
  *   - 不能删除当前登录账号（含超级管理员自身）；
  *   - 超级管理员不可删除；
@@ -270,6 +296,7 @@ module.exports = {
   getUser,
   updateAccount,
   updateProfile,
+  updateOwnProfile,
   deleteUser,
   listCandidates,
   toUserDto

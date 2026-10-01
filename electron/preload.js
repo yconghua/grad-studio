@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld('api', {
     detail: createInvoke('user:detail'),
     updateAccount: createInvoke('user:update-account'),
     updateProfile: createInvoke('user:update-profile'),
+    updateOwnProfile: createInvoke('user:update-own-profile'),
     delete: createInvoke('user:delete'),
     candidates: createInvoke('user:candidates')
   },
