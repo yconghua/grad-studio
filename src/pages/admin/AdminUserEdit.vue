@@ -23,10 +23,10 @@
           </div>
           <div class="field">
             <label>角色</label>
-            <select v-model="account.role" class="select" :disabled="isSuper">
+            <select v-model="account.role" class="select" :disabled="isSuper()">
               <option v-for="(t, r) in ALL_ROLES_TEXT" :key="r" :value="r">{{ t }}</option>
             </select>
-            <p v-if="isSuper" class="hint">超级管理员角色不可修改</p>
+            <p v-if="isSuper()" class="hint">超级管理员角色不可修改</p>
           </div>
           <div class="field">
             <label>密码（留空表示不修改）</label>
@@ -39,11 +39,11 @@
           </div>
           <div class="field">
             <label>状态</label>
-            <select v-model="account.status" class="select" :disabled="isSuper">
+            <select v-model="account.status" class="select" :disabled="isSuper()">
               <option :value="1">启用</option>
               <option :value="0">禁用</option>
             </select>
-            <p v-if="isSuper" class="hint">超级管理员不可禁用</p>
+            <p v-if="isSuper()" class="hint">超级管理员不可禁用</p>
           </div>
         </div>
         <div class="modal-foot" style="padding: 0; border: none">
