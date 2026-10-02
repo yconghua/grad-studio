@@ -17,6 +17,7 @@ const groupMeetingRepository = require('../db/repositories/groupMeetingRepositor
 const groupMeetingParticipantRepository = require('../db/repositories/groupMeetingParticipantRepository')
 const authService = require('./authService')
 const userService = require('./userService')
+const notificationService = require('./notificationService')
 const ApiError = require('./apiError')
 const {
   ROLE_SUPER_ADMIN,
@@ -235,6 +236,8 @@ async function deleteGroup(id) {
     // 公告级联：先清已读，再删公告
     await groupNoticeReadRepository.deleteByGroupId(idNum)
     await groupNoticeRepository.deleteByGroupId(idNum)
+    // 通知中心级联：硬删该组公告/组会通知（聊天通知不存在，不涉及）
+    await notificationService.hardDeleteByGroup(idNum)
     await groupRepository.deleteById(idNum)
   })
   return true

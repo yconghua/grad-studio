@@ -74,6 +74,7 @@ const routes = [
       { path: 'system-intro', name: 'admin-system-intro', component: () => import('../pages/admin/AdminSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'admin-settings', component: () => import('../pages/admin/AdminSettings.vue'), meta: { title: '设置' } },
       { path: 'chat', name: 'admin-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } },
+      { path: 'notifications', name: 'admin-notifications', component: () => import('../pages/notification/NotificationCenter.vue'), meta: { title: '通知中心' } },
       { path: '', redirect: SUPER_ADMIN_HOME }
     ]
   },
@@ -92,6 +93,7 @@ const routes = [
       { path: 'system-intro', name: 'group-admin-system-intro', component: () => import('../pages/group-admin/GroupAdminSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'group-admin-settings', component: () => import('../pages/group-admin/GroupAdminSettings.vue'), meta: { title: '设置' } },
       { path: 'chat', name: 'group-admin-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } },
+      { path: 'notifications', name: 'group-admin-notifications', component: () => import('../pages/notification/NotificationCenter.vue'), meta: { title: '通知中心' } },
       { path: '', redirect: GROUP_ADMIN_HOME }
     ]
   },
@@ -109,6 +111,7 @@ const routes = [
       { path: 'system-intro', name: 'mentor-system-intro', component: () => import('../pages/mentor/MentorSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'mentor-settings', component: () => import('../pages/mentor/MentorSettings.vue'), meta: { title: '设置' } },
       { path: 'chat', name: 'mentor-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } },
+      { path: 'notifications', name: 'mentor-notifications', component: () => import('../pages/notification/NotificationCenter.vue'), meta: { title: '通知中心' } },
       { path: '', redirect: MENTOR_HOME }
     ]
   },
@@ -125,6 +128,7 @@ const routes = [
       { path: 'system-intro', name: 'student-system-intro', component: () => import('../pages/student/StudentSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'student-settings', component: () => import('../pages/student/StudentSettings.vue'), meta: { title: '设置' } },
       { path: 'chat', name: 'student-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } },
+      { path: 'notifications', name: 'student-notifications', component: () => import('../pages/notification/NotificationCenter.vue'), meta: { title: '通知中心' } },
       { path: '', redirect: STUDENT_HOME }
     ]
   },

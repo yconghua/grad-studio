@@ -8,6 +8,7 @@
     unread-polling
     unread-badge-key="student-notices"
     chat-unread-badge-key="student-chat"
+    notification-badge-key="student-notifications"
   />
 </template>
 

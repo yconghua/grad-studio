@@ -29,6 +29,10 @@
               v-if="showChatBadge && item.key === chatUnreadBadgeKey && chatUnreadCount > 0"
               class="nav-badge"
             >{{ chatUnreadCount > 99 ? '99+' : chatUnreadCount }}</span>
+            <span
+              v-if="showNotificationBadge && item.key === notificationBadgeKey && notificationUnreadCount > 0"
+              class="nav-badge"
+            >{{ notificationUnreadCount > 99 ? '99+' : notificationUnreadCount }}</span>
           </router-link>
         </nav>
       </aside>
@@ -42,9 +46,11 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import UserAvatarMenu from '../components/layout/UserAvatarMenu.vue'
 import { useAppName } from '../composables/useAppName'
+import { useSession } from '../composables/useSession'
+import { pathForBiz } from '../config/notificationRoutes'
 import logoUrl from '../assets/logo.ico'
 
 // 布局外壳（角色布局共用的框架组件）：
@@ -61,10 +67,15 @@ const props = defineProps({
   unreadBadgeKey: { type: String, default: '' },
   // 聊天未读角标：传入导航中聊天项的 key 即开启（四个角色都传），
   // 与公告角标并存；数据源为主进程 ChatPoller 推送 + 挂载/聚焦时主动拉取
-  chatUnreadBadgeKey: { type: String, default: '' }
+  chatUnreadBadgeKey: { type: String, default: '' },
+  // 通知中心未读角标：传入导航中通知中心项的 key 即开启（四个角色都传），
+  // 数据源为主进程 NotificationPoller 推送 + 挂载/聚焦时主动拉取
+  notificationBadgeKey: { type: String, default: '' }
 })
 
 const route = useRoute()
+const router = useRouter()
+const { getSessionUser } = useSession()
 const { appName } = useAppName()
 
 // 聊天页（* -chat 路由）占满内容区：聊天界面自带内部滚动，外层不再滚动，避免双层滚动条
@@ -103,11 +114,12 @@ async function refreshUnread() {
 let timer = null
 function onFocus() {
   refreshUnread()
+  refreshNotificationUnread()
 }
 
 onMounted(() => {
   refreshUnread()
-  if (showBadge.value) {
+  if (showBadge.value || showNotificationBadge.value) {
     // 轮询间隔 30 秒；窗口重新聚焦、路由切换时也主动拉一次
     timer = setInterval(refreshUnread, 30000)
     window.addEventListener('focus', onFocus)
@@ -115,6 +127,8 @@ onMounted(() => {
 })
 
 watch(() => route.path, refreshUnread)
+// 路由切换时顺带刷新通知角标（点击消息跳转业务页再返回，角标立即更新，不等轮询）
+watch(() => route.path, refreshNotificationUnread)
 
 // ===== 聊天未读角标（主进程 ChatPoller 事件驱动 + 挂载/聚焦时主动拉一次） =====
 const chatUnreadCount = ref(0)
@@ -147,6 +161,45 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (unsubChatEvent) unsubChatEvent()
+})
+
+// ===== 通知中心未读角标（主进程 NotificationPoller 事件驱动 + 挂载/聚焦时主动拉一次） =====
+const notificationUnreadCount = ref(0)
+const showNotificationBadge = computed(() => !!props.notificationBadgeKey)
+let unsubNotificationEvent = null
+
+async function refreshNotificationUnread() {
+  if (!showNotificationBadge.value) return
+  try {
+    const res = await window.api.notification.unreadCount()
+    if (res && res.success) {
+      notificationUnreadCount.value = Number((res.data || {}).unreadCount) || 0
+    }
+  } catch (e) {
+    // 拉取失败静默忽略，等待下一次事件推送或聚焦重试
+  }
+}
+
+// 事件驱动：NotificationPoller 推送 unreadTotal 更新角标；
+// type='navigate'（点击系统通知）时按业务类型跳转对应路由
+function onNotificationPush(data) {
+  if (!data) return
+  if (data.unreadTotal !== undefined) {
+    notificationUnreadCount.value = Number(data.unreadTotal) || 0
+  }
+  if (data.type === 'navigate' && data.bizType) {
+    const user = getSessionUser()
+    router.push(pathForBiz(data.bizType, user && user.role))
+  }
+}
+
+onMounted(() => {
+  refreshNotificationUnread()
+  unsubNotificationEvent = window.api.notification.onEvent(onNotificationPush)
+})
+
+onUnmounted(() => {
+  if (unsubNotificationEvent) unsubNotificationEvent()
 })
 
 onUnmounted(() => {

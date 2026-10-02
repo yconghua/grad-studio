@@ -15,6 +15,10 @@
     </div>
 
     <div class="panel">
+      <NotificationRecentCard @go="goNotifications" />
+    </div>
+
+    <div class="panel">
       <p class="panel-title">最近会议</p>
       <template v-if="recentMeeting">
         <div class="desc-list">
@@ -41,12 +45,19 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { listMyStudents, getRecentMeeting } from '../../api'
 import { useSession } from '../../composables/useSession'
+import NotificationRecentCard from '../../components/notification/NotificationRecentCard.vue'
 
 // 导师独立工作台（与其他角色工作台为独立文件）
 const { getSessionUser } = useSession()
 const user = getSessionUser()
+const router = useRouter()
+
+function goNotifications() {
+  router.push('/mentor/notifications')
+}
 
 const statStudents = ref('-')
 const recentMeeting = ref(null)

@@ -6,6 +6,7 @@
     introduction-path="/group-admin/system-intro"
     settings-path="/group-admin/settings"
     chat-unread-badge-key="group-admin-chat"
+    notification-badge-key="group-admin-notifications"
   />
 </template>
 

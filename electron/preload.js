@@ -13,6 +13,7 @@
  *   notice    课题组公告                                       → notice:*
  *   meeting   课题组组会                                       → meeting:*
  *   chat      一对一聊天（全平台，含主进程实时推送订阅）         → chat:*
+ *   notification 通知中心（全平台，含主进程实时推送订阅）        → notification:*
  *   system    系统配置与公共系统接口                           → system:*
  *   sys       系统基础设施：数据库连接管理 / 附件 / 系统信息    → sys:*
  *
@@ -157,6 +158,22 @@ contextBridge.exposeInMainWorld('api', {
       const listener = (_evt, data) => cb(data)
       ipcRenderer.on('chat:event', listener)
       return () => ipcRenderer.removeListener('chat:event', listener)
+    }
+  },
+  // 通知中心（对应 ipc/notification.js，通道前缀 notification:*）
+  notification: {
+    list: createInvoke('notification:list'),
+    unreadCount: createInvoke('notification:unread-count'),
+    markRead: createInvoke('notification:mark-read'),
+    markAllRead: createInvoke('notification:mark-all-read'),
+    delete: createInvoke('notification:delete'),
+    clearRead: createInvoke('notification:clear-read'),
+    listTypes: createInvoke('notification:list-types'),
+    // 主进程实时推送订阅（notificationPoller 发现新通知/未读变化时触发）；返回取消订阅函数
+    onEvent: (cb) => {
+      const listener = (_evt, data) => cb(data)
+      ipcRenderer.on('notification:event', listener)
+      return () => ipcRenderer.removeListener('notification:event', listener)
     }
   },
   // 系统配置与公共系统接口（对应 ipc/system.js，通道前缀 system:*）

@@ -24,6 +24,7 @@ const groupRoutes = require('./group')
 const noticeRoutes = require('./notice')
 const meetingRoutes = require('./meeting')
 const chatRoutes = require('./chat')
+const notificationRoutes = require('./notification')
 const systemRoutes = require('./system')
 const sysRoutes = require('./sys')
 
@@ -74,6 +75,7 @@ function registerAll(ipcMain) {
   noticeRoutes.register(logger)
   meetingRoutes.register(logger)
   chatRoutes.register(logger)
+  notificationRoutes.register(logger)
   systemRoutes.register(logger)
   sysRoutes.register(logger)
 }

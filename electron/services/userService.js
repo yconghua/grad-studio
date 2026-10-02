@@ -16,6 +16,8 @@ const ApiError = require('./apiError')
 const passwordService = require('./passwordService')
 // 聊天数据清理：删除用户时标记会话/消息，双方都删的会话整体硬删
 const chatService = require('./chatService')
+// 通知数据清理：删除用户时硬删其全部通知
+const notificationService = require('./notificationService')
 const { runTransaction } = require('../db/connection')
 const {
   ROLE_SUPER_ADMIN,
@@ -397,6 +399,8 @@ async function deleteUser(id) {
   await runTransaction(async () => {
     // 聊天数据清理：标记成员与消息；双方都删的会话（会话表+成员+消息）整体硬删
     await chatService.markUserDeleted(idNum)
+    // 通知数据清理：硬删该用户全部通知
+    await notificationService.purgeByUserDelete(idNum)
     if (row.role === ROLE_MENTOR) {
       // 删除导师：先清空名下学生绑定，再物理删除，学生变为已入组未指定导师
       removedStudentCount = await userRepository.clearMentorBindings(idNum)

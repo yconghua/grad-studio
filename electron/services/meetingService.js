@@ -18,6 +18,7 @@ const groupMeetingParticipantRepository = require('../db/repositories/groupMeeti
 const groupNoticeRepository = require('../db/repositories/groupNoticeRepository')
 const authService = require('./authService')
 const groupService = require('./groupService')
+const notificationService = require('./notificationService')
 const ApiError = require('./apiError')
 const {
   ROLE_SUPER_ADMIN,
@@ -344,22 +345,39 @@ async function createMeeting(data = {}) {
   if (status === MEETING_STATUS_PUBLISHED && participantIds.length === 0) {
     throw new ApiError('已发布的会议至少需要一位参与人', 400)
   }
+  const title = assertTitle(data.title)
+  const meetingTime = assertMeetingTime(data.meetingTime)
+  const location = assertLocation(data.location)
+  const agenda = assertAgenda(data.agenda)
+  const content = assertContent(data.content)
 
   const id = await runTransaction(async () => {
     const meetingId = await groupMeetingRepository.create({
       group_id: targetGroupId,
-      title: assertTitle(data.title),
-      meeting_time: assertMeetingTime(data.meetingTime),
-      location: assertLocation(data.location),
+      title,
+      meeting_time: meetingTime,
+      location,
       host_id: me.id,
-      agenda: assertAgenda(data.agenda),
-      content: assertContent(data.content),
+      agenda,
+      content,
       status,
       notice_id: null
     })
     await groupMeetingParticipantRepository.createMany(meetingId, participantIds)
     return meetingId
   })
+  // 通知中心：以已发布状态直接创建 → 通知全部参与人（草稿创建不发）
+  if (status === MEETING_STATUS_PUBLISHED) {
+    await notificationService.createForUsers({
+      recipients: participantIds,
+      typeKey: 'meeting',
+      title,
+      summary: `${meetingTime}${location ? `，地点：${location}` : ''}`,
+      bizType: 'meeting',
+      bizId: id,
+      groupId: targetGroupId
+    })
+  }
   return getMeetingDetail(id)
 }
 
@@ -436,6 +454,17 @@ async function publishMeeting(id) {
       await groupMeetingParticipantRepository.deleteByMeetingAndUsers(meeting.id, staleIds)
     }
     await groupMeetingRepository.updateStatus(meeting.id, MEETING_STATUS_PUBLISHED)
+  })
+  // 通知中心：组会发布 → 通知全部有效参与人（标题=组会主题，摘要=时间+地点）
+  const participants = await groupMeetingParticipantRepository.listByMeeting(meeting.id)
+  await notificationService.createForUsers({
+    recipients: participants.map((p) => p.user_id),
+    typeKey: 'meeting',
+    title: meeting.title,
+    summary: `${meeting.meeting_time}${meeting.location ? `，地点：${meeting.location}` : ''}`,
+    bizType: 'meeting',
+    bizId: meeting.id,
+    groupId: meeting.group_id
   })
   return { removedCount: staleIds.length }
 }
@@ -515,6 +544,15 @@ async function publishAsNotice(id) {
     }
     return createdNoticeId
   })
+  // 通知中心：组会发布为公告 → 通知该组全部启用成员（与直接发公告同语义）
+  await notificationService.createForGroup({
+    groupId: meeting.group_id,
+    typeKey: 'notice',
+    title,
+    summary: Array.from(String(content).trim()).slice(0, 50).join(''),
+    bizType: 'notice',
+    bizId: noticeId
+  })
   return { noticeId }
 }
 
@@ -551,6 +589,8 @@ async function deleteMeeting(id) {
   await runTransaction(async () => {
     await groupMeetingParticipantRepository.deleteByMeeting(meeting.id)
     await groupMeetingRepository.deleteById(meeting.id)
+    // 通知中心：删除组会 → 关联通知软删（保留历史，不硬删）
+    await notificationService.softDeleteByBiz('meeting', meeting.id)
   })
   return true
 }

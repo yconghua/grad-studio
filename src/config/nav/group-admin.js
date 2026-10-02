@@ -4,6 +4,7 @@
  */
 export const GROUP_ADMIN_NAV = [
   { key: 'group-admin-dashboard', path: '/group-admin/dashboard', title: '工作台' },
+  { key: 'group-admin-notifications', path: '/group-admin/notifications', title: '通知中心' },
   { key: 'group-admin-group', path: '/group-admin/group', title: '课题组设置' },
   { key: 'group-admin-members', path: '/group-admin/members', title: '课题组成员' },
   { key: 'group-admin-notices', path: '/group-admin/notices', title: '本组公告管理' },

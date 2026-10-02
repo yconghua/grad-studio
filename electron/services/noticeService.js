@@ -15,6 +15,7 @@ const groupNoticeRepository = require('../db/repositories/groupNoticeRepository'
 const groupNoticeReadRepository = require('../db/repositories/groupNoticeReadRepository')
 const authService = require('./authService')
 const groupService = require('./groupService')
+const notificationService = require('./notificationService')
 const ApiError = require('./apiError')
 const {
   ROLE_SUPER_ADMIN,
@@ -207,6 +208,15 @@ async function createNotice({ groupId, title, content } = {}) {
     status: NOTICE_STATUS_PUBLISHED,
     publish_time: nowSql()
   })
+  // 通知中心：发布公告 → 通知该组全部启用成员（摘要取正文前 50 字，按码点安全截断）
+  await notificationService.createForGroup({
+    groupId: targetGroupId,
+    typeKey: 'notice',
+    title: assertTitle(title),
+    summary: Array.from(String(content).trim()).slice(0, 50).join(''),
+    bizType: 'notice',
+    bizId: id
+  })
   return getNotice(id)
 }
 
@@ -237,6 +247,8 @@ async function deleteNotice(id) {
   const notice = await assertManageable(me, id)
   await groupNoticeReadRepository.deleteByNoticeId(notice.id)
   await groupNoticeRepository.deleteById(notice.id)
+  // 通知中心：删除公告 → 关联通知软删（保留历史，不硬删）
+  await notificationService.softDeleteByBiz('notice', notice.id)
   return true
 }
 
