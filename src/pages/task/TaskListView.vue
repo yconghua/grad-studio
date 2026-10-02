@@ -63,10 +63,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="t in list" :key="t.id">
+            <tr v-for="t in list" :key="t.id" @click="!deletedMap[t.id] && openDetail(t)">
               <td>{{ t.id }}</td>
               <td class="ellipsis" style="max-width: 220px">
-                <span class="link" @click="goDetail(t.id)">{{ t.title }}</span>
+                <span class="title-cell">{{ t.title }}</span>
                 <span v-if="isOverdue(t)" class="overdue-mark">逾期</span>
               </td>
               <td class="ellipsis" style="max-width: 100px">{{ t.creatorName }}</td>
@@ -83,7 +83,7 @@
                 </div>
               </td>
               <td>
-                <div class="ops">
+                <div class="ops" @click.stop>
                   <button
                     v-if="deletedMap[t.id]"
                     class="btn btn-sm btn-green"
@@ -92,7 +92,7 @@
                   >恢复</button>
                   <template v-else>
                                         <template v-if="scope === 'mine-created'">
-                      <button class="btn btn-sm" type="button" @click="goEdit(t.id)">编辑</button>
+                      <button class="btn btn-sm" type="button" @click="openEdit(t.id)">编辑</button>
                       <button
                         v-if="t.status === 3"
                         class="btn btn-sm btn-green"
@@ -118,7 +118,7 @@
                         v-if="t.status === 1 || t.status === 2"
                         class="btn btn-sm"
                         type="button"
-                        @click="goDetail(t.id, { progress: true })"
+                        @click="openDetail(t, true)"
                       >提交进展</button>
                       <button
                         v-if="t.status === 2"
@@ -144,11 +144,29 @@
       </div>
     </template>
   </div>
+
+  <!-- 任务详情弹窗 / 任务编辑弹窗：列表内交互，不离开本页 -->
+  <TaskDetailDialog
+    v-if="detailVisible"
+    :task-id="detailId"
+    :initial-progress="detailProgress"
+    @close="detailVisible = false"
+    @edit="onDetailEdit"
+    @changed="load"
+  />
+  <TaskEditDialog
+    v-if="editVisible"
+    :task-id="editId"
+    @close="editVisible = false"
+    @saved="onEditSaved"
+  />
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import TaskDetailDialog from '../../components/task/TaskDetailDialog.vue'
+import TaskEditDialog from '../../components/task/TaskEditDialog.vue'
 import {
   listTasks,
   deleteTask,
@@ -277,11 +295,32 @@ function reset() {
 function goCreate() {
   router.push({ name: `${role}-task-create` })
 }
-function goDetail(id, query) {
-  router.push({ name: `${role}-task-detail`, params: { id }, query })
+
+// ===== 详情 / 编辑弹窗（行点击与按钮交互，不跳转页面） =====
+const detailVisible = ref(false)
+const detailId = ref(null)
+const detailProgress = ref(false)
+const editVisible = ref(false)
+const editId = ref(null)
+
+function openDetail(t, progress) {
+  detailId.value = t.id
+  detailProgress.value = !!progress
+  detailVisible.value = true
 }
-function goEdit(id) {
-  router.push({ name: `${role}-task-edit`, params: { id } })
+function openEdit(id) {
+  editId.value = id
+  editVisible.value = true
+}
+// 详情弹窗内「编辑」：先关详情，再开编辑弹窗
+function onDetailEdit(id) {
+  detailVisible.value = false
+  openEdit(id)
+}
+// 编辑保存成功后：关弹窗并刷新列表
+function onEditSaved() {
+  editVisible.value = false
+  load()
 }
 
 async function doVerify(t) {
@@ -395,12 +434,14 @@ onMounted(() => {
   color: var(--unread);
   font-size: 12px;
 }
-.link {
-  color: var(--primary);
+.title-cell {
+  color: var(--text-2-strong);
+}
+.tbl tbody tr {
   cursor: pointer;
 }
-.link:hover {
-  text-decoration: underline;
+.tbl tbody tr:hover {
+  background: var(--bg-hover);
 }
 .ops {
   display: flex;
