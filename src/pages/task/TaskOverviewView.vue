@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">任务总览</h2>
-        <p class="page-sub">按课题组分类查看成员参与的任务（全局只读，无操作权限）</p>
+        <p class="page-sub">按课题组展示组管 / 导师创建的任务（全局只读，点击行查看详情）</p>
       </div>
       <button class="btn" type="button" :disabled="!exportRows.length" @click="doExport">导出 CSV</button>
     </div>
@@ -42,52 +42,57 @@
       <button class="btn" type="button" @click="reset">重置</button>
     </div>
 
-    <!-- 按课题组分类 -->
+    <!-- 按课题组分类展示任务 -->
     <div v-if="loading" class="panel"><div class="empty">加载中…</div></div>
     <div v-else-if="groups.length === 0" class="panel"><div class="empty">暂无任务数据</div></div>
 
     <div v-for="g in groups" :key="g.groupId" class="panel group-panel">
-      <h3 class="group-title">{{ g.groupName }} <span class="group-count">{{ g.members.length }} 名成员</span></h3>
+      <h3 class="group-title">{{ g.groupName }} <span class="group-count">{{ g.tasks.length }} 个任务</span></h3>
 
       <table class="tbl">
         <thead>
           <tr>
-            <th>成员</th>
-            <th>角色</th>
+            <th>ID</th>
             <th>任务标题</th>
+            <th>创建人</th>
+            <th>创建人角色</th>
             <th>状态</th>
             <th>优先级</th>
             <th>截止时间</th>
             <th>进度</th>
-            <th>创建人</th>
           </tr>
         </thead>
         <tbody>
-          <template v-for="m in g.members" :key="m.userId">
-            <tr v-if="m.tasks.length === 0">
-              <td>{{ m.realName || m.username }}</td>
-              <td>{{ m.role === 'mentor' ? '导师' : '学生' }}</td>
-              <td colspan="6"><span class="no-task">无参与任务</span></td>
-            </tr>
-            <tr v-for="t in m.tasks" :key="m.userId + '-' + t.id">
-              <td class="ellipsis" style="max-width: 90px">{{ m.realName || m.username }}</td>
-              <td>{{ m.role === 'mentor' ? '导师' : '学生' }}</td>
-              <td class="ellipsis" style="max-width: 260px">{{ t.title }}</td>
-              <td><span :class="taskStatusTagClass(t.status)">{{ taskStatusText(t.status) }}</span></td>
-              <td><span :class="taskPriorityTagClass(t.priority)">{{ taskPriorityText(t.priority) }}</span></td>
-              <td>{{ t.dueTime || '-' }}</td>
-              <td>{{ t.progress }}%</td>
-              <td class="ellipsis" style="max-width: 90px">{{ t.creatorName }}</td>
-            </tr>
-          </template>
+          <tr v-for="t in g.tasks" :key="t.id" @click="openDetail(t)">
+            <td>{{ t.id }}</td>
+            <td class="ellipsis" style="max-width: 100px">{{ t.title }}</td>
+            <td class="ellipsis" style="max-width: 90px">{{ t.creatorName }}</td>
+            <td><span :class="creatorTagClass(t.creatorRole)">{{ creatorRoleText(t.creatorRole) }}</span></td>
+            <td><span :class="taskStatusTagClass(t.status)">{{ taskStatusText(t.status) }}</span></td>
+            <td><span :class="taskPriorityTagClass(t.priority)">{{ taskPriorityText(t.priority) }}</span></td>
+            <td>{{ t.dueTime || '-' }}</td>
+            <td>
+              <div class="prog">
+                <span class="prog-bar" :style="{ width: t.progress + '%' }"></span>
+                <span class="prog-num">{{ t.progress }}%</span>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="g.tasks.length === 0">
+            <td colspan="8"><span class="no-task">暂无任务</span></td>
+          </tr>
         </tbody>
       </table>
     </div>
   </div>
+
+  <!-- 任务详情弹窗（超管只读） -->
+  <TaskOverviewDialog v-if="detailVisible" :task-id="detailId" @close="detailVisible = false" />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import TaskOverviewDialog from '../../components/task/TaskOverviewDialog.vue'
 import { getTaskOverviewList, getTaskOverviewStats } from '../../api/task'
 import { dialogAlert } from '../../composables/useDialog'
 import { exportCsv } from '../../utils/csvExport'
@@ -107,30 +112,48 @@ const filterStatus = ref('')
 
 const groupOptions = computed(() => groups.value.map((g) => ({ groupId: g.groupId, groupName: g.groupName })))
 
-// 展平用于导出 CSV 的行
+// 创建人角色文案与标签（组管 / 导师）
+function creatorRoleText(role) {
+  if (role === 'group_admin') return '组管'
+  if (role === 'mentor') return '导师'
+  return role || '-'
+}
+function creatorTagClass(role) {
+  if (role === 'group_admin') return 'tag tag-role-group'
+  if (role === 'mentor') return 'tag tag-role-mentor'
+  return 'tag'
+}
+
+// 展平用于导出 CSV 的行（按任务，每任务一行）
 const exportRows = computed(() => {
   const rows = []
   for (const g of groups.value) {
-    for (const m of g.members) {
-      for (const t of m.tasks) {
-        rows.push({
-          group: g.groupName,
-          member: m.realName || m.username,
-          memberRole: m.role === 'mentor' ? '导师' : '学生',
-          taskId: t.id,
-          title: t.title,
-          status: taskStatusText(t.status),
-          priority: taskPriorityText(t.priority),
-          dueTime: t.dueTime || '',
-          progress: `${t.progress}%`,
-          creator: t.creatorName,
-          createdAt: t.createdAt
-        })
-      }
+    for (const t of g.tasks) {
+      rows.push({
+        group: g.groupName,
+        taskId: t.id,
+        title: t.title,
+        creator: t.creatorName,
+        creatorRole: creatorRoleText(t.creatorRole),
+        status: taskStatusText(t.status),
+        priority: taskPriorityText(t.priority),
+        dueTime: t.dueTime || '',
+        progress: `${t.progress}%`,
+        createdAt: t.createdAt
+      })
     }
   }
   return rows
 })
+
+// ===== 详情弹窗 =====
+const detailVisible = ref(false)
+const detailId = ref(null)
+
+function openDetail(t) {
+  detailId.value = t.id
+  detailVisible.value = true
+}
 
 async function loadStats() {
   const res = await getTaskOverviewStats()
@@ -166,15 +189,14 @@ function doExport() {
     exportRows.value,
     [
       { key: 'group', label: '课题组' },
-      { key: 'member', label: '成员' },
-      { key: 'memberRole', label: '角色' },
       { key: 'taskId', label: '任务ID' },
       { key: 'title', label: '任务标题' },
+      { key: 'creator', label: '创建人' },
+      { key: 'creatorRole', label: '创建人角色' },
       { key: 'status', label: '状态' },
       { key: 'priority', label: '优先级' },
       { key: 'dueTime', label: '截止时间' },
       { key: 'progress', label: '进度' },
-      { key: 'creator', label: '创建人' },
       { key: 'createdAt', label: '创建时间' }
     ]
   )
@@ -236,5 +258,34 @@ onMounted(() => {
 .no-task {
   color: var(--text-disabled);
   font-size: 13px;
+}
+.tbl tbody tr {
+  cursor: pointer;
+}
+.tbl tbody tr:hover {
+  background: var(--bg-hover);
+}
+.prog {
+  position: relative;
+  width: 90px;
+  height: 16px;
+  border-radius: var(--radius-md);
+  background: var(--border-light);
+  overflow: hidden;
+}
+.prog-bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+}
+.prog-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-2);
 }
 </style>

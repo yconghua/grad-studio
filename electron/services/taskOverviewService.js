@@ -3,7 +3,7 @@
  *
  * 权限模型：仅超级管理员可访问（当前会话角色校验，前端不可信）；
  * 超管不参与任何任务操作（不创建/编辑/删除/验收），本服务不提供写接口。
- * 数据形态：按课题组分类 → 组内成员（导师/学生）→ 成员参与的任务。
+ * 数据形态：按课题组分类 → 组管/导师创建的任务（每任务一行，不随参与人重复）。
  * 统计口径：全局任务数 / 完成率 / 逾期 / 待验收 / 按课题组分布 / 按创建角色分布。
  */
 const {
@@ -12,7 +12,6 @@ const {
   ROLE_MENTOR,
   ROLE_STUDENT
 } = require('../../shared/constants')
-const userRepository = require('../db/repositories/userRepository')
 const groupRepository = require('../db/repositories/groupRepository')
 const taskRepository = require('../db/repositories/taskRepository')
 const taskParticipantRepository = require('../db/repositories/taskParticipantRepository')
@@ -47,6 +46,7 @@ function toOverviewTaskDto(row) {
     title: row.title,
     creatorId: Number(row.creator_id),
     creatorName: displayName(row),
+    creatorRole: row.creator_role || '',
     status: Number(row.status),
     priority: Number(row.priority),
     dueTime: row.due_time || null,
@@ -57,16 +57,15 @@ function toOverviewTaskDto(row) {
 }
 
 /**
- * 全局任务总览：按课题组分类，每个课题组下列出成员及其参与的任务。
- * 支持按课题组 / 成员 / 状态筛选；只读数据，前端直接消费。
- * @param {{ groupId?:number, memberId?:number, status?:number|string }} filters
- * @returns {{ groups: Array<{ groupId, groupName, members: Array<{ userId, realName, role, tasks:Array }> }> }}
+ * 全局任务总览：按课题组分类，每个课题组下列出组管/导师创建的任务（每任务一行，不随参与人重复）。
+ * 支持按课题组 / 状态筛选；只读数据，前端直接消费。
+ * @param {{ groupId?:number, status?:number|string }} filters
+ * @returns {{ groups: Array<{ groupId, groupName, tasks: Array }> }}
  */
 async function overviewList(filters = {}) {
   await currentUser()
 
   const groupId = filters.groupId ? Number(filters.groupId) : null
-  const memberId = filters.memberId ? Number(filters.memberId) : null
   const status = filters.status === undefined || filters.status === null || filters.status === ''
     ? undefined
     : Number(filters.status)
@@ -77,25 +76,16 @@ async function overviewList(filters = {}) {
 
   const out = []
   for (const g of groups) {
-    const memberRows = await userRepository.listEnabledAudienceByGroup(g.id)
-    const members = []
-    for (const m of memberRows) {
-      const uid = Number(m.id)
-      if (memberId && uid !== memberId) continue
-      const tasks = await taskRepository.listAll({
-        groupId: g.id,
-        participantUserId: uid,
-        status
-      })
-      members.push({
-        userId: uid,
-        username: m.username,
-        realName: m.real_name || '',
-        role: m.role,
-        tasks: tasks.map(toOverviewTaskDto)
-      })
-    }
-    out.push({ groupId: g.id, groupName: g.name, members })
+    const tasks = await taskRepository.listAll({
+      groupId: g.id,
+      status,
+      creatorRoles: [ROLE_GROUP_ADMIN, ROLE_MENTOR]
+    })
+    out.push({
+      groupId: g.id,
+      groupName: g.name,
+      tasks: tasks.map(toOverviewTaskDto)
+    })
   }
   return { groups: out }
 }

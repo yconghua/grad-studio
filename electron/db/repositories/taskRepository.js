@@ -33,12 +33,18 @@ const ORDER_BY =
 /**
  * 按角色可见范围 + 筛选条件拼 WHERE（scope 在服务层收敛，本方法只负责拼接）。
  * @param {{ groupId?:number, creatorId?:number, participantUserId?:number, mentorId?:number,
- *           status?:number, statuses?:number[], priority?:number, keyword?:string }} p
+ *           status?:number, statuses?:number[], priority?:number, keyword?:string,
+ *           creatorRoles?:string[] }} p
  * @returns {{ where:string, values:any[] }}
  */
 function buildScopeWhere(p = {}) {
   const where = ['t.is_deleted = 0']
   const values = []
+  if (Array.isArray(p.creatorRoles) && p.creatorRoles.length > 0) {
+    const marks = p.creatorRoles.map(() => '?').join(', ')
+    where.push(`t.creator_role IN (${marks})`)
+    values.push(...p.creatorRoles)
+  }
   if (p.groupId) {
     where.push('t.group_id = ?')
     values.push(Number(p.groupId))
