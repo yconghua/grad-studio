@@ -7,6 +7,7 @@
     settings-path="/mentor/settings"
     unread-polling
     unread-badge-key="mentor-notices"
+    chat-unread-badge-key="mentor-chat"
   />
 </template>
 

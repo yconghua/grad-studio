@@ -7,7 +7,8 @@ export const GROUP_ADMIN_NAV = [
   { key: 'group-admin-group', path: '/group-admin/group', title: '课题组设置' },
   { key: 'group-admin-members', path: '/group-admin/members', title: '课题组成员' },
   { key: 'group-admin-notices', path: '/group-admin/notices', title: '本组公告管理' },
-  { key: 'group-admin-meetings', path: '/group-admin/meetings', title: '本组会议管理' }
+  { key: 'group-admin-meetings', path: '/group-admin/meetings', title: '本组会议管理' },
+  { key: 'group-admin-chat', path: '/group-admin/chat', title: '聊天' }
 ]
 
 // 登录后跳转的工作台

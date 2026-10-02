@@ -9,6 +9,8 @@ const crypto = require('node:crypto')
 const userRepository = require('../db/repositories/userRepository')
 const ApiError = require('./apiError')
 const passwordService = require('./passwordService')
+// 聊天实时推送：登录后启动、登出停止（依赖登录态，联动点收敛在认证服务）
+const chatPoller = require('./chatPoller')
 const { ROLE_SUPER_ADMIN, ACCOUNT_STATUS_ENABLED } = require('../../shared/constants')
 
 // 主进程内存中的当前登录用户（单用户桌面应用，同一时刻只允许一人登录）
@@ -50,14 +52,17 @@ async function login({ username, password } = {}) {
   }
   const safe = toSafeUser(user)
   currentUser = safe
+  // 登录后启动聊天实时推送（每 2 秒轮询共享库增量，有变化推给渲染层）
+  chatPoller.start(safe.id)
   return {
     token: crypto.randomUUID(), // 会话凭证（桌面单窗口下与前端 localStorage 会话配合使用）
     user: safe
   }
 }
 
-// 退出登录：清除内存登录态
+// 退出登录：停止聊天推送并清除内存登录态
 function logout() {
+  chatPoller.stop()
   currentUser = null
   return true
 }

@@ -7,6 +7,7 @@
     settings-path="/student/settings"
     unread-polling
     unread-badge-key="student-notices"
+    chat-unread-badge-key="student-chat"
   />
 </template>
 

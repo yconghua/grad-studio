@@ -5,7 +5,8 @@
 export const STUDENT_NAV = [
   { key: 'student-dashboard', path: '/student/dashboard', title: '工作台' },
   { key: 'student-notices', path: '/student/notices', title: '课题组公告' },
-  { key: 'student-meetings', path: '/student/meetings', title: '会议记录' }
+  { key: 'student-meetings', path: '/student/meetings', title: '会议记录' },
+  { key: 'student-chat', path: '/student/chat', title: '聊天' }
 ]
 
 // 登录后跳转的工作台

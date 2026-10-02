@@ -5,6 +5,7 @@
     profile-path="/group-admin/profile"
     introduction-path="/group-admin/system-intro"
     settings-path="/group-admin/settings"
+    chat-unread-badge-key="group-admin-chat"
   />
 </template>
 

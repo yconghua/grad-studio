@@ -44,8 +44,16 @@ export const ROLE_HOME = {
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
   { path: '/force-password', name: 'force-password', component: ForcePasswordView },
-  // 引导页：未入组 / 未指定导师 / 组管异常未绑定（无侧栏独立布局，角色判定在守卫）
-  { path: '/guide', name: 'guide', component: GuideView },
+  // 引导页布局（顶栏 + 左导航）：未入组 / 未指定导师 / 组管异常未绑定，
+  // 引导说明与聊天（全平台功能）都嵌入右内容区
+  {
+    path: '/guide',
+    component: GuideView,
+    children: [
+      { path: '', name: 'guide-home', component: () => import('../pages/guide/GuideHome.vue'), meta: { title: '引导' } },
+      { path: 'chat', name: 'guide-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } }
+    ]
+  },
   // 引导页风格的个人资料：引导状态下点「个人资料」进入，无侧栏，复用公共 ProfileForm
   { path: '/guide/profile', name: 'guide-profile', component: GuideProfileView },
   // ===== 超级管理员 =====
@@ -65,6 +73,7 @@ const routes = [
       { path: 'profile', name: 'admin-profile', component: () => import('../pages/admin/AdminProfile.vue'), meta: { title: '个人资料' } },
       { path: 'system-intro', name: 'admin-system-intro', component: () => import('../pages/admin/AdminSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'admin-settings', component: () => import('../pages/admin/AdminSettings.vue'), meta: { title: '设置' } },
+      { path: 'chat', name: 'admin-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } },
       { path: '', redirect: SUPER_ADMIN_HOME }
     ]
   },
@@ -82,6 +91,7 @@ const routes = [
       { path: 'profile', name: 'group-admin-profile', component: () => import('../pages/group-admin/GroupAdminProfile.vue'), meta: { title: '个人资料' } },
       { path: 'system-intro', name: 'group-admin-system-intro', component: () => import('../pages/group-admin/GroupAdminSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'group-admin-settings', component: () => import('../pages/group-admin/GroupAdminSettings.vue'), meta: { title: '设置' } },
+      { path: 'chat', name: 'group-admin-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } },
       { path: '', redirect: GROUP_ADMIN_HOME }
     ]
   },
@@ -98,6 +108,7 @@ const routes = [
       { path: 'profile', name: 'mentor-profile', component: () => import('../pages/mentor/MentorProfile.vue'), meta: { title: '个人资料' } },
       { path: 'system-intro', name: 'mentor-system-intro', component: () => import('../pages/mentor/MentorSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'mentor-settings', component: () => import('../pages/mentor/MentorSettings.vue'), meta: { title: '设置' } },
+      { path: 'chat', name: 'mentor-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } },
       { path: '', redirect: MENTOR_HOME }
     ]
   },
@@ -113,6 +124,7 @@ const routes = [
       { path: 'profile', name: 'student-profile', component: () => import('../pages/student/StudentProfile.vue'), meta: { title: '个人资料' } },
       { path: 'system-intro', name: 'student-system-intro', component: () => import('../pages/student/StudentSystemIntro.vue'), meta: { title: '系统简介' } },
       { path: 'settings', name: 'student-settings', component: () => import('../pages/student/StudentSettings.vue'), meta: { title: '设置' } },
+      { path: 'chat', name: 'student-chat', component: () => import('../pages/chat/ChatView.vue'), meta: { title: '聊天' } },
       { path: '', redirect: STUDENT_HOME }
     ]
   },
@@ -139,10 +151,10 @@ export function guideStateOf(user) {
   return null
 }
 
-// 引导状态下的放行路径：引导页本身 + 引导页风格的个人资料页（其他页面一律重定向引导页）；
-// 各角色个人资料页（/mentor/profile 等嵌套在角色布局内、带侧栏）在引导状态下
-// 统一重定向到 /guide/profile，避免引导用户被带出左侧导航。
-const GUIDE_ALLOWED_PATHS = ['/guide', '/guide/profile']
+// 引导状态下的放行路径：引导页本身（含嵌入的聊天页）+ 引导页风格的个人资料页
+// （其他页面一律重定向引导页）；各角色个人资料页（/mentor/profile 等嵌套在角色布局内、
+// 带侧栏）在引导状态下统一重定向到 /guide/profile，避免引导用户被带出左侧导航。
+const GUIDE_ALLOWED_PATHS = ['/guide', '/guide/chat', '/guide/profile']
 const GUIDE_ROLE_PROFILE_PATHS = ['/mentor/profile', '/student/profile', '/group-admin/profile']
 
 // 登录守卫：会话校验 + 强制改密拦截 + 角色越权拦截 + 引导页判定

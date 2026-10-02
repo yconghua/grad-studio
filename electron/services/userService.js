@@ -14,6 +14,8 @@ const groupRepository = require('../db/repositories/groupRepository')
 const authService = require('./authService')
 const ApiError = require('./apiError')
 const passwordService = require('./passwordService')
+// 聊天数据清理：删除用户时标记会话/消息，双方都删的会话整体硬删
+const chatService = require('./chatService')
 const { runTransaction } = require('../db/connection')
 const {
   ROLE_SUPER_ADMIN,
@@ -372,6 +374,8 @@ async function resetPassword(id) {
  *   - 超级管理员不可删除；
  *   - 导师：无条件清空名下所有学生的导师绑定（全平台，含跨组脏数据）后再删；
  *   - 课题组管理员仍绑定课题组时禁止删除（需先更换管理员）。
+ * 删除与聊天清理在同一事务：先标记该用户的聊天成员与消息、硬删双方都删的会话，
+ * 再执行原删除逻辑（清导师绑定 / 物理删用户），任一步失败整体回滚。
  * 返回 { removedStudentCount }（导师场景为解绑的学生数）。
  */
 async function deleteUser(id) {
@@ -384,22 +388,22 @@ async function deleteUser(id) {
   if (!row) throw new ApiError('用户不存在', 404)
   if (row.role === ROLE_SUPER_ADMIN) throw new ApiError('超级管理员不能被删除', 400)
 
-  if (row.role === ROLE_MENTOR) {
-    let removedStudentCount = 0
-    await runTransaction(async () => {
-      // 删除导师：先清空名下学生绑定，再物理删除，学生变为已入组未指定导师
-      removedStudentCount = await userRepository.clearMentorBindings(idNum)
-      await userRepository.deleteById(idNum)
-    })
-    return { removedStudentCount }
-  }
   if (row.role === ROLE_GROUP_ADMIN) {
     const group = await groupRepository.findByAdminUserId(idNum)
     if (group) throw new ApiError('该课题组管理员仍绑定课题组，请先更换管理员后再删除', 400)
   }
 
-  await userRepository.deleteById(idNum)
-  return true
+  let removedStudentCount = 0
+  await runTransaction(async () => {
+    // 聊天数据清理：标记成员与消息；双方都删的会话（会话表+成员+消息）整体硬删
+    await chatService.markUserDeleted(idNum)
+    if (row.role === ROLE_MENTOR) {
+      // 删除导师：先清空名下学生绑定，再物理删除，学生变为已入组未指定导师
+      removedStudentCount = await userRepository.clearMentorBindings(idNum)
+    }
+    await userRepository.deleteById(idNum)
+  })
+  return row.role === ROLE_MENTOR ? { removedStudentCount } : true
 }
 
 // 批量导入：角色文本 → 角色枚举（超级管理员不在可选范围）

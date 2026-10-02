@@ -10,6 +10,9 @@
  *   group     课题组管理（超管）                               → group:*
  *   groupAdmin 课题组管理员：本课题组设置与成员管理             → group-admin:*
  *   mentor    导师：我的学生                                   → mentor:*
+ *   notice    课题组公告                                       → notice:*
+ *   meeting   课题组组会                                       → meeting:*
+ *   chat      一对一聊天（全平台，含主进程实时推送订阅）         → chat:*
  *   system    系统配置与公共系统接口                           → system:*
  *   sys       系统基础设施：数据库连接管理 / 附件 / 系统信息    → sys:*
  *
@@ -136,6 +139,25 @@ contextBridge.exposeInMainWorld('api', {
     stats: createInvoke('meeting:stats'),
     memberOptions: createInvoke('meeting:member-options'),
     recent: createInvoke('meeting:recent')
+  },
+  // 一对一聊天（对应 ipc/chat.js，通道前缀 chat:*）
+  chat: {
+    openOrCreate: createInvoke('chat:open-or-create'),
+    listSessions: createInvoke('chat:list-sessions'),
+    getHistory: createInvoke('chat:get-history'),
+    getIncrement: createInvoke('chat:get-increment'),
+    sendMessage: createInvoke('chat:send-message'),
+    markRead: createInvoke('chat:mark-read'),
+    unreadCount: createInvoke('chat:unread-count'),
+    recallMessage: createInvoke('chat:recall-message'),
+    userOptions: createInvoke('chat:user-options'),
+    countSessions: createInvoke('chat:count-sessions'),
+    // 主进程实时推送订阅（chatPoller 发现新消息/撤回时触发）；返回取消订阅函数
+    onEvent: (cb) => {
+      const listener = (_evt, data) => cb(data)
+      ipcRenderer.on('chat:event', listener)
+      return () => ipcRenderer.removeListener('chat:event', listener)
+    }
   },
   // 系统配置与公共系统接口（对应 ipc/system.js，通道前缀 system:*）
   system: {

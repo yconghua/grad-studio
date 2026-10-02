@@ -313,6 +313,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { listUsers, createUser, listGroups, listCandidates, deleteUser, resetPassword, batchUpdateStatus, batchDeleteUsers, batchCreateUsers, downloadCsvTemplate, listAllUsernames, pickAttachment } from '../../api'
+import { countUserChatSessions } from '../../api/chat'
 import { parseCsvFile, parseCsvText, validatePreviewRows } from '../../utils/csvImport'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -363,7 +364,7 @@ async function batchStatus(st) {
 }
 
 async function batchDelete() {
-  const ok = await dialogConfirm(`确定删除选中的 ${selected.value.length} 个用户吗？删除不可恢复，且会级联清理相关数据。`)
+  const ok = await dialogConfirm(`确定删除选中的 ${selected.value.length} 个用户吗？删除不可恢复，且会级联清理相关数据（含聊天会话）。`)
   if (!ok) return
   const res = await batchDeleteUsers([...selected.value])
   if (res && res.success) {
@@ -411,7 +412,18 @@ function fmtDate(v) {
 }
 
 async function doDelete(u) {
-  const ok = await dialogConfirm(`确定删除用户「${u.username}」吗？删除后不可恢复。`)
+  // 删除前影响提示：该用户有 N 个进行中的会话，删除后对方将无法继续发送
+  let sessionTip = ''
+  try {
+    const cnt = await countUserChatSessions(u.id)
+    if (cnt && cnt.success) {
+      const n = Number((cnt.data || {}).count) || 0
+      if (n > 0) sessionTip = `\n该用户有 ${n} 个进行中的会话，删除后对方将无法继续发送。`
+    }
+  } catch (e) {
+    // 统计失败不阻断删除确认
+  }
+  const ok = await dialogConfirm(`确定删除用户「${u.username}」吗？删除后不可恢复。${sessionTip}`)
   if (!ok) return
   const res = await deleteUser(u.id)
   if (res && res.success) {

@@ -25,11 +25,15 @@
               v-if="showBadge && item.key === unreadBadgeKey && unreadCount > 0"
               class="nav-badge"
             >{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+            <span
+              v-if="showChatBadge && item.key === chatUnreadBadgeKey && chatUnreadCount > 0"
+              class="nav-badge"
+            >{{ chatUnreadCount > 99 ? '99+' : chatUnreadCount }}</span>
           </router-link>
         </nav>
       </aside>
 
-      <main class="content">
+      <main class="content" :class="{ 'is-chat': isChatPage }">
         <router-view />
       </main>
     </div>
@@ -54,11 +58,17 @@ const props = defineProps({
   introductionPath: { type: String, required: true },
   settingsPath: { type: String, required: true },
   unreadPolling: { type: Boolean, default: false },
-  unreadBadgeKey: { type: String, default: '' }
+  unreadBadgeKey: { type: String, default: '' },
+  // 聊天未读角标：传入导航中聊天项的 key 即开启（四个角色都传），
+  // 与公告角标并存；数据源为主进程 ChatPoller 推送 + 挂载/聚焦时主动拉取
+  chatUnreadBadgeKey: { type: String, default: '' }
 })
 
 const route = useRoute()
 const { appName } = useAppName()
+
+// 聊天页（* -chat 路由）占满内容区：聊天界面自带内部滚动，外层不再滚动，避免双层滚动条
+const isChatPage = computed(() => /-chat$/.test(String(route.name || '')))
 
 // ===== 公告未读角标（轻量轮询，仅导师/学生布局开启） =====
 const unreadCount = ref(0)
@@ -105,6 +115,39 @@ onMounted(() => {
 })
 
 watch(() => route.path, refreshUnread)
+
+// ===== 聊天未读角标（主进程 ChatPoller 事件驱动 + 挂载/聚焦时主动拉一次） =====
+const chatUnreadCount = ref(0)
+const showChatBadge = computed(() => !!props.chatUnreadBadgeKey)
+let unsubChatEvent = null
+
+async function refreshChatUnread() {
+  if (!showChatBadge.value) return
+  try {
+    const res = await window.api.chat.unreadCount()
+    if (res && res.success) {
+      chatUnreadCount.value = Number((res.data || {}).unreadCount) || 0
+    }
+  } catch (e) {
+    // 拉取失败静默忽略，等待下一次事件推送或聚焦重试
+  }
+}
+
+// 事件驱动：ChatPoller 每 2 秒检测共享库变化并推送 unreadTotal，直接更新角标
+function onChatPush(data) {
+  if (data && data.unreadTotal !== undefined) {
+    chatUnreadCount.value = Number(data.unreadTotal) || 0
+  }
+}
+
+onMounted(() => {
+  refreshChatUnread()
+  unsubChatEvent = window.api.chat.onEvent(onChatPush)
+})
+
+onUnmounted(() => {
+  if (unsubChatEvent) unsubChatEvent()
+})
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -212,5 +255,8 @@ onUnmounted(() => {
   flex: 1;
   min-width: 0;
   overflow: auto;
+}
+.content.is-chat {
+  overflow: hidden;
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div class="guide-layout">
-    <!-- 顶栏：品牌 + 极简头像下拉（引导页无左侧导航，只保留个人资料 / 退出登录） -->
+    <!-- 顶栏：品牌 + 极简头像下拉（引导页导航精简，只保留个人资料 / 退出登录） -->
     <header class="topbar">
       <div class="brand">
         <img :src="logoUrl" class="brand-logo" alt="平台标识" />
@@ -9,64 +9,87 @@
       <UserAvatarMenu :profile-path="profilePath" minimal />
     </header>
 
-    <!-- 引导内容：标题 + 正文，无图标 -->
-    <main class="guide-main">
-      <div class="guide-card">
-        <h2 class="guide-title">{{ title }}</h2>
-        <p class="guide-desc">{{ desc }}</p>
-      </div>
-    </main>
+    <!-- 主体：左侧导航（引导说明 / 聊天）+ 右侧内容区 -->
+    <div class="body">
+      <aside class="side">
+        <nav class="nav">
+          <router-link
+            v-for="item in guideNav"
+            :key="item.path"
+            :to="item.path"
+            class="nav-item"
+            active-class="active"
+          >
+            <span class="nav-label">{{ item.title }}</span>
+            <span
+              v-if="item.key === chatUnreadBadgeKey && chatUnreadCount > 0"
+              class="nav-badge"
+            >{{ chatUnreadCount > 99 ? '99+' : chatUnreadCount }}</span>
+          </router-link>
+        </nav>
+      </aside>
+
+      <main class="content" :class="{ 'is-chat': isChatPage }">
+        <router-view />
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import UserAvatarMenu from '../../components/layout/UserAvatarMenu.vue'
 import { useAppName } from '../../composables/useAppName'
-import { useSession } from '../../composables/useSession'
-import { ROLE_MENTOR, ROLE_STUDENT, ROLE_GROUP_ADMIN } from '../../config/constants'
 import logoUrl from '../../assets/logo.ico'
 
-// 引导页：未入组导师 / 未入组学生 / 已入组未指定导师学生 / 组管异常未绑定课题组
-// 四类状态共用同一页面，按 role / groupId / mentorId 计算文案，与服务端口径一致。
+// 引导布局（顶栏 + 左导航）：未入组 / 未指定导师 / 组管异常未绑定的兜底外壳，
+// 与角色布局同构；导航项 = 引导说明 + 聊天（聊天为全平台功能，未入组同样可用）。
+// 聊天未读角标由主进程 ChatPoller 推送 + 挂载时主动拉取（与 RoleLayout 同机制）。
+const route = useRoute()
 const { appName } = useAppName()
-const { getSessionUser } = useSession()
-const user = getSessionUser()
 
-const GUIDE_META = {
-  'mentor-no-group': {
-    title: '你还没有加入课题组',
-    desc: '请联系课题组管理员将你加入课题组。加入后即可查看组内公告、会议记录，并由组管为你指定名下学生。'
-  },
-  'student-no-group': {
-    title: '你还没有加入课题组',
-    desc: '请联系课题组管理员将你加入课题组。加入后即可查看组内公告和会议记录。'
-  },
-  'student-no-mentor': {
-    title: '你还没有指定导师',
-    desc: '你已加入课题组，但还没有指定导师。请联系课题组管理员为你指定导师。'
-  },
-  'admin-no-group': {
-    title: '你当前未绑定课题组',
-    desc: '请联系超级管理员为你重新绑定课题组。'
-  }
-}
+const guideNav = [
+  { key: 'guide-home', path: '/guide', title: '引导说明' },
+  { key: 'guide-chat', path: '/guide/chat', title: '聊天' }
+]
 
-const stateKey = computed(() => {
-  if (!user) return 'student-no-group'
-  if (user.role === ROLE_MENTOR || user.role === ROLE_STUDENT) {
-    if (!user.groupId) return user.role === ROLE_MENTOR ? 'mentor-no-group' : 'student-no-group'
-    if (user.role === ROLE_STUDENT && !user.mentorId) return 'student-no-mentor'
-  }
-  if (user.role === ROLE_GROUP_ADMIN && !user.groupId) return 'admin-no-group'
-  return 'student-no-group'
-})
-const meta = computed(() => GUIDE_META[stateKey.value] || GUIDE_META['student-no-group'])
-const title = computed(() => meta.value.title)
-const desc = computed(() => meta.value.desc)
+// 聊天页占满内容区：聊天界面自带内部滚动，外层不再滚动
+const isChatPage = computed(() => /-chat$/.test(String(route.name || '')))
 
 // 个人资料入口：引导页下拉统一指向引导页风格的个人资料页（无侧栏）
 const profilePath = '/guide/profile'
+
+// ===== 聊天未读角标（事件驱动 + 挂载/聚焦时主动拉一次） =====
+const chatUnreadBadgeKey = 'guide-chat'
+const chatUnreadCount = ref(0)
+let unsubChatEvent = null
+
+async function refreshChatUnread() {
+  try {
+    const res = await window.api.chat.unreadCount()
+    if (res && res.success) {
+      chatUnreadCount.value = Number((res.data || {}).unreadCount) || 0
+    }
+  } catch (e) {
+    // 拉取失败静默忽略，等待下一次事件推送或聚焦重试
+  }
+}
+
+function onChatPush(data) {
+  if (data && data.unreadTotal !== undefined) {
+    chatUnreadCount.value = Number(data.unreadTotal) || 0
+  }
+}
+
+onMounted(() => {
+  refreshChatUnread()
+  unsubChatEvent = window.api.chat.onEvent(onChatPush)
+})
+
+onUnmounted(() => {
+  if (unsubChatEvent) unsubChatEvent()
+})
 </script>
 
 <style scoped>
@@ -77,6 +100,7 @@ const profilePath = '/guide/profile'
   background: #f5f7fa;
 }
 .topbar {
+  flex-shrink: 0;
   height: 56px;
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
@@ -89,6 +113,7 @@ const profilePath = '/guide/profile'
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .brand-logo {
   width: 30px;
@@ -101,35 +126,74 @@ const profilePath = '/guide/profile'
   font-weight: 700;
   color: #1f2329;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.guide-main {
+.body {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+  min-height: 0;
 }
-.guide-card {
-  max-width: 460px;
+.side {
+  width: 220px;
+  flex-shrink: 0;
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 40px 44px;
-  text-align: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
 }
-.guide-title {
-  margin: 0 0 14px;
-  font-size: 20px;
-  font-weight: 700;
+.nav {
+  flex: 1;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #4b5563;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  box-sizing: border-box;
+}
+.nav-item:hover {
+  background: #f5f7fa;
   color: #1f2329;
 }
-.guide-desc {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.8;
-  color: #6b7280;
+.nav-item.active {
+  background: #eef2ff;
+  color: #4f6ef7;
+  font-weight: 600;
+}
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+.content.is-chat {
+  overflow: hidden;
 }
 </style>

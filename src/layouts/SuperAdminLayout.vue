@@ -5,6 +5,7 @@
     profile-path="/admin/profile"
     introduction-path="/admin/system-intro"
     settings-path="/admin/settings"
+    chat-unread-badge-key="admin-chat"
   />
 </template>
 
