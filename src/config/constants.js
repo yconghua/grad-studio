@@ -20,6 +20,17 @@ export const ROLE_STUDENT = sharedConstants.ROLE_STUDENT
 export const ACCOUNT_STATUS_ENABLED = sharedConstants.ACCOUNT_STATUS_ENABLED
 export const ACCOUNT_STATUS_DISABLED = sharedConstants.ACCOUNT_STATUS_DISABLED
 
+// ===== 任务状态 / 优先级 =====
+export const TASK_STATUS_TODO = sharedConstants.TASK_STATUS_TODO
+export const TASK_STATUS_DOING = sharedConstants.TASK_STATUS_DOING
+export const TASK_STATUS_REVIEW = sharedConstants.TASK_STATUS_REVIEW
+export const TASK_STATUS_DONE = sharedConstants.TASK_STATUS_DONE
+export const TASK_STATUS_CANCELED = sharedConstants.TASK_STATUS_CANCELED
+export const TASK_PRIORITY_LOW = sharedConstants.TASK_PRIORITY_LOW
+export const TASK_PRIORITY_MEDIUM = sharedConstants.TASK_PRIORITY_MEDIUM
+export const TASK_PRIORITY_HIGH = sharedConstants.TASK_PRIORITY_HIGH
+export const TASK_PRIORITY_URGENT = sharedConstants.TASK_PRIORITY_URGENT
+
 // ===== 角色默认密码 / 密码策略 =====
 export const DEFAULT_PASSWORD_BY_ROLE = sharedConstants.DEFAULT_PASSWORD_BY_ROLE
 export const PASSWORD_MIN_LENGTH = sharedConstants.PASSWORD_MIN_LENGTH

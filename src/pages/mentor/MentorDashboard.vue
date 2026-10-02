@@ -12,6 +12,18 @@
         <div class="num">{{ statStudents }}</div>
         <div class="label">我的学生</div>
       </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/mentor/tasks')">
+        <div class="num">{{ taskSummary.mineCreatedTotal || 0 }}</div>
+        <div class="label">我创建的任务</div>
+      </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/mentor/tasks?scope=mine-participated')">
+        <div class="num">{{ taskSummary.mineParticipatedTotal || 0 }}</div>
+        <div class="label">我参与的任务</div>
+      </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/mentor/tasks?scope=my-students')">
+        <div class="num">{{ taskSummary.studentOverdue || 0 }}</div>
+        <div class="label">学生逾期任务</div>
+      </div>
     </div>
 
     <div class="panel">
@@ -46,7 +58,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listMyStudents, getRecentMeeting } from '../../api'
+import { listMyStudents, getRecentMeeting, getTaskSummary } from '../../api'
 import { useSession } from '../../composables/useSession'
 import NotificationRecentCard from '../../components/notification/NotificationRecentCard.vue'
 
@@ -61,11 +73,14 @@ function goNotifications() {
 
 const statStudents = ref('-')
 const recentMeeting = ref(null)
+const taskSummary = ref({})
 
 onMounted(async () => {
   const res = await listMyStudents({ page: 1 })
   if (res && res.success) statStudents.value = (res.data && res.data.total) || 0
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
+  const t = await getTaskSummary()
+  if (t && t.success) taskSummary.value = t.data || {}
 })
 </script>

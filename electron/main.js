@@ -21,6 +21,8 @@ const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
 // 连接服务：启动时调用 init() 加载连接清单并注入连接池
 const connectionService = require('./services/connectionService')
+// 任务定时扫描：到期/逾期/待验收超时提醒（应用 ready 后启动）
+const taskScheduler = require('./services/taskScheduler')
 // 路由聚合：一行注册全部 auth:* / sys:* 等 IPC 接口
 const { registerAll } = require('./ipc')
 
@@ -144,8 +146,15 @@ app.whenReady().then(() => {
   connectionService.init()
   // 注册全部 IPC 路由（auth: / sys: 等），渲染层即可通信
   registerAll(require('electron').ipcMain)
+  // 启动任务定时扫描（数据库未配置时内部自动跳过）
+  taskScheduler.start()
   // 创建窗口
   createWindow()
+})
+
+// 应用退出前停止任务定时扫描
+app.on('will-quit', () => {
+  taskScheduler.stop()
 })
 
 app.on('window-all-closed', () => {

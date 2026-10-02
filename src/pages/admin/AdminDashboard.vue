@@ -20,6 +20,10 @@
         <div class="num">{{ statParams }}</div>
         <div class="label">系统参数</div>
       </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/admin/task-overview')">
+        <div class="num">{{ taskSummary.total || 0 }}</div>
+        <div class="label">任务总数（总览）</div>
+      </div>
     </div>
 
     <div class="panel">
@@ -54,7 +58,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listUsers, listGroups, listParams, getRecentMeeting } from '../../api'
+import { listUsers, listGroups, listParams, getRecentMeeting, getTaskSummary } from '../../api'
 import { useSession } from '../../composables/useSession'
 import NotificationRecentCard from '../../components/notification/NotificationRecentCard.vue'
 
@@ -71,6 +75,7 @@ const statUsers = ref('-')
 const statGroups = ref('-')
 const statParams = ref('-')
 const recentMeeting = ref(null)
+const taskSummary = ref({})
 
 onMounted(async () => {
   const [u, g, p] = await Promise.allSettled([
@@ -83,5 +88,7 @@ onMounted(async () => {
   if (p.status === 'fulfilled' && p.value && p.value.success) statParams.value = (p.value.data && p.value.data.total) || 0
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
+  const s = await getTaskSummary()
+  if (s && s.success) taskSummary.value = s.data || {}
 })
 </script>

@@ -8,6 +8,7 @@ export const MENTOR_NAV = [
   { key: 'mentor-students', path: '/mentor/students', title: '我的学生' },
   { key: 'mentor-notices', path: '/mentor/notices', title: '课题组公告' },
   { key: 'mentor-meetings', path: '/mentor/meetings', title: '会议记录' },
+  { key: 'mentor-tasks', path: '/mentor/tasks', title: '任务' },
   { key: 'mentor-chat', path: '/mentor/chat', title: '聊天' }
 ]
 

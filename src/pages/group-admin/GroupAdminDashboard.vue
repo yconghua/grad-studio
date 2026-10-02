@@ -20,6 +20,18 @@
         <div class="num">{{ statStudents }}</div>
         <div class="label">本组学生</div>
       </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/group-admin/tasks?status=3')">
+        <div class="num">{{ taskSummary.mineCreatedPendingReview || 0 }}</div>
+        <div class="label">我创建的待验收</div>
+      </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/group-admin/tasks')">
+        <div class="num">{{ taskSummary.groupTotal || 0 }}</div>
+        <div class="label">本组任务 / 逾期 {{ taskSummary.groupOverdue || 0 }}</div>
+      </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/group-admin/tasks')">
+        <div class="num">{{ taskSummary.groupCompletionRate || 0 }}%</div>
+        <div class="label">本组完成率</div>
+      </div>
     </div>
 
     <div class="panel">
@@ -55,7 +67,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getOwnGroup, listMembers, getRecentMeeting } from '../../api'
+import { getOwnGroup, listMembers, getRecentMeeting, getTaskSummary } from '../../api'
 import { useSession } from '../../composables/useSession'
 import NotificationRecentCard from '../../components/notification/NotificationRecentCard.vue'
 
@@ -72,6 +84,7 @@ const group = ref(null)
 const statMentors = ref('-')
 const statStudents = ref('-')
 const recentMeeting = ref(null)
+const taskSummary = ref({})
 
 onMounted(async () => {
   const [g, m, s] = await Promise.allSettled([
@@ -84,5 +97,7 @@ onMounted(async () => {
   if (s.status === 'fulfilled' && s.value && s.value.success) statStudents.value = (s.value.data && s.value.data.total) || 0
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
+  const t = await getTaskSummary()
+  if (t && t.success) taskSummary.value = t.data || {}
 })
 </script>

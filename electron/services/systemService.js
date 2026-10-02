@@ -4,7 +4,7 @@
  * 覆盖：
  *   - 超级管理员「系统配置」：系统信息、数据库信息、系统参数增删改查；
  *   - 公共接口（所有角色）：系统简介、检查更新。
- * 系统参数 config_type 当前统一按字符串处理，字段预留（后续扩展 number/boolean/json）。
+ * 系统参数 config_type 实际生效：string 原样存取；number / boolean / json 按类型校验并归一存储。
  */
 const os = require('node:os')
 const { getActiveConfig, acquireConn } = require('../db/connection')
@@ -24,6 +24,35 @@ function formatDate(ts) {
     `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ` +
     `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
   )
+}
+
+// 系统参数类型：已实际支持
+const PARAM_TYPES = ['string', 'number', 'boolean', 'json']
+
+// 按类型校验并归一参数值 → 存储字符串；非法抛 400
+function normalizeParamValue(type, raw) {
+  const value = raw == null ? '' : String(raw).trim()
+  if (type === 'number') {
+    if (value === '') throw new ApiError('参数值不能为空', 400)
+    const n = Number(value)
+    if (!Number.isFinite(n)) throw new ApiError('参数值必须是数字', 400)
+    return String(n)
+  }
+  if (type === 'boolean') {
+    if (value === 'true' || value === '1') return 'true'
+    if (value === 'false' || value === '0') return 'false'
+    throw new ApiError('参数值必须是 true 或 false', 400)
+  }
+  if (type === 'json') {
+    if (value === '') throw new ApiError('参数值不能为空', 400)
+    try {
+      JSON.parse(value)
+    } catch (e) {
+      throw new ApiError('参数值必须是合法的 JSON', 400)
+    }
+    return value
+  }
+  return value
 }
 
 // 行转 DTO（字段名转驼峰）
@@ -117,7 +146,7 @@ async function listParams({ page, keyword } = {}) {
 }
 
 /**
- * 新增系统参数：参数键唯一，类型预留字段默认 string
+ * 新增系统参数：参数键唯一，参数值按所选类型校验并归一
  */
 async function createParam({ configKey, configValue, configType, description } = {}) {
   if (!configKey || !String(configKey).trim()) throw new ApiError('请输入参数键', 400)
@@ -129,9 +158,10 @@ async function createParam({ configKey, configValue, configType, description } =
   const exists = await systemConfigRepository.findByKey(key)
   if (exists) throw new ApiError('参数键已存在', 400)
   const type = configType && String(configType).trim() ? String(configType).trim() : 'string'
+  if (!PARAM_TYPES.includes(type)) throw new ApiError('参数类型不合法', 400)
   const id = await systemConfigRepository.create({
     config_key: key,
-    config_value: configValue == null ? '' : String(configValue),
+    config_value: normalizeParamValue(type, configValue),
     config_type: type,
     description: description && String(description).trim() ? String(description).trim() : null
   })
@@ -156,8 +186,13 @@ async function updateParam(id, { configKey, configValue, configType, description
     if (exists && exists.id !== idNum) throw new ApiError('参数键已存在', 400)
     data.config_key = key
   }
-  if (configValue !== undefined) data.config_value = configValue == null ? '' : String(configValue)
-  if (configType !== undefined && String(configType).trim()) data.config_type = String(configType).trim()
+  let finalType = row.config_type || 'string'
+  if (configType !== undefined && String(configType).trim()) {
+    finalType = String(configType).trim()
+    if (!PARAM_TYPES.includes(finalType)) throw new ApiError('参数类型不合法', 400)
+    data.config_type = finalType
+  }
+  if (configValue !== undefined) data.config_value = normalizeParamValue(finalType, configValue)
   if (description !== undefined) {
     const desc = String(description).trim()
     if (desc.length > 255) throw new ApiError('参数描述不能超过 255 个字符', 400)

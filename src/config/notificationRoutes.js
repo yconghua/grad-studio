@@ -5,10 +5,10 @@ import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '.
 
 // 各角色下各业务类型的路由表
 const ROUTE_TABLE = {
-  [ROLE_SUPER_ADMIN]: { notice: '/admin/notices', meeting: '/admin/meetings' },
-  [ROLE_GROUP_ADMIN]: { notice: '/group-admin/notices', meeting: '/group-admin/meetings' },
-  [ROLE_MENTOR]: { notice: '/mentor/notices', meeting: '/mentor/meetings' },
-  [ROLE_STUDENT]: { notice: '/student/notices', meeting: '/student/meetings' }
+  [ROLE_SUPER_ADMIN]: { notice: '/admin/notices', meeting: '/admin/meetings', task: '/admin/task-overview' },
+  [ROLE_GROUP_ADMIN]: { notice: '/group-admin/notices', meeting: '/group-admin/meetings', task: '/group-admin/tasks' },
+  [ROLE_MENTOR]: { notice: '/mentor/notices', meeting: '/mentor/meetings', task: '/mentor/tasks' },
+  [ROLE_STUDENT]: { notice: '/student/notices', meeting: '/student/meetings', task: '/student/tasks' }
 }
 
 // 角色 → 路由前缀（用于通知中心自身路由兜底）
@@ -19,8 +19,13 @@ const ROLE_PREFIX = {
   [ROLE_STUDENT]: '/student'
 }
 
-// 按登录角色取业务路由；角色表无记录时回本角色通知中心
-export function pathForBiz(bizType, role) {
+// 按登录角色取业务路由；角色表无记录时回本角色通知中心。
+// 任务类通知优先跳到任务详情页（pathForBiz(..., bizId)），无 bizId 时回落任务列表。
+export function pathForBiz(bizType, role, bizId) {
   const table = ROUTE_TABLE[role] || {}
+  if (bizType === 'task' && bizId != null && role !== ROLE_SUPER_ADMIN) {
+    const prefix = ROLE_PREFIX[role]
+    if (prefix) return `${prefix}/tasks/${Number(bizId)}`
+  }
   return table[bizType] || `${ROLE_PREFIX[role] || ''}/notifications`
 }

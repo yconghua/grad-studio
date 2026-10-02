@@ -65,6 +65,16 @@ class GroupRepository extends BaseRepository {
   }
 
   /**
+   * 启用中的课题组全量列表（超管任务总览按课题组分类用）
+   * @returns {Array<Object>}
+   */
+  async listAllEnabled() {
+    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\` WHERE status = 1 ORDER BY id ASC`
+    const [rows] = await this._execute(sql, [], 'listAllEnabled')
+    return rows || []
+  }
+
+  /**
    * 课题组分页列表：支持关键字（名称/标识号模糊）过滤
    * @param {{ keyword?: string, page?: number }} filters
    */

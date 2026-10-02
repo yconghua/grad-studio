@@ -150,7 +150,7 @@ async function openItem(item) {
     await refreshUnread()
   }
   const user = getSessionUser()
-  router.push(pathForBiz(item.bizType, user && user.role))
+  router.push(pathForBiz(item.bizType, user && user.role, item.bizId))
 }
 
 async function removeItem(item) {

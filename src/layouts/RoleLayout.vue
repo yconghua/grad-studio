@@ -189,7 +189,7 @@ function onNotificationPush(data) {
   }
   if (data.type === 'navigate' && data.bizType) {
     const user = getSessionUser()
-    router.push(pathForBiz(data.bizType, user && user.role))
+    router.push(pathForBiz(data.bizType, user && user.role, data.bizId))
   }
 }
 

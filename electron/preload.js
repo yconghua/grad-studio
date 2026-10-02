@@ -176,6 +176,32 @@ contextBridge.exposeInMainWorld('api', {
       return () => ipcRenderer.removeListener('notification:event', listener)
     }
   },
+  // 任务模块（对应 ipc/task.js，通道前缀 task:*）
+  task: {
+    create: createInvoke('task:create'),
+    list: createInvoke('task:list'),
+    detail: createInvoke('task:detail'),
+    update: createInvoke('task:update'),
+    remove: createInvoke('task:delete'),
+    restore: createInvoke('task:restore'),
+    addParticipants: createInvoke('task:add-participants'),
+    removeParticipant: createInvoke('task:remove-participant'),
+    participantOptions: createInvoke('task:participant-options'),
+    submitProgress: createInvoke('task:submit-progress'),
+    complete: createInvoke('task:complete'),
+    verify: createInvoke('task:verify'),
+    cancel: createInvoke('task:cancel'),
+    reopen: createInvoke('task:reopen'),
+    dynamics: createInvoke('task:dynamics'),
+    stats: createInvoke('task:stats'),
+    summary: createInvoke('task:summary')
+  },
+  // 超管任务总览（对应 ipc/taskOverview.js，通道前缀 task-overview:*）
+  taskOverview: {
+    list: createInvoke('task-overview:list'),
+    detail: createInvoke('task-overview:detail'),
+    stats: createInvoke('task-overview:stats')
+  },
   // 系统配置与公共系统接口（对应 ipc/system.js，通道前缀 system:*）
   system: {
     info: createInvoke('system:info'),

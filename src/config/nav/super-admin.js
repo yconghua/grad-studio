@@ -7,6 +7,7 @@ export const SUPER_ADMIN_NAV = [
   { key: 'admin-notifications', path: '/admin/notifications', title: '通知中心' },
   { key: 'admin-users', path: '/admin/users', title: '用户管理' },
   { key: 'admin-groups', path: '/admin/groups', title: '课题组设置' },
+  { key: 'admin-task-overview', path: '/admin/task-overview', title: '任务总览' },
   { key: 'admin-notices', path: '/admin/notices', title: '课题组公告管理' },
   { key: 'admin-meetings', path: '/admin/meetings', title: '会议记录管理' },
   { key: 'admin-system', path: '/admin/system', title: '系统配置' },

@@ -7,6 +7,25 @@
       </div>
     </div>
 
+    <div class="stat-cards" style="max-width: 640px">
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/student/tasks')">
+        <div class="num">{{ taskSummary.total || 0 }}</div>
+        <div class="label">我的任务</div>
+      </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/student/tasks')">
+        <div class="num">{{ taskSummary.dueSoon || 0 }}</div>
+        <div class="label">即将到期</div>
+      </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/student/tasks')">
+        <div class="num">{{ taskSummary.overdue || 0 }}</div>
+        <div class="label">逾期任务</div>
+      </div>
+      <div class="stat-card" style="cursor: pointer" @click="router.push('/student/tasks')">
+        <div class="num">{{ taskSummary.done || 0 }}</div>
+        <div class="label">已完成</div>
+      </div>
+    </div>
+
     <div class="panel" style="max-width: 640px">
       <NotificationRecentCard @go="goNotifications" />
     </div>
@@ -41,7 +60,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getCurrentUser, getRecentMeeting } from '../../api'
+import { getCurrentUser, getRecentMeeting, getTaskSummary } from '../../api'
 import { useSession } from '../../composables/useSession'
 import NotificationRecentCard from '../../components/notification/NotificationRecentCard.vue'
 
@@ -49,6 +68,7 @@ import NotificationRecentCard from '../../components/notification/NotificationRe
 const { getSessionUser } = useSession()
 const user = ref(getSessionUser())
 const recentMeeting = ref(null)
+const taskSummary = ref({})
 const router = useRouter()
 
 function goNotifications() {
@@ -61,5 +81,7 @@ onMounted(async () => {
   if (res && res.success) user.value = res.data
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
+  const t = await getTaskSummary()
+  if (t && t.success) taskSummary.value = t.data || {}
 })
 </script>

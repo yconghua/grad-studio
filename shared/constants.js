@@ -21,6 +21,19 @@ module.exports = {
   ACCOUNT_STATUS_ENABLED: 1,   // 启用
   ACCOUNT_STATUS_DISABLED: 0,  // 禁用
 
+  // ===== 任务状态（TINYINT，与 schemas/13_task.sql 一致） =====
+  TASK_STATUS_TODO: 1,        // 待办
+  TASK_STATUS_DOING: 2,       // 进行中
+  TASK_STATUS_REVIEW: 3,      // 待验收
+  TASK_STATUS_DONE: 4,        // 已完成
+  TASK_STATUS_CANCELED: 5,    // 已取消
+
+  // ===== 任务优先级（TINYINT，与 schemas/13_task.sql 一致） =====
+  TASK_PRIORITY_LOW: 1,       // 低
+  TASK_PRIORITY_MEDIUM: 2,    // 中
+  TASK_PRIORITY_HIGH: 3,      // 高
+  TASK_PRIORITY_URGENT: 4,     // 紧急
+
   // ===== 角色默认密码（单一事实来源） =====
   // 新增用户 / 管理员重置密码统一使用；首次登录强制修改密码（must_change_password=1）
   // 所有默认密码均满足强度规则（长度≥6 且包含大小写字母）

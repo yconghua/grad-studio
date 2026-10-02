@@ -307,6 +307,39 @@ class UserRepository extends BaseRepository {
   }
 
   /**
+   * 导师名下启用学生 id 列表（任务模块：导师参与人范围校验 / 可见性判定用）
+   * @param {number} mentorId
+   * @returns {number[]}
+   */
+  async listEnabledStudentIdsByMentor(mentorId) {
+    const sql = 'SELECT `id` FROM `users` WHERE role = ? AND mentor_id = ? AND status = ?'
+    const [rows] = await this._execute(
+      sql,
+      ['student', Number(mentorId), ACCOUNT_STATUS_ENABLED],
+      'listEnabledStudentIdsByMentor'
+    )
+    return rows.map((r) => Number(r.id))
+  }
+
+  /**
+   * 导师名下启用学生列表（任务模块：导师创建/分配任务选人用）
+   * @param {number} mentorId
+   * @returns {Array<{ id: number, username: string, real_name: string }>}
+   */
+  async listEnabledStudentsByMentor(mentorId) {
+    const sql =
+      `SELECT \`id\`, \`username\`, \`real_name\` FROM \`users\`
+      WHERE role = ? AND mentor_id = ? AND status = ?
+      ORDER BY \`real_name\` ASC, \`id\` ASC`
+    const [rows] = await this._execute(
+      sql,
+      ['student', Number(mentorId), ACCOUNT_STATUS_ENABLED],
+      'listEnabledStudentsByMentor'
+    )
+    return rows
+  }
+
+  /**
    * 课题组内导师/学生成员分页（成员管理列表）：LEFT JOIN 取导师姓名。
    * 含停用成员（status=0 也展示，供「已停用」标签），启停过滤交给上层展示。
    * @param {number} groupId

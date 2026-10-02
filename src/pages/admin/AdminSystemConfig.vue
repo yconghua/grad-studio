@@ -72,7 +72,7 @@
             <tr>
               <th>ID</th>
               <th>参数键</th>
-              <th>参数值</th>
+              <th style="width: 120px">参数值</th>
               <th>类型</th>
               <th>描述</th>
               <th style="width: 130px">操作</th>
@@ -82,7 +82,7 @@
             <tr v-for="p in params" :key="p.id" @click="openDetail(p, paramDetailFields, '系统参数详情')">
               <td>{{ p.id }}</td>
               <td class="ellipsis" style="font-family: monospace">{{ p.configKey }}</td>
-              <td class="ellipsis" style="max-width: 260px">{{ p.configValue || '-' }}</td>
+              <td class="ellipsis" style="max-width: 120px">{{ p.configValue || '-' }}</td>
               <td><span class="tag tag-blue">{{ p.configType }}</span></td>
               <td class="ellipsis">{{ p.description || '-' }}</td>
               <td>
@@ -121,17 +121,22 @@
           </div>
           <div class="field">
             <label>参数值</label>
-            <textarea v-model="form.configValue" placeholder="请输入参数值"></textarea>
+            <input v-if="form.configType === 'number'" v-model="form.configValue" class="input" type="number" placeholder="请输入数字" />
+            <select v-else-if="form.configType === 'boolean'" v-model="form.configValue" class="select">
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+            <textarea v-else v-model="form.configValue" :placeholder="form.configType === 'json' ? '请输入合法 JSON' : '请输入参数值'"></textarea>
           </div>
           <div class="field">
             <label>参数类型</label>
             <select v-model="form.configType" class="select">
               <option value="string">string（字符串）</option>
-              <option value="number">number（预留）</option>
-              <option value="boolean">boolean（预留）</option>
-              <option value="json">json（预留）</option>
+              <option value="number">number（数字）</option>
+              <option value="boolean">boolean（布尔）</option>
+              <option value="json">json（JSON）</option>
             </select>
-            <p class="hint">当前统一按字符串处理，类型字段预留后续扩展</p>
+            <p class="hint">参数值将按所选类型进行校验与保存</p>
           </div>
           <div class="field">
             <label>描述</label>
