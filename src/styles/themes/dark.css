@@ -1,0 +1,38 @@
+/* 暗色主题：覆盖全部语义变量（只调亮度，不换语义） */
+[data-theme='dark'] {
+  --bg-page: #101318;
+  --bg-card: #1a1e27;
+  --bg-muted: #232833;
+  --bg-hover: #1d222d;
+  --bg-hover-soft: #212631;
+  --primary: #6d8bff;
+  --primary-hover: #82a0ff;
+  --primary-soft: rgba(109, 139, 255, 0.16);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.15);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.15);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --danger-border: rgba(248, 113, 113, 0.4);
+  --gray-soft: #262b36;
+  --unread: #f87171;
+  --text: #f3f4f6;
+  --text-2: #c7ccd6;
+  --text-2-strong: #d6dbe4;
+  --text-3: #9aa3b2;
+  --muted: #8a93a3;
+  --text-disabled: #6b7484;
+  --border: #2b3140;
+  --border-light: #252b38;
+  --border-strong: #3a4254;
+  --border-hover: #4a5468;
+  --mask: rgba(0, 0, 0, 0.6);
+  --role-super: #a78bfa;
+  --role-group: #60a5fa;
+  --role-mentor: #22d3ee;
+  --role-student: #34d399;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+}

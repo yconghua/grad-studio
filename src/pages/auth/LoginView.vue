@@ -277,7 +277,7 @@ async function onDeleteConfirmed(id) {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
   overflow: auto;
 }
 .login-header {
@@ -300,7 +300,7 @@ async function onDeleteConfirmed(id) {
   font-size: 26px;
   font-weight: 600;
   letter-spacing: 1px;
-  color: #1f2329;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -317,11 +317,11 @@ async function onDeleteConfirmed(id) {
 .intro-panel {
   flex: 1 1 auto;
   position: relative;
-  background: #fff;
-  border: 1px solid #eceff3;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
   margin-right: 12px;
   margin-left: 30px;
   display: flex;
@@ -343,7 +343,7 @@ async function onDeleteConfirmed(id) {
   margin: 0;
   font-size: 17px;
   line-height: 2;
-  color: #4e5969;
+  color: var(--text-2);
 }
 .form-panel {
   flex: 0 0 380px;
@@ -355,11 +355,11 @@ async function onDeleteConfirmed(id) {
 .login-card {
   width: 340px;
   max-width: 100%;
-  background: #fff;
-  border: 1px solid #eceff3;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 34px 30px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -384,7 +384,7 @@ async function onDeleteConfirmed(id) {
   font-weight: 500;
   line-height: 1;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   white-space: nowrap;
   border: 1px solid transparent;
   cursor: pointer;
@@ -393,28 +393,28 @@ async function onDeleteConfirmed(id) {
 .db-status .db-dot {
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: currentColor;
 }
 .db-status.is-connected {
-  color: #19a558;
-  background: rgba(25, 165, 88, 0.1);
-  border-color: rgba(25, 165, 88, 0.25);
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: color-mix(in srgb, var(--success) 25%, var(--bg-card));
 }
 .db-status.is-disconnected {
-  color: #ea4335;
-  background: rgba(234, 67, 53, 0.1);
-  border-color: rgba(234, 67, 53, 0.25);
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
 }
 .db-status.is-loading,
 .db-status.is-unavailable {
-  color: #8a9099;
-  background: #f2f3f5;
-  border-color: #e5e6eb;
+  color: var(--muted);
+  background: var(--gray-soft);
+  border-color: var(--border);
 }
 .card-sub {
   font-size: 13px;
-  color: #8a9099;
+  color: var(--muted);
   margin: 0 0 20px;
 }
 .default-tip {
@@ -422,18 +422,18 @@ async function onDeleteConfirmed(id) {
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.7;
-  color: #4b5563;
-  background: #f0f6ff;
-  border: 1px dashed #bcd0ff;
-  border-radius: 8px;
+  color: var(--text-2);
+  background: var(--primary-soft);
+  border: 1px dashed color-mix(in srgb, var(--primary) 20%, var(--bg-card));
+  border-radius: var(--radius-md);
 }
 .default-tip b {
-  color: #4f6ef7;
+  color: var(--primary);
 }
 .field-label {
   display: block;
   font-size: 13px;
-  color: #4e5969;
+  color: var(--text-2);
   margin: 14px 0 6px;
 }
 .field-input {
@@ -441,28 +441,28 @@ async function onDeleteConfirmed(id) {
   height: 42px;
   padding: 0 12px;
   font-size: 14px;
-  border: 1px solid #dfe3e8;
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   outline: none;
   box-sizing: border-box;
   transition: border-color 0.2s;
 }
 .field-input:focus {
-  border-color: #4f6ef7;
+  border-color: var(--primary);
 }
 .error-msg {
   margin: 14px 0 0;
   font-size: 13px;
-  color: #ea4335;
+  color: var(--danger);
 }
 .submit-btn {
   width: 100%;
   height: 44px;
   margin-top: 14px;
   border: none;
-  border-radius: 8px;
-  background: #4f6ef7;
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--on-accent);
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 4px;
@@ -479,11 +479,11 @@ async function onDeleteConfirmed(id) {
 .forgot-tip {
   margin: 16px 0 0;
   font-size: 12px;
-  color: #8a9099;
+  color: var(--muted);
   text-align: center;
 }
 .admin-link {
-  color: #4f6ef7;
+  color: var(--primary);
   cursor: pointer;
 }
 .login-footer {
@@ -500,7 +500,7 @@ async function onDeleteConfirmed(id) {
   max-width: 80vw;
   min-width: 0;
   font-size: 12px;
-  color: #8a9099;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -516,7 +516,7 @@ async function onDeleteConfirmed(id) {
 .privacy-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--mask);
 }
 .privacy-dialog {
   position: relative;
@@ -524,31 +524,31 @@ async function onDeleteConfirmed(id) {
   width: 460px;
   max-width: 92vw;
   max-height: 80vh;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
 }
 .privacy-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid #eceff3;
+  border-bottom: 1px solid var(--border-light);
 }
 .privacy-head h3 {
   margin: 0;
   font-size: 15px;
-  color: #1f2329;
+  color: var(--text);
 }
 .privacy-close {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
-  background: #f2f3f5;
-  color: #4e5969;
+  border-radius: var(--radius-md);
+  background: var(--gray-soft);
+  color: var(--text-2);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
@@ -558,6 +558,6 @@ async function onDeleteConfirmed(id) {
   overflow-y: auto;
   font-size: 13px;
   line-height: 1.8;
-  color: #4e5969;
+  color: var(--text-2);
 }
 </style>

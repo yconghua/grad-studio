@@ -96,7 +96,7 @@ watch(
 .privacy-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--mask);
 }
 .privacy-dialog {
   position: relative;
@@ -104,39 +104,39 @@ watch(
   width: 560px;
   max-width: 92vw;
   max-height: 80vh;
-  background: #fff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
 }
 .privacy-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 18px 22px;
-  border-bottom: 1px solid #eceff3;
+  border-bottom: 1px solid var(--border-light);
 }
 .privacy-head h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  color: #1d2129;
+  color: var(--text);
 }
 .privacy-close {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 8px;
-  background: #f2f3f5;
-  color: #4e5969;
+  border-radius: var(--radius-md);
+  background: var(--gray-soft);
+  color: var(--text-2);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
   transition: background 0.2s;
 }
 .privacy-close:hover {
-  background: #e5e6eb;
+  background: var(--border);
 }
 .privacy-body {
   padding: 18px 22px;
@@ -154,7 +154,7 @@ watch(
   display: flex;
   align-items: flex-start;
   padding: 12px 2px;
-  border-bottom: 1px solid #f2f4f7;
+  border-bottom: 1px solid var(--border-light);
   font-size: 14px;
 }
 .sys-info-row:last-child {
@@ -162,11 +162,11 @@ watch(
 }
 .sys-info-key {
   flex: 0 0 96px;
-  color: #8a9099;
+  color: var(--muted);
 }
 .sys-info-val {
   flex: 1;
-  color: #1d2129;
+  color: var(--text);
   font-weight: 500;
   word-break: break-all;
 }
@@ -178,10 +178,10 @@ watch(
   font-weight: 400;
 }
 .db-status.ok {
-  color: #19a558;
+  color: var(--success);
 }
 .db-status.err {
-  color: #ea4335;
+  color: var(--danger);
 }
 .sys-info-actions {
   display: flex;
@@ -192,9 +192,9 @@ watch(
   height: 36px;
   padding: 0 16px;
   border: none;
-  border-radius: 8px;
-  background: #0d80e0;
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--on-accent);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;

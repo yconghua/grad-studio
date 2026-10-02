@@ -40,13 +40,13 @@ onMounted(async () => {
   display: flex;
   gap: 16px;
   padding: 12px 0;
-  border-bottom: 1px solid #f0f1f3;
+  border-bottom: 1px solid var(--border-light);
   font-size: 14px;
 }
 .info-row:last-child { border-bottom: none; }
 .label {
   width: 90px;
-  color: #8a919f;
+  color: var(--muted);
   flex-shrink: 0;
 }
 .intro { white-space: pre-wrap; line-height: 1.8; }

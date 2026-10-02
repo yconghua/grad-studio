@@ -22,7 +22,7 @@
       <button class="btn btn-primary" @click="search">查询</button>
       <button class="btn" @click="reset">重置</button>
       <div class="spacer"></div>
-      <span style="font-size: 13px; color: #4b5563">共 <b>{{ total }}</b> 条会议</span>
+      <span style="font-size: 13px; color: var(--text-2)">共 <b>{{ total }}</b> 条会议</span>
     </div>
 
     <!-- 会议表格（只读，无操作列） -->

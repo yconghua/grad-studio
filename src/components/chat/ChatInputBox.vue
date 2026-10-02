@@ -52,16 +52,16 @@ defineExpose({ focus: () => taEl.value && taEl.value.focus() })
 
 <style scoped>
 .chat-input-box {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
   padding: 10px 14px 12px;
-  background: #fff;
+  background: var(--bg-card);
 }
 .chat-textarea {
   width: 100%;
   height: 72px;
   resize: none;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   font-size: 14px;
   font-family: inherit;
@@ -69,11 +69,11 @@ defineExpose({ focus: () => taEl.value && taEl.value.focus() })
   box-sizing: border-box;
 }
 .chat-textarea:focus {
-  border-color: #4f6ef7;
+  border-color: var(--primary);
 }
 .chat-textarea[disabled] {
-  background: #f7f8fa;
-  color: #6b7280;
+  background: var(--bg-muted);
+  color: var(--text-3);
 }
 .input-foot {
   display: flex;
@@ -83,6 +83,6 @@ defineExpose({ focus: () => taEl.value && taEl.value.focus() })
 }
 .char-count {
   font-size: 12px;
-  color: #8a919f;
+  color: var(--muted);
 }
 </style>

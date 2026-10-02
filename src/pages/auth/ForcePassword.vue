@@ -107,16 +107,16 @@ async function submit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #eef2ff;
+  background: var(--primary-soft);
   overflow: auto;
 }
 .force-card {
   width: 420px;
   max-width: 92vw;
-  background: #fff;
-  border-radius: 14px;
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
   padding: 28px 30px 22px;
-  box-shadow: 0 10px 30px rgba(79, 110, 247, 0.12);
+  box-shadow: var(--shadow-lg);
 }
 .head .title {
   margin: 0;
@@ -124,34 +124,34 @@ async function submit() {
 }
 .head .sub {
   font-size: 13px;
-  color: #8a919f;
+  color: var(--muted);
   margin: 6px 0 16px;
 }
 .label {
   display: block;
   font-size: 13px;
-  color: #4b5563;
+  color: var(--text-2);
   margin: 12px 0 6px;
 }
 .input {
   width: 100%;
   height: 40px;
   padding: 0 12px;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
 }
 .input:focus {
-  border-color: #4f6ef7;
+  border-color: var(--primary);
 }
 .input[disabled] {
-  background: #f7f8fa;
-  color: #6b7280;
+  background: var(--bg-muted);
+  color: var(--text-3);
 }
 .error {
-  color: #e5484d;
+  color: var(--danger);
   font-size: 13px;
   margin: 10px 0 0;
 }
@@ -160,14 +160,14 @@ async function submit() {
   height: 42px;
   margin-top: 18px;
   border: none;
-  border-radius: 8px;
-  background: #4f6ef7;
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--on-accent);
   font-size: 15px;
   cursor: pointer;
 }
 .btn:hover {
-  background: #3d5cf0;
+  background: var(--primary-hover);
 }
 .btn[disabled] {
   opacity: 0.6;
@@ -175,7 +175,7 @@ async function submit() {
 }
 .tip {
   font-size: 12px;
-  color: #8a919f;
+  color: var(--muted);
   text-align: center;
   margin-top: 14px;
   line-height: 1.7;

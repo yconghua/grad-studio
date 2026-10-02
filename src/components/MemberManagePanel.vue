@@ -15,8 +15,8 @@
     </div>
 
     <!-- 批量操作条 -->
-    <div v-if="selMembers.length" class="toolbar" style="background: #eef2ff; border-color: #c7d2fe">
-      <span style="font-size: 13px; color: #1f2329">已选 <b>{{ selMembers.length }}</b> 项</span>
+    <div v-if="selMembers.length" class="toolbar" style="background: var(--primary-soft); border-color: var(--border)">
+      <span style="font-size: 13px; color: var(--text)">已选 <b>{{ selMembers.length }}</b> 项</span>
       <button class="btn btn-sm btn-danger" @click="batchRemove">批量移除</button>
       <button class="btn btn-sm" @click="openMentorPick(null)">批量指定导师</button>
       <button class="btn btn-sm" @click="selMembers = []">取消选择</button>
@@ -47,7 +47,7 @@
             <td><span class="tag tag-blue">{{ roleText(u.role) }}</span></td>
             <td>
               <span v-if="u.status === 0" class="tag tag-red">已停用</span>
-              <span v-else style="color: #9ca3af">启用</span>
+              <span v-else style="color: var(--text-disabled)">启用</span>
             </td>
             <td class="ellipsis">{{ u.role === 'student' ? (u.mentorName || '-') : '-' }}</td>
             <td>{{ u.joinTime || '-' }}</td>
@@ -382,8 +382,8 @@ onMounted(() => {
 .cand-list {
   max-height: 260px;
   overflow: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 8px;
 }
 .cand-item {
@@ -391,12 +391,12 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 7px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
-  color: #374151;
+  color: var(--text-2-strong);
   cursor: pointer;
 }
 .cand-item:hover {
-  background: #f5f7fa;
+  background: var(--bg-hover);
 }
 </style>

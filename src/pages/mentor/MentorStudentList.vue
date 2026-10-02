@@ -12,7 +12,7 @@
       <button class="btn btn-primary" @click="search">查询</button>
       <button class="btn" @click="reset">重置</button>
       <div class="spacer"></div>
-      <span style="font-size: 13px; color: #4b5563">学生数：<b>{{ total }}</b></span>
+      <span style="font-size: 13px; color: var(--text-2)">学生数：<b>{{ total }}</b></span>
     </div>
 
     <div class="tbl-wrap">

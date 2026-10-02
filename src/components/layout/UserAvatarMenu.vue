@@ -131,18 +131,18 @@ async function doLogout() {
   border-radius: 8px;
 }
 .trigger:hover {
-  background: #f5f7fa;
+  background: var(--bg-hover);
 }
 .uname {
   font-size: 13px;
-  color: #1f2329;
+  color: var(--text);
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .caret {
-  color: #8a919f;
+  color: var(--muted);
   font-size: 12px;
 }
 .menu {
@@ -150,26 +150,26 @@ async function doLogout() {
   right: 0;
   top: calc(100% + 6px);
   width: 190px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-lg);
   z-index: 300;
   overflow: hidden;
 }
 .menu-user {
   padding: 12px 14px;
-  border-bottom: 1px solid #f0f1f3;
-  background: #fafbfc;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-hover-soft);
 }
 .mu-name {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text);
 }
 .mu-role {
   font-size: 12px;
-  color: #8a919f;
+  color: var(--muted);
   margin-top: 2px;
 }
 .menu-item {
@@ -180,18 +180,18 @@ async function doLogout() {
   border: none;
   background: none;
   font-size: 13px;
-  color: #374151;
+  color: var(--text-2-strong);
   cursor: pointer;
 }
 .menu-item:hover {
-  background: #f5f7fa;
+  background: var(--bg-hover);
 }
 .menu-item.danger {
-  color: #e5484d;
+  color: var(--danger);
 }
 .menu-divider {
   height: 1px;
-  background: #f0f1f3;
+  background: var(--border-light);
 }
 .pop-enter-active,
 .pop-leave-active {

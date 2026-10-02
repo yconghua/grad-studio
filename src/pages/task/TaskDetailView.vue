@@ -448,7 +448,7 @@ onMounted(load)
 .detail-title {
   font-size: 17px;
   font-weight: 700;
-  color: #1f2329;
+  color: var(--text);
   margin-bottom: 8px;
 }
 .detail-tags {
@@ -460,8 +460,8 @@ onMounted(load)
   padding: 2px 6px;
   margin-right: 6px;
   border-radius: 4px;
-  background: #eef2ff;
-  color: #4f6ef7;
+  background: var(--primary-soft);
+  color: var(--primary);
   font-size: 12px;
   vertical-align: 2px;
 }
@@ -469,16 +469,16 @@ onMounted(load)
   position: relative;
   width: 140px;
   height: 20px;
-  border-radius: 10px;
-  background: #eef0f3;
+  border-radius: var(--radius-lg);
+  background: var(--border-light);
   overflow: hidden;
   flex-shrink: 0;
 }
 .prog-bar {
   display: block;
   height: 100%;
-  border-radius: 10px;
-  background: #4f6ef7;
+  border-radius: var(--radius-lg);
+  background: var(--primary);
 }
 .prog-num {
   position: absolute;
@@ -487,7 +487,7 @@ onMounted(load)
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: #4b5563;
+  color: var(--text-2);
 }
 .detail-meta {
   display: flex;
@@ -503,10 +503,10 @@ onMounted(load)
 .meta-label {
   width: 70px;
   flex-shrink: 0;
-  color: #9ca3af;
+  color: var(--text-disabled);
 }
 .meta-value {
-  color: #374151;
+  color: var(--text-2-strong);
   min-width: 0;
 }
 .desc {
@@ -524,7 +524,7 @@ onMounted(load)
 .panel-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text);
 }
 .add-part {
   display: flex;
@@ -540,20 +540,20 @@ onMounted(load)
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   font-size: 14px;
-  color: #374151;
+  color: var(--text-2-strong);
 }
 .part-role {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-disabled);
 }
 .clickable {
   cursor: pointer;
 }
 .clickable:hover td {
-  background: #f9fafb;
+  background: var(--bg-hover-soft);
 }
 .dyn-list {
   display: flex;
@@ -565,31 +565,31 @@ onMounted(load)
   align-items: baseline;
   gap: 10px;
   padding: 8px 12px;
-  background: #f9fafb;
-  border-radius: 8px;
+  background: var(--bg-hover-soft);
+  border-radius: var(--radius-md);
   font-size: 13px;
 }
 .dyn-op {
   font-weight: 600;
-  color: #374151;
+  color: var(--text-2-strong);
   flex-shrink: 0;
 }
 .dyn-action {
-  color: #4f6ef7;
+  color: var(--primary);
   flex-shrink: 0;
 }
 .dyn-detail {
-  color: #6b7280;
+  color: var(--text-3);
   min-width: 0;
 }
 .dyn-time {
   margin-left: auto;
-  color: #9ca3af;
+  color: var(--text-disabled);
   font-size: 12px;
   flex-shrink: 0;
 }
 .progress-panel {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
 }
 .prog-form {
   display: flex;

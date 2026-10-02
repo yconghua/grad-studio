@@ -26,12 +26,12 @@
       <button class="btn btn-primary" @click="search">查询</button>
       <button class="btn" @click="reset">重置</button>
       <div class="spacer"></div>
-      <span style="font-size: 13px; color: #4b5563">总用户数：<b>{{ total }}</b></span>
+      <span style="font-size: 13px; color: var(--text-2)">总用户数：<b>{{ total }}</b></span>
     </div>
 
     <!-- 批量操作条：选中任意行后出现，仅对当前页选中项生效 -->
-    <div v-if="selected.length" class="toolbar" style="background: #eef2ff; border-color: #c7d2fe">
-      <span style="font-size: 13px; color: #1f2329">已选 <b>{{ selected.length }}</b> 项（仅当前页）</span>
+    <div v-if="selected.length" class="toolbar" style="background: var(--primary-soft); border-color: color-mix(in srgb, var(--primary) 20%, var(--bg-card))">
+      <span style="font-size: 13px; color: var(--text)">已选 <b>{{ selected.length }}</b> 项（仅当前页）</span>
       <button class="btn btn-sm" @click="batchStatus(1)">批量启用</button>
       <button class="btn btn-sm" @click="batchStatus(0)">批量禁用</button>
       <button class="btn btn-sm btn-danger" @click="batchDelete">批量删除</button>
@@ -215,8 +215,8 @@
             <button type="button" class="btn btn-primary btn-sm" :disabled="batchLoading" @click="triggerFile">选择 CSV 文件</button>
             <input ref="csvFileInput" type="file" accept=".csv" style="display: none" @change="onFileChange" />
           </div>
-          <div style="margin-top: 10px; padding: 10px 12px; background: #f7f8fa; border-radius: 6px; font-size: 12px; line-height: 1.9; color: #4e5969">
-            <div style="font-weight: 600; color: #1f2329; margin-bottom: 4px">填写说明（表头必须保留，每行一个用户）：</div>
+          <div style="margin-top: 10px; padding: 10px 12px; background: var(--bg-muted); border-radius: var(--radius-sm); font-size: 12px; line-height: 1.9; color: var(--text-2)">
+            <div style="font-weight: 600; color: var(--text); margin-bottom: 4px">填写说明（表头必须保留，每行一个用户）：</div>
             <div>· <b>必填</b>：用户名（最长 50 字，全局唯一）、角色（只能填 导师 / 学生 / 课题组管理员 三种之一）</div>
             <div>· <b>选填</b>：真实姓名（≤50 字）、手机号（≤20 字）、邮箱（≤100 字）、性别（男 / 女 / 其他，留空按未设置）</div>
             <div>· 所属课题组：填系统内的课题组名称，按名称精确匹配；不存在或名称不唯一时该行导入失败</div>
@@ -241,9 +241,9 @@
         </template>
 
         <template v-if="previewRows.length">
-          <div style="margin-top: 14px; margin-bottom: 8px; font-size: 13px; color: #1f2329">
-            共 <b>{{ previewStats.total }}</b> 行，可用 <b style="color: #16a34a">{{ previewStats.ok }}</b> 行，错误 <b style="color: #dc2626">{{ previewStats.err }}</b> 行
-            <span style="color: #6b7280; margin-left: 8px">仅勾选且校验通过的行会提交；错误行需修改外部文件后重新导入</span>
+          <div style="margin-top: 14px; margin-bottom: 8px; font-size: 13px; color: var(--text)">
+            共 <b>{{ previewStats.total }}</b> 行，可用 <b style="color: var(--success)">{{ previewStats.ok }}</b> 行，错误 <b style="color: var(--danger)">{{ previewStats.err }}</b> 行
+            <span style="color: var(--text-3); margin-left: 8px">仅勾选且校验通过的行会提交；错误行需修改外部文件后重新导入</span>
           </div>
           <div class="tbl-wrap">
             <table class="tbl tbl-fixed">
@@ -278,9 +278,9 @@
                   <td class="ellipsis" :title="r.mentorUsername">{{ r.mentorUsername || '-' }}</td>
                   <td>{{ r.statusText || '启用' }}</td>
                   <td>
-                    <span v-if="r.errors.length" class="ellipsis" :title="r.errors.join('；')" style="display: block; color: #dc2626; font-size: 12px">{{ r.errors.join('；') }}</span>
-                    <span v-else-if="r.warnings.length" class="ellipsis" :title="r.warnings.join('；')" style="display: block; color: #b45309; font-size: 12px">{{ r.warnings.join('；') }}</span>
-                    <span v-else style="color: #16a34a; font-size: 12px">可导入</span>
+                    <span v-if="r.errors.length" class="ellipsis" :title="r.errors.join('；')" style="display: block; color: var(--danger); font-size: 12px">{{ r.errors.join('；') }}</span>
+                    <span v-else-if="r.warnings.length" class="ellipsis" :title="r.warnings.join('；')" style="display: block; color: var(--warning); font-size: 12px">{{ r.warnings.join('；') }}</span>
+                    <span v-else style="color: var(--success); font-size: 12px">可导入</span>
                   </td>
                   <td>
                     <button type="button" class="btn btn-sm" style="padding: 0 5px" title="删除该行" @click="removePreviewRow(i)">×</button>

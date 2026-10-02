@@ -12,7 +12,7 @@
 
     <!-- 筛选区：课题组固定为本组，不可切换 -->
     <div class="toolbar">
-      <span class="input" style="width: 200px; display: inline-flex; align-items: center; color: #4b5563">
+      <span class="input" style="width: 200px; display: inline-flex; align-items: center; color: var(--text-2)">
         所属课题组：<b>{{ groupName }}</b>
       </span>
       <select v-model="status" class="select" @change="search">
@@ -21,14 +21,14 @@
         <option :value="3">已归档</option>
       </select>
       <input v-model="startDate" type="date" class="input" style="width: 150px" @change="search" />
-      <span style="color: #9ca3af">至</span>
+      <span style="color: var(--text-disabled)">至</span>
       <input v-model="endDate" type="date" class="input" style="width: 150px" @change="search" />
       <input v-model="keyword" class="input" style="width: 180px" placeholder="会议主题" @keyup.enter="search" />
       <button class="btn btn-primary" @click="search">查询</button>
       <button class="btn" @click="reset">重置</button>
       <div class="spacer"></div>
       <button class="btn" :class="{ 'btn-primary': viewMode === 'groupDrafts' }" @click="switchView('groupDrafts')">草稿</button>
-      <span style="font-size: 13px; color: #4b5563">共 <b>{{ total }}</b> 条{{ viewMode !== 'published' ? '草稿' : '会议' }}</span>
+      <span style="font-size: 13px; color: var(--text-2)">共 <b>{{ total }}</b> 条{{ viewMode !== 'published' ? '草稿' : '会议' }}</span>
     </div>
 
     <!-- 会议表格 -->
@@ -53,8 +53,8 @@
             <td class="ellipsis" style="max-width: 64px">{{ m.hostName }}</td>
                         <td><span :class="meetingStatusClass(m.status)">{{ meetingStatusText(m.status) }}</span></td>
             <td>
-              <span v-if="m.noticeId" style="color: #10b981; font-weight: 600">已发布</span>
-              <span v-else style="color: #9ca3af">未发布</span>
+              <span v-if="m.noticeId" style="color: var(--success); font-weight: 600">已发布</span>
+              <span v-else style="color: var(--text-disabled)">未发布</span>
             </td>
             <td>
               <div class="ops" @click.stop>
@@ -66,7 +66,7 @@
                   <button class="btn btn-sm" :disabled="groupStopped" @click="openEdit(m)">编辑</button>
                   <button class="btn btn-sm" @click="doArchive(m)">{{ m.status === 3 ? '取消归档' : '归档' }}</button>
                   <button v-if="m.status === 2 && !m.noticeId" class="btn btn-sm" :disabled="groupStopped" @click="doPublishAsNotice(m)">发布为公告</button>
-                  <button v-else-if="m.noticeId" class="btn btn-sm" disabled style="color: #9ca3af">已发布公告</button>
+                  <button v-else-if="m.noticeId" class="btn btn-sm" disabled style="color: var(--text-disabled)">已发布公告</button>
                   <button class="btn btn-sm" @click="doStats">统计</button>
                   <button class="btn btn-sm btn-danger" @click="doDelete(m)">删除</button>
                 </template>
@@ -297,10 +297,10 @@ onMounted(async () => {
 .banner-warn {
   padding: 10px 14px;
   margin-bottom: 16px;
-  border-radius: 6px;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
-  color: #d46b08;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  border: 1px solid var(--border);
+  color: var(--warning);
   font-size: 13px;
 }
 </style>

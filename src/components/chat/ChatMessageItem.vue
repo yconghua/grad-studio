@@ -86,21 +86,21 @@ function timeText(ts) {
   opacity: 0.6;
 }
 .msg-row.failed .msg-bubble {
-  border: 1px solid #f0c0c3;
+  border: 1px solid var(--danger-border);
 }
 .msg-bubble {
   max-width: 68%;
   padding: 8px 12px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   word-break: break-word;
   white-space: pre-wrap;
 }
 .msg-row.mine .msg-bubble {
-  background: #4f6ef7;
-  border-color: #4f6ef7;
-  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-accent);
 }
 .msg-content {
   font-size: 14px;
@@ -108,7 +108,7 @@ function timeText(ts) {
 }
 .msg-recalled {
   font-size: 13px;
-  color: #8a919f;
+  color: var(--muted);
   font-style: italic;
 }
 .msg-meta {
@@ -117,13 +117,13 @@ function timeText(ts) {
   gap: 6px;
   margin-top: 4px;
   font-size: 11px;
-  color: #b6bcc6;
+  color: var(--text-disabled);
 }
 .msg-row.mine .msg-meta {
-  color: rgba(255, 255, 255, 0.75);
+  color: color-mix(in srgb, var(--on-accent) 75%, transparent);
 }
 .msg-state.error {
-  color: #e5484d;
+  color: var(--danger);
 }
 .msg-ops {
   display: flex;

@@ -127,18 +127,18 @@ async function start(u) {
   align-items: center;
   gap: 10px;
   padding: 9px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .user-option:hover {
-  background: #f5f7fa;
+  background: var(--bg-hover);
 }
 .uo-avatar {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
-  background: #eef2ff;
-  color: #4f6ef7;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -152,11 +152,11 @@ async function start(u) {
 }
 .uo-name {
   font-size: 14px;
-  color: #1f2329;
+  color: var(--text);
 }
 .uo-sub {
   font-size: 12px;
-  color: #8a919f;
+  color: var(--muted);
   margin-top: 2px;
 }
 </style>

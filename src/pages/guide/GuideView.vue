@@ -27,6 +27,9 @@
             >{{ chatUnreadCount > 99 ? '99+' : chatUnreadCount }}</span>
           </router-link>
         </nav>
+        <div class="side-foot">
+          <ThemeSwitcher />
+        </div>
       </aside>
 
       <main class="content" :class="{ 'is-chat': isChatPage }">
@@ -40,6 +43,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import UserAvatarMenu from '../../components/layout/UserAvatarMenu.vue'
+import ThemeSwitcher from '../../components/layout/ThemeSwitcher.vue'
 import { useAppName } from '../../composables/useAppName'
 import logoUrl from '../../assets/logo.ico'
 
@@ -97,13 +101,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f5f7fa;
+  background: var(--bg-page);
 }
 .topbar {
   flex-shrink: 0;
   height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -124,7 +128,7 @@ onUnmounted(() => {
   min-width: 0;
   font-size: 15px;
   font-weight: 700;
-  color: #1f2329;
+  color: var(--text);
   white-space: nowrap;
 }
 .body {
@@ -135,8 +139,8 @@ onUnmounted(() => {
 .side {
   width: 220px;
   flex-shrink: 0;
-  background: #fff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
 }
@@ -156,7 +160,7 @@ onUnmounted(() => {
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 14px;
-  color: #4b5563;
+  color: var(--text-2);
   text-decoration: none;
   transition: background 0.15s;
 }
@@ -172,21 +176,28 @@ onUnmounted(() => {
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: #ef4444;
-  color: #fff;
+  background: var(--unread);
+  color: var(--on-accent);
   font-size: 11px;
   line-height: 18px;
   text-align: center;
   box-sizing: border-box;
 }
 .nav-item:hover {
-  background: #f5f7fa;
-  color: #1f2329;
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .nav-item.active {
-  background: #eef2ff;
-  color: #4f6ef7;
+  background: var(--primary-soft);
+  color: var(--primary);
   font-weight: 600;
+}
+.side-foot {
+  flex-shrink: 0;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
 }
 .content {
   flex: 1;

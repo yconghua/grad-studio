@@ -268,13 +268,13 @@ function insertMd(before, after, placeholder) {
   gap: 10px;
 }
 .md-preview {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   min-height: 220px;
   max-height: 300px;
   overflow: auto;
-  background: #fafbfc;
+  background: var(--bg-hover-soft);
 }
 .member-picker {
   display: grid;
@@ -282,8 +282,8 @@ function insertMd(before, after, placeholder) {
   gap: 6px;
   max-height: 200px;
   overflow: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
 }
 .member-item {

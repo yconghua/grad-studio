@@ -26,14 +26,14 @@ function goHome() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: var(--bg-page);
   padding: 24px;
   box-sizing: border-box;
 }
 .nf-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
   padding: 48px 56px;
   text-align: center;
   max-width: 480px;
@@ -43,7 +43,7 @@ function goHome() {
   font-size: 72px;
   font-weight: 700;
   line-height: 1;
-  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -53,21 +53,21 @@ function goHome() {
   margin: 0 0 10px;
   font-size: 20px;
   font-weight: 700;
-  color: #1d2129;
+  color: var(--text);
 }
 .nf-desc {
   margin: 0 0 28px;
   font-size: 14px;
-  color: #8a9099;
+  color: var(--muted);
   line-height: 1.7;
 }
 .nf-btn {
   height: 42px;
   padding: 0 32px;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+  color: var(--on-accent);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 2px;

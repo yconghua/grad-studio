@@ -83,7 +83,7 @@ defineExpose({ isAtBottom, scrollToBottom })
 }
 .empty-list {
   text-align: center;
-  color: #9aa1ac;
+  color: var(--text-disabled);
   font-size: 13px;
   padding: 40px 0;
 }

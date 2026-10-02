@@ -44,7 +44,7 @@
         <button class="btn btn-primary" type="button" @click="search">查询</button>
         <button class="btn" type="button" @click="reset">重置</button>
         <div class="spacer"></div>
-        <span style="font-size: 13px; color: #4b5563">共 <b>{{ total }}</b> 条任务</span>
+        <span style="font-size: 13px; color: var(--text-2)">共 <b>{{ total }}</b> 条任务</span>
       </div>
 
       <!-- 任务表格 -->
@@ -374,7 +374,7 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   margin-bottom: 14px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .tab-btn {
   padding: 8px 16px;
@@ -382,21 +382,21 @@ onMounted(() => {
   border-bottom: 2px solid transparent;
   background: transparent;
   font-size: 14px;
-  color: #4b5563;
+  color: var(--text-2);
   cursor: pointer;
 }
 .tab-btn.active {
-  color: #4f6ef7;
-  border-bottom-color: #4f6ef7;
+  color: var(--primary);
+  border-bottom-color: var(--primary);
   font-weight: 600;
 }
 .overdue-mark {
   margin-left: 6px;
-  color: #ef4444;
+  color: var(--unread);
   font-size: 12px;
 }
 .link {
-  color: #4f6ef7;
+  color: var(--primary);
   cursor: pointer;
 }
 .link:hover {
@@ -411,15 +411,15 @@ onMounted(() => {
   position: relative;
   width: 90px;
   height: 16px;
-  border-radius: 8px;
-  background: #eef0f3;
+  border-radius: var(--radius-md);
+  background: var(--border-light);
   overflow: hidden;
 }
 .prog-bar {
   display: block;
   height: 100%;
-  border-radius: 8px;
-  background: #4f6ef7;
+  border-radius: var(--radius-md);
+  background: var(--primary);
 }
 .prog-num {
   position: absolute;
@@ -428,6 +428,6 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  color: #4b5563;
+  color: var(--text-2);
 }
 </style>

@@ -160,7 +160,7 @@ function onDeleteDb(id) {
 .privacy-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--mask);
 }
 .privacy-dialog {
   position: relative;
@@ -168,39 +168,39 @@ function onDeleteDb(id) {
   width: 560px;
   max-width: 92vw;
   max-height: 80vh;
-  background: #fff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
 }
 .privacy-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 18px 22px;
-  border-bottom: 1px solid #eceff3;
+  border-bottom: 1px solid var(--border-light);
 }
 .privacy-head h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  color: #1d2129;
+  color: var(--text);
 }
 .privacy-close {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 8px;
-  background: #f2f3f5;
-  color: #4e5969;
+  border-radius: var(--radius-md);
+  background: var(--gray-soft);
+  color: var(--text-2);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
   transition: background 0.2s;
 }
 .privacy-close:hover {
-  background: #e5e6eb;
+  background: var(--border);
 }
 .privacy-body {
   padding: 18px 22px;
@@ -209,7 +209,7 @@ function onDeleteDb(id) {
 .privacy-lead {
   font-size: 13px;
   line-height: 1.8;
-  color: #4e5969;
+  color: var(--text-2);
   margin: 0 0 8px;
 }
 
@@ -225,13 +225,13 @@ function onDeleteDb(id) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  border: 1px solid #e6e9ee;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
 }
 .conn-item.active {
-  border-color: #0d80e0;
-  background: #f3f9ff;
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 .conn-main {
   width: 300px;
@@ -239,20 +239,20 @@ function onDeleteDb(id) {
 .conn-name {
   font-size: 14px;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--text);
 }
 .conn-badge {
   margin-left: 8px;
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   font-size: 11px;
   font-weight: 400;
-  color: #fff;
-  background: #0d80e0;
+  color: var(--on-accent);
+  background: var(--primary);
 }
 .conn-meta {
   font-size: 12px;
-  color: #8a9099;
+  color: var(--muted);
   margin-top: 2px;
 }
 /* 操作按钮组：整体靠右（配合 .conn-item 的 space-between，信息靠左、按钮靠右） */
@@ -264,9 +264,9 @@ function onDeleteDb(id) {
   height: 32px;
   padding: 0 16px;
   border: none;
-  border-radius: 7px;
-  background: #0d80e0;
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--on-accent);
   font-size: 13px;
   cursor: pointer;
   transition: opacity 0.2s;
@@ -275,22 +275,22 @@ function onDeleteDb(id) {
   opacity: 0.92;
 }
 .conn-switch:disabled {
-  background: #c9d3df;
+  background: var(--border-strong);
   cursor: not-allowed;
 }
 .conn-delete {
   height: 32px;
   padding: 0 14px;
-  border: 1px solid #f3c2bd;
-  border-radius: 7px;
-  background: #fff;
-  color: #ea4335;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--danger);
   font-size: 13px;
   cursor: pointer;
   transition: background 0.2s;
 }
 .conn-delete:hover {
-  background: #fdecea;
+  background: var(--danger-soft);
 }
 
 /* 通用消息 + 弹窗底部按钮 */
@@ -299,10 +299,10 @@ function onDeleteDb(id) {
   margin: 0 0 12px;
 }
 .msg.ok {
-  color: #19a558;
+  color: var(--success);
 }
 .msg.err {
-  color: #ea4335;
+  color: var(--danger);
 }
 .modal-foot {
   display: flex;
@@ -314,9 +314,9 @@ function onDeleteDb(id) {
   height: 38px;
   padding: 0 22px;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: var(--on-accent);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -326,8 +326,8 @@ function onDeleteDb(id) {
   opacity: 0.92;
 }
 .save-btn.ghost {
-  background: #fff;
-  color: #0d80e0;
-  border: 1px solid #0d80e0;
+  background: var(--bg-card);
+  color: var(--primary);
+  border: 1px solid var(--primary);
 }
 </style>

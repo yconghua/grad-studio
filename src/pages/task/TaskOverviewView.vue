@@ -194,27 +194,27 @@ onMounted(() => {
   margin-bottom: 14px;
 }
 .stat-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
   text-align: center;
 }
 .stat-num {
   font-size: 24px;
   font-weight: 700;
-  color: #1f2329;
+  color: var(--text);
 }
 .stat-red {
-  color: #ef4444;
+  color: var(--unread);
 }
 .stat-orange {
-  color: #f59e0b;
+  color: var(--warning);
 }
 .stat-label {
   margin-top: 4px;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-disabled);
 }
 .group-panel {
   margin-bottom: 14px;
@@ -222,7 +222,7 @@ onMounted(() => {
 .group-title {
   font-size: 15px;
   font-weight: 700;
-  color: #1f2329;
+  color: var(--text);
   margin-bottom: 10px;
   display: flex;
   align-items: center;
@@ -231,10 +231,10 @@ onMounted(() => {
 .group-count {
   font-size: 12px;
   font-weight: 400;
-  color: #9ca3af;
+  color: var(--text-disabled);
 }
 .no-task {
-  color: #9ca3af;
+  color: var(--text-disabled);
   font-size: 13px;
 }
 </style>

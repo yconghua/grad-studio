@@ -59,7 +59,7 @@ function close() {
   display: flex;
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 1px solid #f0f1f3;
+  border-bottom: 1px solid var(--border-light);
   font-size: 13px;
 }
 .d-row:last-child {
@@ -68,12 +68,12 @@ function close() {
 .d-label {
   flex-shrink: 0;
   width: 110px;
-  color: #9aa1ac;
+  color: var(--text-disabled);
 }
 .d-value {
   flex: 1;
   min-width: 0;
-  color: #1f2329;
+  color: var(--text);
   word-break: break-word;
   white-space: pre-wrap;
 }

@@ -51,7 +51,7 @@ function onCancel() {
   position: fixed;
   inset: 0;
   z-index: 300; /* 高于业务表单弹窗（200） */
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--mask);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -59,32 +59,32 @@ function onCancel() {
 .dialog-box {
   width: 380px;
   max-width: 92vw;
-  background: #fff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
 }
 .dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid #eceff3;
+  border-bottom: 1px solid var(--border-light);
 }
 .dialog-head h4 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text);
 }
 .dialog-close {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
-  background: #f2f3f5;
-  color: #4e5969;
+  border-radius: var(--radius-md);
+  background: var(--gray-soft);
+  color: var(--text-2);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -96,7 +96,7 @@ function onCancel() {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: #1f2329;
+  color: var(--text);
   word-break: break-word;
 }
 .dialog-input {
@@ -105,40 +105,40 @@ function onCancel() {
   margin-top: 12px;
   padding: 0 10px;
   font-size: 13px;
-  border: 1px solid #dfe3e8;
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   outline: none;
   box-sizing: border-box;
 }
 .dialog-input:focus {
-  border-color: #0d80e0;
+  border-color: var(--primary);
 }
 .dialog-foot {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   padding: 14px 20px;
-  border-top: 1px solid #eceff3;
+  border-top: 1px solid var(--border-light);
 }
 .dialog-btn {
   height: 34px;
   padding: 0 18px;
   font-size: 13px;
-  border: 1px solid #dfe3e8;
-  border-radius: 8px;
-  background: #fff;
-  color: #4e5969;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-2);
   cursor: pointer;
   transition: all 0.2s;
 }
 .dialog-btn:hover {
-  border-color: #0d80e0;
-  color: #0d80e0;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 .dialog-btn.primary {
   border: none;
-  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: var(--on-accent);
   font-weight: 600;
 }
 .dialog-btn.primary:hover {

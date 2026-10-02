@@ -120,7 +120,7 @@ async function onSubmitAddDb() {
 .privacy-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--mask);
 }
 .privacy-dialog {
   position: relative;
@@ -128,39 +128,39 @@ async function onSubmitAddDb() {
   width: 560px;
   max-width: 92vw;
   max-height: 80vh;
-  background: #fff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
 }
 .privacy-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 18px 22px;
-  border-bottom: 1px solid #eceff3;
+  border-bottom: 1px solid var(--border-light);
 }
 .privacy-head h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  color: #1d2129;
+  color: var(--text);
 }
 .privacy-close {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 8px;
-  background: #f2f3f5;
-  color: #4e5969;
+  border-radius: var(--radius-md);
+  background: var(--gray-soft);
+  color: var(--text-2);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
   transition: background 0.2s;
 }
 .privacy-close:hover {
-  background: #e5e6eb;
+  background: var(--border);
 }
 .privacy-body {
   padding: 18px 22px;
@@ -169,7 +169,7 @@ async function onSubmitAddDb() {
 .privacy-lead {
   font-size: 13px;
   line-height: 1.8;
-  color: #4e5969;
+  color: var(--text-2);
   margin: 0 0 8px;
 }
 
@@ -180,34 +180,34 @@ async function onSubmitAddDb() {
 .field-label {
   display: block;
   font-size: 13px;
-  color: #4e5969;
+  color: var(--text-2);
   margin-bottom: 6px;
 }
-.req { color: #ea4335; }
+.req { color: var(--danger); }
 .field-input {
   width: 100%;
   height: 40px;
   padding: 0 12px;
   font-size: 14px;
-  border: 1px solid #dfe3e8;
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   outline: none;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  background: #fff;
+  background: var(--bg-card);
 }
 .field-input:focus {
-  border-color: #0d80e0;
+  border-color: var(--primary);
 }
 .msg {
   font-size: 13px;
   margin: 0 0 12px;
 }
 .msg.ok {
-  color: #19a558;
+  color: var(--success);
 }
 .msg.err {
-  color: #ea4335;
+  color: var(--danger);
 }
 .modal-foot {
   display: flex;
@@ -219,9 +219,9 @@ async function onSubmitAddDb() {
   height: 38px;
   padding: 0 22px;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #0d80e0 0%, #19a558 100%);
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: var(--on-accent);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -235,8 +235,8 @@ async function onSubmitAddDb() {
   cursor: not-allowed;
 }
 .save-btn.ghost {
-  background: #fff;
-  color: #0d80e0;
-  border: 1px solid #0d80e0;
+  background: var(--bg-card);
+  color: var(--primary);
+  border: 1px solid var(--primary);
 }
 </style>

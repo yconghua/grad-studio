@@ -56,26 +56,26 @@ const typeName = computed(() => {
   align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: box-shadow 0.15s, background 0.15s;
 }
 .notification-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 .notification-item.unread {
-  background: #f5f8ff;
-  border-color: #c7d4ff;
+  background: var(--primary-soft);
+  border-color: var(--border);
 }
 .item-icon {
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-  border-radius: 8px;
-  background: #eef2ff;
-  color: #4f6ef7;
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--primary);
   font-size: 18px;
   line-height: 36px;
   text-align: center;
@@ -96,19 +96,19 @@ const typeName = computed(() => {
   white-space: nowrap;
   font-size: 14px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text);
 }
 .item-dot {
   flex-shrink: 0;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: #ef4444;
+  border-radius: var(--radius-full);
+  background: var(--unread);
 }
 .item-summary {
   margin-top: 4px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-3);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -120,27 +120,27 @@ const typeName = computed(() => {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-disabled);
 }
 .item-type {
   padding: 1px 8px;
   border-radius: 4px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--gray-soft);
+  color: var(--text-3);
 }
 .item-delete {
   flex-shrink: 0;
   padding: 4px 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
-  color: #9ca3af;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-disabled);
   font-size: 12px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
 .item-delete:hover {
-  color: #ef4444;
-  border-color: #ef4444;
+  color: var(--unread);
+  border-color: var(--unread);
 }
 </style>

@@ -77,20 +77,20 @@ function timeText(ts) {
   gap: 10px;
   padding: 10px 14px;
   cursor: pointer;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-light);
 }
 .session-item:hover {
-  background: #f9fafb;
+  background: var(--bg-hover-soft);
 }
 .session-item.active {
-  background: #eef2ff;
+  background: var(--primary-soft);
 }
 .session-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  background: #eef2ff;
-  color: #4f6ef7;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -98,8 +98,8 @@ function timeText(ts) {
   flex-shrink: 0;
 }
 .session-avatar.deleted-peer {
-  background: #f1f2f4;
-  color: #8a919f;
+  background: var(--gray-soft);
+  color: var(--muted);
 }
 .session-main {
   flex: 1;
@@ -107,7 +107,7 @@ function timeText(ts) {
 }
 .session-name {
   font-size: 14px;
-  color: #1f2329;
+  color: var(--text);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -117,24 +117,24 @@ function timeText(ts) {
 }
 .deleted-tag {
   font-size: 11px;
-  color: #8a919f;
-  background: #f1f2f4;
-  border-radius: 4px;
+  color: var(--muted);
+  background: var(--gray-soft);
+  border-radius: var(--radius-sm);
   padding: 0 5px;
   flex-shrink: 0;
 }
 .session-meta {
   font-size: 12px;
-  color: #8a919f;
+  color: var(--muted);
   margin-top: 3px;
 }
 .unread-badge {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 9px;
-  background: #ef4444;
-  color: #fff;
+  border-radius: var(--radius-full);
+  background: var(--unread);
+  color: var(--on-accent);
   font-size: 11px;
   line-height: 18px;
   text-align: center;

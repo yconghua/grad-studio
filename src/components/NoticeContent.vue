@@ -41,7 +41,7 @@ const html = computed(() => {
 .notice-content {
   font-size: 14px;
   line-height: 1.7;
-  color: #374151;
+  color: var(--text-2-strong);
   word-break: break-word;
 }
 .notice-content :deep(p) {
@@ -52,7 +52,7 @@ const html = computed(() => {
 .notice-content :deep(h3),
 .notice-content :deep(h4) {
   margin: 12px 0 6px;
-  color: #111827;
+  color: var(--text);
 }
 .notice-content :deep(ul),
 .notice-content :deep(ol) {
@@ -62,19 +62,19 @@ const html = computed(() => {
 .notice-content :deep(blockquote) {
   margin: 8px 0;
   padding: 2px 12px;
-  border-left: 3px solid #d1d5db;
-  color: #6b7280;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-3);
 }
 .notice-content :deep(code) {
-  background: #f5f7fa;
+  background: var(--bg-hover);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 13px;
 }
 .notice-content :deep(pre) {
-  background: #f5f7fa;
+  background: var(--bg-hover);
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: auto;
   font-size: 13px;
 }
@@ -83,6 +83,6 @@ const html = computed(() => {
   padding: 0;
 }
 .notice-content :deep(a) {
-  color: #2563eb;
+  color: var(--primary);
 }
 </style>

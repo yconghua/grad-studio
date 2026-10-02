@@ -31,7 +31,7 @@
         <div class="row"><span class="k">数据库类型</span><span class="v">{{ db.type }}</span></div>
         <div class="row"><span class="k">连接状态</span><span class="v">
           <span :class="db.connected ? 'tag tag-green' : 'tag tag-red'">{{ db.connected ? '已连接' : '未连接' }}</span>
-          <span v-if="!db.connected && db.error" style="margin-left: 8px; color: #e5484d">{{ db.error }}</span>
+          <span v-if="!db.connected && db.error" style="margin-left: 8px; color: var(--danger)">{{ db.error }}</span>
         </span></div>
         <div class="row"><span class="k">数据库</span><span class="v">{{ db.database || '-' }}</span></div>
         <div class="row"><span class="k">主机</span><span class="v">{{ db.host || '-' }}</span></div>
@@ -53,7 +53,24 @@
       <p class="hint" style="margin-top: 10px">控制台为渲染层开发者工具；数据文件夹存放应用配置与上传附件等</p>
     </div>
 
-    <!-- 块 4：系统参数 -->
+    <!-- 块 4：外观（默认主题） -->
+    <div class="panel">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <p class="panel-title" style="margin: 0">外观（默认主题）</p>
+        <button class="btn btn-primary btn-sm" :disabled="themeSaving" @click="saveDefaultTheme">{{ themeSaving ? '保存中…' : '保存' }}</button>
+      </div>
+      <div class="field" style="margin-top: 12px; margin-bottom: 0">
+        <label>新用户 / 无本地主题偏好的用户首次登录使用的主题</label>
+        <select v-model="defaultTheme" class="select" style="max-width: 220px">
+          <option value="light">亮色</option>
+          <option value="dark">暗色</option>
+          <option value="system">跟随系统</option>
+        </select>
+        <p class="hint">个人可在侧边栏底部主题切换器覆盖自己的偏好；本配置只作为首次登录兜底</p>
+      </div>
+    </div>
+
+    <!-- 块 5：系统参数 -->
     <div class="panel">
       <div style="display: flex; align-items: center; justify-content: space-between">
         <p class="panel-title" style="margin: 0">系统参数</p>
@@ -81,7 +98,7 @@
           <tbody>
             <tr v-for="p in params" :key="p.id" @click="openDetail(p, paramDetailFields, '系统参数详情')">
               <td>{{ p.id }}</td>
-              <td class="ellipsis" style="font-family: monospace">{{ p.configKey }}</td>
+              <td class="ellipsis" style="font-family: var(--font-mono)">{{ p.configKey }}</td>
               <td class="ellipsis" style="max-width: 120px">{{ p.configValue || '-' }}</td>
               <td><span class="tag tag-blue">{{ p.configType }}</span></td>
               <td class="ellipsis">{{ p.description || '-' }}</td>
@@ -179,6 +196,52 @@ const isEdit = ref(false)
 const saving = ref(false)
 const editId = ref(null)
 const form = reactive({ configKey: '', configValue: '', configType: 'string', description: '' })
+
+// ===== 默认主题（外观） =====
+const defaultTheme = ref('system')
+const themeSaving = ref(false)
+let themeParamId = null
+
+// 读取 system.theme 参数：以参数键精确检索（分页/关键字不影响定位），缺失时回退 system
+async function loadDefaultTheme() {
+  const res = await listParams({ page: 1, keyword: 'system.theme' })
+  if (res && res.success) {
+    const found = ((res.data && res.data.list) || []).find((p) => p.configKey === 'system.theme')
+    if (found) {
+      themeParamId = found.id
+      defaultTheme.value = ['light', 'dark', 'system'].includes(found.configValue) ? found.configValue : 'system'
+    }
+  }
+}
+
+// 保存默认主题：参数已存在则编辑，否则新增（复用 system:params-*，超管鉴权已有）
+async function saveDefaultTheme() {
+  if (themeSaving.value) return
+  themeSaving.value = true
+  try {
+    const value = defaultTheme.value
+    let res
+    if (themeParamId) {
+      res = await updateParam(themeParamId, { configValue: value })
+    } else {
+      res = await createParam({
+        configKey: 'system.theme',
+        configValue: value,
+        configType: 'string',
+        description: '默认主题：light/dark/system（超管可配，无本地偏好的用户首次登录兜底）'
+      })
+    }
+    if (res && res.success) {
+      themeParamId = res.data ? res.data.id : themeParamId
+      await refreshAfterWrite('默认主题已保存')
+      loadParams()
+    } else {
+      dialogAlert((res && res.message) || '保存失败')
+    }
+  } finally {
+    themeSaving.value = false
+  }
+}
 
 // ===== 行详情 =====
 const detailVisible = ref(false)
@@ -318,5 +381,6 @@ onMounted(() => {
   loadInfo()
   loadDb()
   loadParams()
+  loadDefaultTheme()
 })
 </script>

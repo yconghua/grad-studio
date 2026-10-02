@@ -15,13 +15,13 @@
     <!-- 公告列表（卡片式，只读） -->
     <div v-else class="panel" style="margin-bottom: 12px" v-for="n in list" :key="n.id">
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
-        <h3 style="margin: 0; font-size: 15px; color: #111827; flex: 1; min-width: 200px">{{ n.title }}</h3>
+        <h3 style="margin: 0; font-size: 15px; color: var(--text); flex: 1; min-width: 200px">{{ n.title }}</h3>
         <span v-if="n.isTop" class="tag">置顶</span>
         <span :class="n.read ? 'tag tag-blue' : 'tag tag-red'" style="margin-left: auto">
           {{ n.read ? '已读' : '未读' }}
         </span>
       </div>
-      <p style="font-size: 12px; color: #9ca3af; margin: 6px 0 10px">发布于 {{ n.publishTime }} · {{ n.publisherName }}</p>
+      <p style="font-size: 12px; color: var(--text-disabled); margin: 6px 0 10px">发布于 {{ n.publishTime }} · {{ n.publisherName }}</p>
       <div style="word-break: break-word">
         <NoticeContent :content="n.content" />
       </div>
@@ -29,7 +29,7 @@
         <button v-if="!n.read" class="btn btn-primary btn-sm" :disabled="readingId === n.id" @click="doRead(n)">
           {{ readingId === n.id ? '标记中…' : '标记已读' }}
         </button>
-        <span v-else style="font-size: 13px; color: #10b981">已读</span>
+        <span v-else style="font-size: 13px; color: var(--success)">已读</span>
       </div>
     </div>
 

@@ -119,15 +119,15 @@ onMounted(async () => {
   align-items: center;
 }
 .card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 20px;
 }
 .card-head h3 {
   font-size: 15px;
-  color: #1f2329;
+  color: var(--text);
   margin: 0 0 12px;
 }
 .info-grid {
@@ -142,11 +142,11 @@ onMounted(async () => {
 }
 .info-item label {
   font-size: 12px;
-  color: #8a919f;
+  color: var(--muted);
 }
 .info-item span {
   font-size: 13px;
-  color: #1f2329;
+  color: var(--text);
 }
 .mono {
   font-family: monospace;
@@ -155,10 +155,10 @@ onMounted(async () => {
 .banner-warn {
   padding: 10px 14px;
   margin-bottom: 16px;
-  border-radius: 6px;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
-  color: #d46b08;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--bg-card));
+  color: var(--warning);
   font-size: 13px;
 }
 .stat-grid {
@@ -168,9 +168,9 @@ onMounted(async () => {
   margin-bottom: 20px;
 }
 .stat-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 14px 18px;
   min-width: 120px;
   max-width: 160px;
@@ -179,11 +179,11 @@ onMounted(async () => {
 .stat-num {
   font-size: 22px;
   font-weight: 600;
-  color: #1e5eff;
+  color: var(--primary);
 }
 .stat-label {
   font-size: 12px;
-  color: #8a919f;
+  color: var(--muted);
   margin-top: 4px;
 }
 </style>

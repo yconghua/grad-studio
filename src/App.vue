@@ -10,7 +10,7 @@ import { AppDialog } from './components/dialogs'
 </script>
 
 <style>
-/* 全局基础样式（非 scoped） */
+/* 全局基础样式（非 scoped）：颜色/字体全部引用设计令牌 */
 * {
   box-sizing: border-box;
 }
@@ -22,9 +22,8 @@ body,
   padding: 0;
 }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  color: #1f2329;
-  background: #f5f7fa;
+  font-family: var(--font-family);
+  color: var(--text);
+  background: var(--bg-page);
 }
 </style>

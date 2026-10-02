@@ -34,10 +34,10 @@ onMounted(async () => {
 .banner-warn {
   padding: 10px 14px;
   margin-bottom: 16px;
-  border-radius: 6px;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
-  color: #d46b08;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--bg-card));
+  color: var(--warning);
   font-size: 13px;
 }
 </style>

@@ -29,3 +29,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `system_configs` WHERE `config_key` = 'task.due_
 INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `description`)
 SELECT 'task.pending_review_hours', '24', 'number', '任务待验收超时提醒小时数（定时扫描用）'
 WHERE NOT EXISTS (SELECT 1 FROM `system_configs` WHERE `config_key` = 'task.pending_review_hours');
+
+INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `description`)
+SELECT 'system.theme', 'system', 'string', '默认主题：light/dark/system（超管可配，无本地偏好的用户首次登录兜底）'
+WHERE NOT EXISTS (SELECT 1 FROM `system_configs` WHERE `config_key` = 'system.theme');

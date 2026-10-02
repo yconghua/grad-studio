@@ -296,8 +296,8 @@ onUnmounted(() => {
 .chat-side {
   width: 260px;
   flex-shrink: 0;
-  background: #fff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
 }
@@ -306,26 +306,26 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  border-bottom: 1px solid #eef0f3;
+  border-bottom: 1px solid var(--border-light);
   flex-shrink: 0;
 }
 .side-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text);
 }
 .chat-panel {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #f7f8fa;
+  background: var(--bg-muted);
 }
 .chat-head {
   height: 52px;
   flex-shrink: 0;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -334,12 +334,12 @@ onUnmounted(() => {
 .peer-name {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text);
 }
 .peer-deleted-tip {
   font-size: 12px;
-  color: #e5484d;
-  background: #fef0f0;
+  color: var(--danger);
+  background: var(--danger-soft);
   border-radius: 4px;
   padding: 2px 8px;
 }
@@ -350,7 +350,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #8a919f;
+  color: var(--muted);
 }
 .chat-empty-text {
   font-size: 14px;

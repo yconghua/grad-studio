@@ -25,7 +25,7 @@
       <button class="btn btn-primary" @click="search">查询</button>
       <button class="btn" @click="reset">重置</button>
       <div class="spacer"></div>
-      <span style="font-size: 13px; color: #4b5563">共 <b>{{ total }}</b> 条公告</span>
+      <span style="font-size: 13px; color: var(--text-2)">共 <b>{{ total }}</b> 条公告</span>
     </div>
 
     <!-- 公告表格 -->
@@ -140,7 +140,7 @@
         </div>
         <div class="modal-body">
           <p class="panel-sub" style="margin-bottom: 10px">公告：{{ stats.title }}</p>
-          <p style="font-size: 13px; color: #374151; margin-bottom: 10px">
+          <p style="font-size: 13px; color: var(--text-2-strong); margin-bottom: 10px">
             应读 <b>{{ stats.totalMembers }}</b> 人（本组启用状态的导师 + 学生）／已读 <b>{{ stats.readCount }}</b> 人
           </p>
           <div class="tbl-wrap" v-if="stats.list && stats.list.length">
@@ -353,10 +353,10 @@ onMounted(async () => {
 .banner-warn {
   padding: 10px 14px;
   margin-bottom: 16px;
-  border-radius: 6px;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
-  color: #d46b08;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  border: 1px solid var(--border);
+  color: var(--warning);
   font-size: 13px;
 }
 .md-toolbar {
@@ -371,13 +371,13 @@ onMounted(async () => {
   gap: 10px;
 }
 .md-preview {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   min-height: 220px;
   max-height: 260px;
   overflow: auto;
-  background: #fafbfc;
+  background: var(--bg-hover-soft);
 }
 @media (max-width: 900px) {
   .md-editor {

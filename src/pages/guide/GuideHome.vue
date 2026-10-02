@@ -65,24 +65,24 @@ const desc = computed(() => meta.value.desc)
 }
 .guide-card {
   max-width: 460px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 40px 44px;
   text-align: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 .guide-title {
   margin: 0 0 14px;
   font-size: 20px;
   font-weight: 700;
-  color: #1f2329;
+  color: var(--text);
 }
 .guide-desc {
   margin: 0;
   font-size: 14px;
   line-height: 1.8;
-  color: #6b7280;
+  color: var(--text-3);
 }
 .guide-actions {
   margin-top: 22px;

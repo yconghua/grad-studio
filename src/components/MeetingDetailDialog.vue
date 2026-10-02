@@ -56,8 +56,8 @@
         <div class="d-row">
           <div class="d-label">公告状态</div>
           <div class="d-value">
-            <span v-if="detail.noticeId" style="color: #10b981; font-weight: 600">已发布公告（公告 #{{ detail.noticeId }}）</span>
-            <span v-else style="color: #9ca3af">未发布</span>
+            <span v-if="detail.noticeId" style="color: var(--success); font-weight: 600">已发布公告（公告 #{{ detail.noticeId }}）</span>
+            <span v-else style="color: var(--text-disabled)">未发布</span>
           </div>
         </div>
       </div>
@@ -157,7 +157,7 @@ function close() {
   display: flex;
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 1px solid #f0f1f3;
+  border-bottom: 1px solid var(--border-light);
   font-size: 13px;
 }
 .d-row:last-child {
@@ -166,12 +166,12 @@ function close() {
 .d-label {
   flex-shrink: 0;
   width: 110px;
-  color: #9aa1ac;
+  color: var(--text-disabled);
 }
 .d-value {
   flex: 1;
   min-width: 0;
-  color: #1f2329;
+  color: var(--text);
   word-break: break-word;
   white-space: pre-wrap;
 }
@@ -184,13 +184,13 @@ function close() {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #f3f4f6;
-  border-radius: 999px;
+  background: var(--gray-soft);
+  border-radius: var(--radius-full);
   padding: 2px 10px;
   font-size: 12px;
 }
 .member-chip i {
   font-style: normal;
-  color: #9ca3af;
+  color: var(--text-disabled);
 }
 </style>

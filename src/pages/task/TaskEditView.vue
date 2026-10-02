@@ -138,21 +138,21 @@ onMounted(load)
   width: 80px;
   flex-shrink: 0;
   font-size: 14px;
-  color: #4b5563;
+  color: var(--text-2);
   line-height: 34px;
 }
 .req {
-  color: #ef4444;
+  color: var(--unread);
 }
 .textarea {
   flex: 1;
   min-width: 0;
   padding: 8px 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-family: inherit;
-  color: #1f2329;
+  color: var(--text);
   resize: vertical;
   outline: none;
   box-sizing: border-box;
@@ -161,6 +161,6 @@ onMounted(load)
   display: flex;
   gap: 10px;
   padding-top: 14px;
-  border-top: 1px solid #eef0f3;
+  border-top: 1px solid var(--border-light);
 }
 </style>

@@ -216,7 +216,7 @@ onUnmounted(() => {
 .nc-title {
   font-size: 18px;
   font-weight: 700;
-  color: #1f2329;
+  color: var(--text);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -224,7 +224,7 @@ onUnmounted(() => {
 .nc-unread-total {
   font-size: 13px;
   font-weight: 400;
-  color: #ef4444;
+  color: var(--unread);
 }
 .nc-actions {
   display: flex;
@@ -235,27 +235,27 @@ onUnmounted(() => {
 .nc-filter {
   height: 32px;
   padding: 0 8px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
   font-size: 13px;
-  color: #4b5563;
+  color: var(--text-2);
   outline: none;
 }
 .nc-btn {
   height: 32px;
   padding: 0 14px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
   font-size: 13px;
-  color: #4b5563;
+  color: var(--text-2);
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
 .nc-btn:hover:not(:disabled) {
-  color: #4f6ef7;
-  border-color: #4f6ef7;
+  color: var(--primary);
+  border-color: var(--primary);
 }
 .nc-btn:disabled {
   opacity: 0.5;
@@ -269,7 +269,7 @@ onUnmounted(() => {
 .nc-empty {
   padding: 60px 0;
   text-align: center;
-  color: #9ca3af;
+  color: var(--text-disabled);
   font-size: 14px;
 }
 .nc-footer {
@@ -278,6 +278,6 @@ onUnmounted(() => {
 }
 .nc-end {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-disabled);
 }
 </style>

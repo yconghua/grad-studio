@@ -57,15 +57,15 @@ onUnmounted(() => {
 
 <style scoped>
 .recent-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 16px;
   cursor: pointer;
   transition: box-shadow 0.15s;
 }
 .recent-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 .rc-head {
   display: flex;
@@ -76,11 +76,11 @@ onUnmounted(() => {
 .rc-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text);
 }
 .rc-more {
   font-size: 12px;
-  color: #4f6ef7;
+  color: var(--primary);
 }
 .rc-list {
   list-style: none;
@@ -107,19 +107,19 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  color: #4b5563;
+  color: var(--text-2);
 }
 .rc-dot {
   flex-shrink: 0;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: #ef4444;
+  border-radius: var(--radius-full);
+  background: var(--unread);
 }
 .rc-empty {
   padding: 12px 0;
   text-align: center;
-  color: #9ca3af;
+  color: var(--text-disabled);
   font-size: 13px;
 }
 </style>
