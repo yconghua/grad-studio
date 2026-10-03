@@ -60,18 +60,22 @@ function register(ipcMain) {
     }
   })
 
-  // 公开应用信息（无需登录）：读取 system_configs 中 system.name / system.theme，供登录页品牌名与默认主题使用
+  // 公开应用信息（无需登录）：读取 system_configs 中 system.name / system.theme / 版本 / 简介，供登录页品牌名、标语与默认主题使用
   ipcMain.handle('sys:get-public-info', async () => {
     let appName = DEFAULT_APP_NAME
     let defaultTheme = 'system'
+    let version = ''
+    let introduction = ''
     try {
       const info = await systemService.getIntroduction()
       if (info && info.name) appName = info.name
       if (info && info.defaultTheme) defaultTheme = info.defaultTheme
+      if (info && info.version) version = info.version
+      if (info && info.introduction) introduction = info.introduction
     } catch (err) {
       // 数据库未连接 / 表不存在时静默回退默认值
     }
-    return { success: true, code: 0, message: 'success', appName, defaultTheme }
+    return { success: true, code: 0, message: 'success', appName, defaultTheme, version, introduction }
   })
 
   // 当前生效数据库信息 + 实时连接状态（SELECT 1 探活）；不要求登录，供登录页「数据库」展示

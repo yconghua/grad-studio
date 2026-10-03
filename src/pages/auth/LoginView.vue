@@ -1,21 +1,25 @@
 <template>
   <div class="login-page">
-    <!-- 上：系统标题 -->
-    <header class="login-header">
-      <img :src="logoUrl" class="brand-mark" alt="平台" />
-      <h1 class="brand-title">{{ appName }}</h1>
-    </header>
-
     <!-- 中：系统介绍（左） + 登录表单（右） -->
     <main class="login-main">
-      <section class="intro-panel">
-        <div class="intro-inner">
-          <div class="intro-quote">
-            <p class="quote-text">愿每一次投入，都有记录；<br />愿每一段成长，都有回响。</p>
+      <!-- 左：品牌区（同源浅色分栏） -->
+      <section class="brand-panel">
+        <div class="brand-rings" aria-hidden="true">
+          <span class="ring ring-1"></span>
+          <span class="ring ring-2"></span>
+        </div>
+        <div class="brand-inner">
+          <div class="brand-head">
+            <img :src="logoUrl" class="brand-logo" alt="平台" />
+            <h1 class="brand-name">{{ appName }}</h1>
+          </div>
+          <div class="brand-copy">
+            <p class="brand-slogan">愿每一次投入，都有记录；<br />愿每一段成长，都有回响。</p>
           </div>
         </div>
       </section>
 
+      <!-- 右：登录卡 -->
       <section class="form-panel">
         <div class="login-card">
           <div class="card-head">
@@ -33,12 +37,6 @@
             </span>
           </div>
           <p class="card-sub">请输入账号密码以进入系统</p>
-
-          <!-- 默认密码提示：不同角色默认密码不同，首次登录需修改密码 -->
-          <div class="default-tip">
-            <b>默认密码提示</b>：超级管理员 <b>SuperAdmin123</b> · 课题组管理员 <b>GroupAdmin123</b> ·
-            导师 <b>Mentor123</b> · 学生 <b>Student123</b>（首次登录需修改密码）
-          </div>
 
           <form @submit.prevent="onSubmit">
             <label class="field-label" for="username">账号</label>
@@ -68,17 +66,31 @@
             <button class="submit-btn" type="submit" :disabled="loading">
               {{ loading ? '登录中…' : '登 录' }}
             </button>
-
-            <p class="forgot-tip">忘记密码请联系<span class="admin-link" @click="showAdminContact = true">管理员</span>重置</p>
           </form>
+
+          <div class="card-foot">
+            <span>忘记密码请联系<span class="admin-link" @click="showAdminContact = true">管理员</span>重置</span>
+            <button type="button" class="default-link" @click="showDefaultPwd = !showDefaultPwd">
+              默认密码{{ showDefaultPwd ? '收起 ▲' : '展开 ▼' }}
+            </button>
+          </div>
+
+          <!-- 默认密码提示：默认折叠，点击展开 -->
+          <div v-if="showDefaultPwd" class="default-tip">
+            超级管理员 <b>SuperAdmin123</b> · 课题组管理员 <b>GroupAdmin123</b> · 导师 <b>Mentor123</b> ·
+            学生 <b>Student123</b>（首次登录需修改密码）
+          </div>
+
         </div>
       </section>
     </main>
 
-    <!-- 下：页脚 -->
+    <!-- 下：页脚（版本号 + 版权） -->
     <footer class="login-footer">
       <div class="footer-inner">
-        <span class="footer-copy">Copyright © 2025–{{ copyrightYear }} {{ appName }} 版权所有</span>
+        <span class="footer-copy">
+          <span v-if="version">v{{ version }} · </span>Copyright © 2025–{{ copyrightYear }} {{ appName }} 版权所有
+        </span>
       </div>
     </footer>
 
@@ -126,7 +138,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { login, deleteDb, getDbInfo } from '../../api'
+import { login, deleteDb, getDbInfo, getPublicInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
 import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
@@ -180,7 +192,21 @@ async function onSubmit() {
   loading.value = false
 }
 
-// 登录卡片右上角数据库状态：挂载时 + 切换数据库后刷新
+// 页脚版本号：公开应用信息接口（无需登录）取版本号
+const version = ref('')
+
+async function loadVersion() {
+  try {
+    const res = await getPublicInfo()
+    if (res && res.success) {
+      version.value = res.version || ''
+    }
+  } catch (e) {
+    // 获取失败时保持空版本号
+  }
+}
+
+// 登录卡片底部数据库状态：挂载时 + 切换数据库后刷新
 const dbState = ref('loading')
 const dbMeta = ref({ host: '', port: '', database: '' })
 const dbStatusText = computed(() => {
@@ -218,6 +244,7 @@ async function refreshDbStatus() {
   }
 }
 onMounted(() => {
+  loadVersion()
   refreshDbStatus()
   // 从「切换账号」跳转而来：?pre=账号名 → 预填该账号输密码；?new=1 → 清空账号框输新账号
   const q = route.query
@@ -234,6 +261,7 @@ onMounted(() => {
 
 const copyrightYear = new Date().getFullYear()
 const showAdminContact = ref(false)
+const showDefaultPwd = ref(false)
 
 // 数据库管理弹窗（协调层，逻辑在各弹窗组件内）
 const showBaseConfig = ref(false)
@@ -297,86 +325,112 @@ async function onDeleteConfirmed(id) {
   background-color: var(--bg-page);
   overflow: auto;
 }
-.login-header {
-  flex: 0 0 auto;
+.login-main {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+/* ===== 左：品牌区 ===== */
+.brand-panel {
+  flex: 1.4 1 0;
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 14px 16px 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--bg-page) 0%, var(--primary-soft) 100%);
+  min-width: 0;
 }
-.brand-mark {
-  width: 34px;
-  height: 34px;
+.brand-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  width: 100%;
+  padding: 48px 56px 36px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.brand-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-logo {
+  width: 44px;
+  height: 44px;
   object-fit: contain;
 }
-.brand-title {
+.brand-name {
   margin: 0;
-  max-width: 60vw;
+  max-width: 60%;
   min-width: 0;
-  font-size: 26px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: 1px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.login-main {
+.brand-copy {
   flex: 1 1 auto;
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   min-height: 0;
-  padding: 32px 0;
+}
+.brand-slogan {
+  margin: 0;
+  max-width: 520px;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.6;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+/* 背景装饰：极淡圆环（primary 低透明度，仅增加层次） */
+.brand-rings {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ring {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--primary) 12%, transparent);
+  border-radius: 50%;
+}
+.ring-1 {
+  top: -110px;
+  right: -70px;
+  width: 340px;
+  height: 340px;
+}
+.ring-2 {
+  top: 80px;
+  right: 50px;
+  width: 130px;
+  height: 130px;
+}
+
+/* ===== 右：登录卡 ===== */
+.form-panel {
+  flex: 1 1 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-}
-.intro-panel {
-  flex: 1 1 auto;
-  position: relative;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  margin-right: 12px;
-  margin-left: 30px;
-  display: flex;
-  max-width: 720px;
-}
-.intro-inner {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 44px 46px;
+  padding: 32px;
   min-width: 0;
 }
-.intro-quote {
-  max-width: 420px;
-  text-align: center;
-}
-.quote-text {
-  margin: 0;
-  font-size: 17px;
-  line-height: 2;
-  color: var(--text-2);
-}
-.form-panel {
-  flex: 0 0 380px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
 .login-card {
-  width: 340px;
+  width: 360px;
   max-width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 34px 30px;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-xl);
+  padding: 32px 30px 20px;
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -389,10 +443,12 @@ async function onDeleteConfirmed(id) {
   margin: 0 0 6px;
 }
 .card-title {
+  margin: 0;
   font-size: 22px;
   font-weight: 700;
-  margin: 0;
+  color: var(--text);
 }
+/* 数据库状态：登录卡右上角胶囊，点击进入数据库配置 */
 .db-status {
   display: inline-flex;
   align-items: center;
@@ -429,23 +485,31 @@ async function onDeleteConfirmed(id) {
   background: var(--gray-soft);
   border-color: var(--border);
 }
+
+/* ===== 页脚：版本号 + 版权 ===== */
+.login-footer {
+  flex: 0 0 auto;
+  text-align: center;
+  padding: 16px 16px 18px;
+}
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.footer-copy {
+  max-width: 80vw;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .card-sub {
+  margin: 6px 0 4px;
   font-size: 13px;
   color: var(--muted);
-  margin: 0 0 20px;
-}
-.default-tip {
-  margin: 0 0 14px;
-  padding: 8px 10px;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--text-2);
-  background: var(--primary-soft);
-  border: 1px dashed color-mix(in srgb, var(--primary) 20%, var(--bg-card));
-  border-radius: var(--radius-md);
-}
-.default-tip b {
-  color: var(--primary);
 }
 .field-label {
   display: block;
@@ -478,7 +542,7 @@ async function onDeleteConfirmed(id) {
   margin-top: 14px;
   border: none;
   border-radius: var(--radius-md);
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
   color: var(--on-accent);
   font-size: 15px;
   font-weight: 600;
@@ -493,35 +557,44 @@ async function onDeleteConfirmed(id) {
   opacity: 0.6;
   cursor: not-allowed;
 }
-.forgot-tip {
-  margin: 16px 0 0;
+/* 卡片底部：忘记密码 / 默认密码入口 */
+.card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
   font-size: 12px;
   color: var(--muted);
-  text-align: center;
 }
 .admin-link {
   color: var(--primary);
   cursor: pointer;
 }
-.login-footer {
+.default-link {
   flex: 0 0 auto;
-  text-align: center;
-  padding: 18px 16px 20px;
-}
-.footer-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.footer-copy {
-  max-width: 80vw;
-  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
   font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--primary);
+  cursor: pointer;
 }
+/* 默认密码提示：展开块 */
+.default-tip {
+  margin-top: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-2);
+  background: var(--primary-soft);
+  border: 1px dashed color-mix(in srgb, var(--primary) 20%, var(--bg-card));
+  border-radius: var(--radius-md);
+}
+.default-tip b {
+  color: var(--primary);
+}
+/* ===== 管理员联系方式弹窗 ===== */
 .privacy-overlay {
   position: fixed;
   inset: 0;
