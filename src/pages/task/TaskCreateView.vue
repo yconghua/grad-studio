@@ -126,7 +126,7 @@ async function submit() {
   submitting.value = false
   if (res && res.success) {
     dialogAlert('任务创建成功，已通知参与人')
-    router.push({ name: `${role}-task-detail`, params: { id: res.data.id } })
+    router.push({ name: `${role}-tasks`, query: { open: res.data.id } })
   } else {
     dialogAlert((res && res.message) || '创建失败')
   }

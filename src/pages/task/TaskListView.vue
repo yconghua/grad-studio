@@ -400,11 +400,16 @@ function isOverdue(t) {
   return new Date(t.dueTime.replace(' ', 'T')).getTime() < Date.now()
 }
 
-onMounted(() => {
+onMounted(async () => {
   // 支持从工作台带参数直达（如待验收筛选）
   const qStatus = route.query.status
   if (qStatus) status.value = Number(qStatus)
-  load()
+  await load()
+  // 通知跳转带 open=<taskId>：列表加载后自动打开新版详情弹窗
+  const openId = route.query.open
+  if (openId != null && /^\d+$/.test(String(openId))) {
+    openDetail({ id: Number(openId) })
+  }
 })
 </script>
 

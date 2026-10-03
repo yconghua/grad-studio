@@ -5,10 +5,10 @@ import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '.
 
 // 各角色下各业务类型的路由表
 const ROUTE_TABLE = {
-  [ROLE_SUPER_ADMIN]: { notice: '/admin/notices', meeting: '/admin/meetings', task: '/admin/task-overview' },
-  [ROLE_GROUP_ADMIN]: { notice: '/group-admin/notices', meeting: '/group-admin/meetings', task: '/group-admin/tasks' },
-  [ROLE_MENTOR]: { notice: '/mentor/notices', meeting: '/mentor/meetings', task: '/mentor/tasks' },
-  [ROLE_STUDENT]: { notice: '/student/notices', meeting: '/student/meetings', task: '/student/tasks' }
+  [ROLE_SUPER_ADMIN]: { notice: '/admin/notices', meeting: '/admin/meetings', task: '/admin/task-overview', report: '/admin/report' },
+  [ROLE_GROUP_ADMIN]: { notice: '/group-admin/notices', meeting: '/group-admin/meetings', task: '/group-admin/tasks', report: '/group-admin/report' },
+  [ROLE_MENTOR]: { notice: '/mentor/notices', meeting: '/mentor/meetings', task: '/mentor/tasks', report: '/mentor/report' },
+  [ROLE_STUDENT]: { notice: '/student/notices', meeting: '/student/meetings', task: '/student/tasks', report: '/student/report' }
 }
 
 // 角色 → 路由前缀（用于通知中心自身路由兜底）
@@ -25,7 +25,8 @@ export function pathForBiz(bizType, role, bizId) {
   const table = ROUTE_TABLE[role] || {}
   if (bizType === 'task' && bizId != null && role !== ROLE_SUPER_ADMIN) {
     const prefix = ROLE_PREFIX[role]
-    if (prefix) return `${prefix}/tasks/${Number(bizId)}`
+    // 跳任务列表并由列表页按 open 参数自动打开新版详情弹窗（不再跳旧版详情页）
+    if (prefix) return `${prefix}/tasks?open=${Number(bizId)}`
   }
   return table[bizType] || `${ROLE_PREFIX[role] || ''}/notifications`
 }

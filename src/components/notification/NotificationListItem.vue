@@ -46,6 +46,7 @@ const iconText = computed(() => {
 })
 const typeName = computed(() => {
   if (props.typeInfo && props.typeInfo.displayName) return props.typeInfo.displayName
+  if (props.item.typeName) return props.item.typeName
   return TYPE_LABEL[props.item.typeKey] || props.item.typeKey || '通知'
 })
 </script>
