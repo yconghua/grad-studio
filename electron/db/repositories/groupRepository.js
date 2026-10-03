@@ -90,7 +90,7 @@ class GroupRepository extends BaseRepository {
     const [countRows] = await this._execute(countSql, values, 'pagedList.count')
     const total = Number(countRows[0] && countRows[0].total) || 0
 
-    const { page, pageSize, limit, offset } = normalizePage(filters.page)
+    const { page, pageSize, limit, offset } = normalizePage(filters.page, filters.pageSize)
     // LIMIT/OFFSET 直接内联整数值（normalizePage 已做 parseInt 归一化），规避
     // prepared statement 对 LIMIT ? 占位符的支持问题（部分 MySQL 版本报
     // 「Incorrect arguments to mysqld_stmt_execute」）。

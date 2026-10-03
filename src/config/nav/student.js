@@ -4,6 +4,7 @@
  */
 export const STUDENT_NAV = [
   { key: 'student-dashboard', path: '/student/dashboard', title: '工作台' },
+  { key: 'student-report', path: '/student/report', title: '我的周报' },
   { key: 'student-notes', path: '/student/notes', title: '我的笔记' },
   { key: 'student-notifications', path: '/student/notifications', title: '通知中心' },
   { key: 'student-notices', path: '/student/notices', title: '课题组公告' },

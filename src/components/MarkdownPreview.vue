@@ -53,7 +53,12 @@ const html = computed(() => {
 .md-preview :deep(h4) {
   margin: 12px 0 6px;
   color: var(--text);
+  font-weight: 700;
 }
+.md-preview :deep(h1) { font-size: 22px; }
+.md-preview :deep(h2) { font-size: 17px; }
+.md-preview :deep(h3) { font-size: 15px; }
+.md-preview :deep(h4) { font-size: 14px; }
 .md-preview :deep(ul),
 .md-preview :deep(ol) {
   margin: 6px 0;

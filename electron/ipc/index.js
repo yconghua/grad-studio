@@ -28,6 +28,7 @@ const notificationRoutes = require('./notification')
 const taskRoutes = require('./task')
 const taskOverviewRoutes = require('./taskOverview')
 const noteRoutes = require('./note')
+const reportRoutes = require('./report')
 const systemRoutes = require('./system')
 const sysRoutes = require('./sys')
 
@@ -82,6 +83,7 @@ function registerAll(ipcMain) {
   taskRoutes.register(logger)
   taskOverviewRoutes.register(logger)
   noteRoutes.register(logger)
+  reportRoutes.register(logger)
   systemRoutes.register(logger)
   sysRoutes.register(logger)
 }

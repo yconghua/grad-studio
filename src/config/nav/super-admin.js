@@ -4,6 +4,7 @@
  */
 export const SUPER_ADMIN_NAV = [
   { key: 'admin-dashboard', path: '/admin/dashboard', title: '工作台' },
+  { key: 'admin-report', path: '/admin/report', title: '周报统计' },
   { key: 'admin-notifications', path: '/admin/notifications', title: '通知中心' },
   { key: 'admin-users', path: '/admin/users', title: '用户管理' },
   { key: 'admin-groups', path: '/admin/groups', title: '课题组设置' },

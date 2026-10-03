@@ -40,3 +40,17 @@ export const CONNECTION_LIMIT = sharedConstants.CONNECTION_LIMIT
 
 // ===== 笔记类别（学生私人笔记） =====
 export const NOTE_CATEGORIES = sharedConstants.NOTE_CATEGORIES
+
+// ===== 周报状态 / 批阅动作 / 附件规则 =====
+export const REPORT_STATUS_DRAFT = sharedConstants.REPORT_STATUS_DRAFT
+export const REPORT_STATUS_SUBMITTED = sharedConstants.REPORT_STATUS_SUBMITTED
+export const REPORT_STATUS_RETURNED = sharedConstants.REPORT_STATUS_RETURNED
+export const REPORT_STATUS_REVIEWED = sharedConstants.REPORT_STATUS_REVIEWED
+export const REPORT_REVIEW_APPROVE = sharedConstants.REPORT_REVIEW_APPROVE
+export const REPORT_REVIEW_RETURN = sharedConstants.REPORT_REVIEW_RETURN
+export const REPORT_ATTACH_EXTS = sharedConstants.REPORT_ATTACH_EXTS
+export const REPORT_ATTACH_MAX_BYTES = sharedConstants.REPORT_ATTACH_MAX_BYTES
+export const REPORT_ATTACH_QUOTA_BYTES = sharedConstants.REPORT_ATTACH_QUOTA_BYTES
+export const REPORT_BACKFILL_WEEKS = sharedConstants.REPORT_BACKFILL_WEEKS
+export const REPORT_SUBMIT_WITHDRAW_MS = sharedConstants.REPORT_SUBMIT_WITHDRAW_MS
+export const REPORT_REVIEW_WITHDRAW_MS = sharedConstants.REPORT_REVIEW_WITHDRAW_MS

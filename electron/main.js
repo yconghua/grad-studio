@@ -25,6 +25,7 @@ const connectionService = require('./services/connectionService')
 const ticketService = require('./services/ticketService')
 // 任务定时扫描：到期/逾期/待验收超时提醒（应用 ready 后启动）
 const taskScheduler = require('./services/taskScheduler')
+const reportScheduler = require('./services/reportScheduler')
 // 路由聚合：一行注册全部 auth:* / sys:* 等 IPC 接口
 const { registerAll } = require('./ipc')
 
@@ -152,13 +153,16 @@ app.whenReady().then(() => {
   registerAll(require('electron').ipcMain)
   // 启动任务定时扫描（数据库未配置时内部自动跳过）
   taskScheduler.start()
+  // 启动周报定时提醒（未交 / 批阅超时 / 打回未改）
+  reportScheduler.start()
   // 创建窗口
   createWindow()
 })
 
-// 应用退出前停止任务定时扫描
+// 应用退出前停止定时扫描
 app.on('will-quit', () => {
   taskScheduler.stop()
+  reportScheduler.stop()
 })
 
 app.on('window-all-closed', () => {

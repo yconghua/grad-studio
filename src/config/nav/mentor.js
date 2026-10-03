@@ -4,6 +4,7 @@
  */
 export const MENTOR_NAV = [
   { key: 'mentor-dashboard', path: '/mentor/dashboard', title: '工作台' },
+  { key: 'mentor-report', path: '/mentor/report', title: '周报批阅' },
   { key: 'mentor-notifications', path: '/mentor/notifications', title: '通知中心' },
   { key: 'mentor-students', path: '/mentor/students', title: '我的学生' },
   { key: 'mentor-notices', path: '/mentor/notices', title: '课题组公告' },

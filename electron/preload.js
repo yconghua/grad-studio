@@ -22,9 +22,11 @@
  */
 const { contextBridge, ipcRenderer } = require('electron')
 
-// 敏感字段脱敏：打印 payload 前把密码类字段替换为 ***
+// 敏感字段脱敏：打印 payload 前把密码类字段替换为 ***；二进制类型只打字节数摘要
 function sanitize(value) {
   if (value == null || typeof value !== 'object') return value
+  if (value instanceof ArrayBuffer) return { __binary: value.byteLength }
+  if (ArrayBuffer.isView(value)) return { __binary: value.byteLength }
   if (Array.isArray(value)) return value.map(sanitize)
   const out = {}
   for (const k of Object.keys(value)) {
@@ -35,10 +37,17 @@ function sanitize(value) {
 }
 
 // 把渲染层的 Vue 响应式 Proxy / 特殊对象脱壳为结构化克隆可传递的普通对象，
-// 否则 ipcRenderer.invoke 会抛 "An object could not be cloned"
+// 否则 ipcRenderer.invoke 会抛 "An object could not be cloned"。
+// 二进制类型（ArrayBuffer / TypedArray / DataView）原样保留：Electron 的
+// 结构化克隆原生支持直接传输，JSON 序列化会把二进制内容丢掉（变成 {}）。
 function toPlain(value) {
   if (value === undefined || value === null) return value
-  return JSON.parse(JSON.stringify(value))
+  if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value
+  if (typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(toPlain)
+  const out = {}
+  for (const k of Object.keys(value)) out[k] = toPlain(value[k])
+  return out
 }
 
 // 工厂：把「某个 IPC 通道」固化成一个函数，调用时把唯一 payload 透传给主进程。
@@ -208,6 +217,34 @@ contextBridge.exposeInMainWorld('api', {
     restore: createInvoke('note:restore'),
     purge: createInvoke('note:purge'),
     export: createInvoke('note:export')
+  },
+  // 周报模块（对应 ipc/report.js，通道前缀 report:*）
+  report: {
+    myWeek: createInvoke('report:my-week'),
+    create: createInvoke('report:create'),
+    saveDraft: createInvoke('report:save-draft'),
+    submit: createInvoke('report:submit'),
+    withdrawSubmit: createInvoke('report:withdraw-submit'),
+    listMine: createInvoke('report:list-mine'),
+    listToReview: createInvoke('report:list-to-review'),
+    review: createInvoke('report:review'),
+    unreview: createInvoke('report:unreview'),
+    get: createInvoke('report:get'),
+    listGroup: createInvoke('report:list-group'),
+    addAttachment: createInvoke('report:attachment-add'),
+    listAttachments: createInvoke('report:attachment-list'),
+    deleteAttachment: createInvoke('report:attachment-delete'),
+    downloadAttachment: createInvoke('report:attachment-download'),
+    attachmentQuota: createInvoke('report:attachment-quota'),
+    listTemplates: createInvoke('report:template-list'),
+    saveTemplate: createInvoke('report:template-save'),
+    listHolidays: createInvoke('report:holiday-list'),
+    upsertHoliday: createInvoke('report:holiday-upsert'),
+    removeHoliday: createInvoke('report:holiday-remove'),
+    stats: createInvoke('report:stats'),
+    remind: createInvoke('report:remind'),
+    purge: createInvoke('report:purge'),
+    listMeta: createInvoke('report:list-meta')
   },
   // 超管任务总览（对应 ipc/taskOverview.js，通道前缀 task-overview:*）
   taskOverview: {

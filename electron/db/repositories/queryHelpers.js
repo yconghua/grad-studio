@@ -64,16 +64,19 @@ function buildUpdateSet(data = {}) {
 
 // ===== 分页统一规则 =====
 // 所有列表统一每页 8 条（pageSize 固定，不接受前端自定义），返回页码从 1 开始。
+// 个别「全量下拉」场景可显式传 pageSize 覆盖（如超管按组核查的组列表）。
 const PAGE_SIZE = 8
 
 /**
  * 规范化分页参数。
  * @param {number|string} [page] 页码，默认 1
+ * @param {number|string} [pageSize] 每页条数，默认 PAGE_SIZE（仅全量场景显式覆盖）
  * @returns {{ page: number, pageSize: number, limit: number, offset: number }}
  */
-function normalizePage(page) {
+function normalizePage(page, pageSize) {
   const p = Math.max(1, parseInt(page, 10) || 1)
-  return { page: p, pageSize: PAGE_SIZE, limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE }
+  const size = Math.min(200, Math.max(1, parseInt(pageSize, 10) || PAGE_SIZE))
+  return { page: p, pageSize: size, limit: size, offset: (p - 1) * size }
 }
 
 /**

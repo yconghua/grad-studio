@@ -50,7 +50,7 @@ function onCancel() {
 .dialog-mask {
   position: fixed;
   inset: 0;
-  z-index: 300; /* 高于业务表单弹窗（200） */
+  z-index: 2000; /* 高于所有业务弹窗（1000），全局提示永远置顶 */
   background: var(--mask);
   display: flex;
   align-items: center;

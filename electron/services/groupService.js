@@ -114,8 +114,8 @@ async function assertGroupWritable(groupId) {
 /**
  * 课题组分页列表：关键字（名称/标识号）过滤
  */
-async function listGroups({ page, keyword } = {}) {
-  const result = await groupRepository.pagedList({ page, keyword })
+async function listGroups({ page, pageSize, keyword } = {}) {
+  const result = await groupRepository.pagedList({ page, pageSize, keyword })
   return pageResult(result, toGroupDto)
 }
 

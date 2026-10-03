@@ -47,6 +47,31 @@ module.exports = {
     { value: 'other', label: '其他' }
   ],
 
+  // ===== 周报状态（与 schemas/19_report.sql 一致） =====
+  REPORT_STATUS_DRAFT: 'draft',          // 草稿（仅学生可见）
+  REPORT_STATUS_SUBMITTED: 'submitted',  // 待批阅（补交/跨周仍可被导师批阅）
+  REPORT_STATUS_RETURNED: 'returned',    // 打回修改（学生可改后重交）
+  REPORT_STATUS_REVIEWED: 'reviewed',    // 已批阅（终态，全角色只读）
+
+  // 批阅动作
+  REPORT_REVIEW_APPROVE: 'approve',      // 通过
+  REPORT_REVIEW_RETURN: 'return',        // 打回
+
+  // ===== 周报附件规则 =====
+  // 允许的扩展名（小写，不带点）：PDF / Word / 图片
+  REPORT_ATTACH_EXTS: ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'gif', 'webp'],
+  // 单文件上限：50MB（字节）
+  REPORT_ATTACH_MAX_BYTES: 50 * 1024 * 1024,
+  // 每名学生累计总量上限：1GB（字节）
+  REPORT_ATTACH_QUOTA_BYTES: 1024 * 1024 * 1024,
+
+  // 补交窗口：最多可补交最近 4 个自然周
+  REPORT_BACKFILL_WEEKS: 4,
+  // 学生提交后撤回窗口：1 小时（毫秒）
+  REPORT_SUBMIT_WITHDRAW_MS: 60 * 60 * 1000,
+  // 导师批阅后撤回窗口：24 小时（毫秒）
+  REPORT_REVIEW_WITHDRAW_MS: 24 * 60 * 60 * 1000,
+
   // ===== 角色默认密码（单一事实来源） =====
   // 新增用户 / 管理员重置密码统一使用；首次登录强制修改密码（must_change_password=1）
   // 所有默认密码均满足强度规则（长度≥6 且包含大小写字母）
