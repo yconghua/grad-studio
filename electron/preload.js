@@ -64,7 +64,9 @@ contextBridge.exposeInMainWorld('api', {
     login: createInvoke('auth:login'),
     logout: createInvoke('auth:logout'),
     getCurrentUser: createInvoke('auth:get-current-user'),
-    changePassword: createInvoke('auth:change-password')
+    changePassword: createInvoke('auth:change-password'),
+    switchAccount: createInvoke('auth:switch-account'),
+    ticketStatus: createInvoke('auth:ticket-status')
   },
   // 用户管理（对应 ipc/user.js，通道前缀 user:*）
   user: {

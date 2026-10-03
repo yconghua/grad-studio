@@ -14,6 +14,8 @@ const chatPoller = require('./chatPoller')
 // 通知中心实时推送：与聊天同构，10 秒轮询未读数/新通知
 const notificationPoller = require('./notificationPoller')
 const { ROLE_SUPER_ADMIN, ACCOUNT_STATUS_ENABLED } = require('../../shared/constants')
+// 免密票据：登录成功后签发/刷新；切换账号时凭票据免密登录（仅登录后切换路径使用）
+const ticketService = require('./ticketService')
 
 // 主进程内存中的当前登录用户（单用户桌面应用，同一时刻只允许一人登录）
 let currentUser = null
@@ -54,6 +56,8 @@ async function login({ username, password } = {}) {
   }
   const safe = toSafeUser(user)
   currentUser = safe
+  // 登录成功后签发 / 刷新免密票据（仅用于登录后切换账号）
+  ticketService.issue(safe.username)
   // 登录后启动聊天实时推送（每 2 秒轮询共享库增量，有变化推给渲染层）
   chatPoller.start(safe.id)
   // 登录后启动通知中心实时推送（每 10 秒轮询新通知/未读数）
@@ -64,12 +68,43 @@ async function login({ username, password } = {}) {
   }
 }
 
-// 退出登录：停止聊天/通知推送并清除内存登录态
+// 退出登录：停止聊天/通知推送并清除内存登录态（不吊销免密票据，票据仅 7 天到期失效）
 function logout() {
   chatPoller.stop()
   notificationPoller.stop()
   currentUser = null
   return true
+}
+
+/**
+ * 切换账号（免密票据路径）—— 链路硬保证：先完整退出旧账号，再登录新账号。
+ * 步骤：
+ *   ① 先退出当前账号（停推送 + 清登录态），任何情况下都先执行；
+ *   ② 校验新账号票据：签名 + 有效期，通过则自动刷新 7 天；
+ *   ③ 回库加载新账号并建立会话。
+ * 返回 { ok: true, user } 免密成功；{ ok: false, needPassword: true, message } 需回登录页输密码
+ * （此时旧账号已退出，前端应清会话跳登录页）。
+ */
+async function switchByTicket(username) {
+  // ① 先完整退出当前账号——顺序不可颠倒，不存在"原地替换登录态"的旁路
+  logout()
+  if (!username || typeof username !== 'string') {
+    return { ok: false, needPassword: true, message: '缺少切换目标账号' }
+  }
+  // ② 票据校验（通过会刷新 7 天有效期）
+  if (!ticketService.verifyAndRefresh(username)) {
+    return { ok: false, needPassword: true, message: '该账号免密凭证已失效，请输密码登录' }
+  }
+  // ③ 加载新账号并建立会话（账号不存在 / 已停用则仍走输密码）
+  const row = await userRepository.findByUsername(username)
+  if (!row || row.status !== ACCOUNT_STATUS_ENABLED) {
+    return { ok: false, needPassword: true, message: '账号不存在或已停用，请输密码登录' }
+  }
+  const safe = toSafeUser(row)
+  currentUser = safe
+  chatPoller.start(safe.id)
+  notificationPoller.start(safe.id)
+  return { ok: true, user: safe }
 }
 
 /**
@@ -125,4 +160,4 @@ async function changePassword({ username, oldPassword, newPassword, confirmPassw
   return true
 }
 
-module.exports = { login, logout, getCurrentUser, isAdmin, changePassword, toSafeUser }
+module.exports = { login, logout, switchByTicket, getCurrentUser, isAdmin, changePassword, toSafeUser }

@@ -21,6 +21,8 @@ const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
 // 连接服务：启动时调用 init() 加载连接清单并注入连接池
 const connectionService = require('./services/connectionService')
+// 免密票据服务：启动时初始化密钥与票据（登录后切换账号用）
+const ticketService = require('./services/ticketService')
 // 任务定时扫描：到期/逾期/待验收超时提醒（应用 ready 后启动）
 const taskScheduler = require('./services/taskScheduler')
 // 路由聚合：一行注册全部 auth:* / sys:* 等 IPC 接口
@@ -144,6 +146,8 @@ app.whenReady().then(() => {
   })
   // 初始化连接服务（加载连接清单、建立连接池）——须在 app ready 之后
   connectionService.init()
+  // 初始化免密票据服务（加载本机密钥与票据表）
+  ticketService.init()
   // 注册全部 IPC 路由（auth: / sys: 等），渲染层即可通信
   registerAll(require('electron').ipcMain)
   // 启动任务定时扫描（数据库未配置时内部自动跳过）

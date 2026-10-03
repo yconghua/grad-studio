@@ -18,9 +18,19 @@
         <button v-if="!minimal" type="button" class="menu-item" @click="go(settingsPath)">设置</button>
         <button v-if="!minimal" type="button" class="menu-item" @click="showUpdate">检查更新</button>
         <div class="menu-divider"></div>
+        <button type="button" class="menu-item" @click="openSwitch">切换账号</button>
         <button type="button" class="menu-item danger" @click="doLogout">退出登录</button>
       </div>
     </transition>
+
+    <!-- 切换账号弹窗：打开不退出当前账号；选账号后才由主进程执行「先退后登」 -->
+    <AccountSwitchDialog
+      :visible="showSwitch"
+      :current-user="user"
+      @close="showSwitch = false"
+      @switch="onSwitchAccount"
+      @add-new="onAddNewAccount"
+    />
   </div>
 </template>
 
@@ -29,14 +39,16 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSession } from '../../composables/useSession'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
-import { checkUpdate, logout } from '../../api'
+import { checkUpdate, logout, switchAccount } from '../../api'
 import { avatarUrl } from '../../utils/avatar'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
+import { ROLE_HOME } from '../../router'
+import AccountSwitchDialog from '../dialogs/AccountSwitchDialog.vue'
 
 // 头像下拉公共组件：菜单项顺序固定
-// 1 个人资料 / 2 系统简介 / 3 设置 / 4 检查更新 / 5 退出登录
+// 1 个人资料 / 2 系统简介 / 3 设置 / 4 检查更新 / 5 切换账号 / 6 退出登录
 // 个人资料、系统简介、设置的跳转地址由各角色布局传入（按角色路由不同）；
-// minimal=true 时只保留「个人资料 + 退出登录」（引导页等无完整布局场景使用）。
+// minimal=true 时只保留「个人资料 + 切换账号 + 退出登录」（引导页等无完整布局场景使用）。
 const props = defineProps({
   profilePath: { type: String, required: true },
   introductionPath: { type: String, required: false, default: '' },
@@ -45,7 +57,7 @@ const props = defineProps({
 })
 
 const router = useRouter()
-const { getSessionUser, clearSession } = useSession()
+const { getSessionUser, clearSession, setSession } = useSession()
 
 const user = getSessionUser()
 const open = ref(false)
@@ -99,6 +111,51 @@ async function showUpdate() {
   } catch (e) {
     dialogAlert('检查更新失败')
   }
+}
+
+// 切换账号弹窗状态
+const showSwitch = ref(false)
+
+// 打开切换账号弹窗：不退出当前账号
+function openSwitch() {
+  open.value = false
+  showSwitch.value = true
+}
+
+/**
+ * 切换账号：主进程已强制「先完整退出旧账号，再登录新账号」。
+ * - 免密成功 → 用新用户覆盖前端会话，进入新账号角色首页
+ * - 需要输密码（票据无效/过期）→ 旧账号已退出，清会话跳登录页预填该账号
+ * - 任何异常 → 清会话回登录页，保证不留半登录态
+ */
+async function onSwitchAccount(username) {
+  showSwitch.value = false
+  try {
+    const res = await switchAccount(username)
+    const d = res && res.data
+    if (res && res.success && d && d.ok && d.user) {
+      setSession(d.user)
+      router.replace(ROLE_HOME[d.user.role] || '/login')
+      return
+    }
+    clearSession()
+    router.replace('/login?pre=' + encodeURIComponent(username))
+  } catch (e) {
+    clearSession()
+    router.replace('/login')
+  }
+}
+
+// 新增账号：先完整退出当前账号，再跳登录页（账号框清空）输新账号
+async function onAddNewAccount() {
+  showSwitch.value = false
+  try {
+    await logout()
+  } catch (e) {
+    // 退出接口异常不阻断本地登出
+  }
+  clearSession()
+  router.replace('/login?new=1')
 }
 
 // 退出登录：确认后调用退出接口、清除本地登录态、跳转登录页

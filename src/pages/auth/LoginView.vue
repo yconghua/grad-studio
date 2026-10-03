@@ -125,17 +125,20 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { login, deleteDb, getDbInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
+import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
 import { ROLE_HOME } from '../../router'
 import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/dialogs'
 import logoUrl from '../../assets/logo.ico'
 
 const { setSession } = useSession()
+const { recordLogin } = useAccountHistory()
 const { appName } = useAppName()
 const router = useRouter()
+const route = useRoute()
 
 const username = ref('')
 const password = ref('')
@@ -161,6 +164,7 @@ async function onSubmit() {
         return
       }
       setSession(user)
+      recordLogin(user)
       if (user.mustChangePassword) {
         router.replace('/force-password')
       } else {
@@ -213,7 +217,20 @@ async function refreshDbStatus() {
     dbState.value = 'disconnected'
   }
 }
-onMounted(refreshDbStatus)
+onMounted(() => {
+  refreshDbStatus()
+  // 从「切换账号」跳转而来：?pre=账号名 → 预填该账号输密码；?new=1 → 清空账号框输新账号
+  const q = route.query
+  if (q.pre && typeof q.pre === 'string' && q.pre) {
+    username.value = q.pre
+    errorMsg.value = '已退出原账号，请输入该账号密码登录'
+    router.replace({ path: '/login', query: {} })
+  } else if (q.new) {
+    username.value = ''
+    errorMsg.value = '请输入新账号和密码'
+    router.replace({ path: '/login', query: {} })
+  }
+})
 
 const copyrightYear = new Date().getFullYear()
 const showAdminContact = ref(false)
