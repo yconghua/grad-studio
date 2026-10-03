@@ -7,8 +7,14 @@
       </div>
     </div>
 
-    <!-- 统计卡：统一 stat-cards 骨架，点击卡跳转对应页面 -->
+    <WelcomeInfoPanel :fields="welcomeFields" />
+
+    <!-- 看板区：核心数据卡 -->
     <div class="stat-cards">
+      <div class="stat-card clickable" @click="router.push('/student/report')">
+        <div class="num">{{ myWeek ? reportStatusText(myWeek.status) : '未写' }}</div>
+        <div class="label">本周周报 · {{ myWeek ? weekShortLabel(myWeek.week_key) : '待开始' }}</div>
+      </div>
       <div class="stat-card clickable" @click="router.push('/student/tasks')">
         <div class="num">{{ taskSummary.total || 0 }}</div>
         <div class="label">我的任务</div>
@@ -18,23 +24,179 @@
         <div class="label">即将到期</div>
       </div>
       <div class="stat-card clickable" @click="router.push('/student/tasks')">
-        <div class="num">{{ taskSummary.overdue || 0 }}</div>
+        <div class="num danger">{{ taskSummary.overdue || 0 }}</div>
         <div class="label">逾期任务</div>
-      </div>
-      <div class="stat-card clickable" @click="router.push('/student/tasks')">
-        <div class="num">{{ taskSummary.done || 0 }}</div>
-        <div class="label">已完成</div>
       </div>
     </div>
 
-    <!-- 内容区：左列内容流 + 右列信息栏 -->
+    <!-- 行动区（左列）+ 动态区（右列） -->
     <div class="dash-grid">
       <div class="col">
-        <div class="panel"><NotificationRecentCard @go="goNotifications" /></div>
-        <RecentMeetingPanel :meeting="recentMeeting" meetings-path="/student/meetings" />
+        <!-- 周报待办 -->
+        <div class="panel">
+          <p class="panel-title">
+            周报待办
+            <span v-if="myWeek && myWeek.status === 'returned'" class="list-badge">打回</span>
+          </p>
+          <template v-if="!myWeek">
+            <div class="item">
+              <div class="item-main">
+                <div class="item-title">本周还没有写周报</div>
+                <div class="item-sub">四段式填写：本周工作 / 遇到的问题 / 下周计划 / 需要导师帮助</div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm btn-primary" @click="router.push('/student/report')">写周报</button>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="myWeek.status === 'draft'">
+            <div class="item">
+              <div class="item-main">
+                <div class="item-title">周报草稿已保存</div>
+                <div class="item-sub">记得在截止前提交，提交后不可再编辑（可撤回）</div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm btn-primary" @click="router.push('/student/report')">继续编辑</button>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="myWeek.status === 'returned'">
+            <div class="item">
+              <div class="item-main">
+                <div class="item-title">周报被打回，请修改后重新提交</div>
+                <div class="item-sub">导师评语：{{ myWeek.review_comment || '无' }}</div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm btn-primary" @click="router.push('/student/report')">修改并重新提交</button>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="myWeek.status === 'submitted'">
+            <div class="item">
+              <div class="item-main">
+                <div class="item-title">周报已提交，等待导师批阅</div>
+                <div class="item-sub">批阅结果将通过通知中心提醒你</div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm" @click="router.push('/student/report')">查看</button>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="myWeek.status === 'reviewed'">
+            <div class="item">
+              <div class="item-main">
+                <div class="item-title">
+                  本周周报已批阅
+                  <span v-if="myWeek.review_score" class="score">评分 {{ myWeek.review_score }} 分</span>
+                </div>
+                <div class="item-sub">导师评语：{{ myWeek.review_comment || '无' }}</div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm" @click="router.push('/student/report')">查看</button>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- 我的周报 -->
+        <div class="panel">
+          <p class="panel-title">我的周报 <span class="tip">近 3 篇</span></p>
+          <div v-if="myReports.length" class="item-list">
+            <div v-for="r in myReports" :key="r.id" class="item" @click="router.push('/student/report')">
+              <div class="item-main">
+                <div class="item-title">{{ weekShortLabel(r.week_key) }}</div>
+                <div class="item-sub">
+                  {{ reportStatusText(r.status) }}<span v-if="r.review_score"> · {{ r.review_score }} 分</span>
+                </div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm" @click="router.push('/student/report')">查看</button>
+              </div>
+            </div>
+          </div>
+          <div v-else class="panel-empty">暂无周报记录，去写第一篇吧</div>
+        </div>
+
+        <!-- 任务待办 -->
+        <div class="panel">
+          <p class="panel-title">任务待办 <span class="tip">点击卡片直达任务列表</span></p>
+          <div v-if="taskSummary.overdue" class="item">
+            <div class="item-main">
+              <div class="item-title">有 {{ taskSummary.overdue }} 个任务已逾期</div>
+              <div class="item-sub">逾期任务请尽快补充进展或联系负责人</div>
+            </div>
+            <div class="item-actions">
+              <button class="btn btn-sm btn-danger" @click="router.push('/student/tasks')">去处理</button>
+            </div>
+          </div>
+          <div v-else-if="taskSummary.dueSoon" class="item">
+            <div class="item-main">
+              <div class="item-title">有 {{ taskSummary.dueSoon }} 个任务即将到期</div>
+              <div class="item-sub">请留意截止时间，及时提交进展</div>
+            </div>
+            <div class="item-actions">
+              <button class="btn btn-sm" @click="router.push('/student/tasks')">查看</button>
+            </div>
+          </div>
+          <div v-else class="panel-empty">暂无逾期或即将到期的任务</div>
+        </div>
       </div>
+
       <div class="col">
-        <WelcomeInfoPanel :fields="welcomeFields" />
+        <!-- 最新公告 -->
+        <div class="panel">
+          <p class="panel-title">
+            最新公告
+            <span v-if="noticeUnread > 0" class="list-badge">{{ noticeUnread }}</span>
+            <span class="tip" style="float: right">点击查看全部</span>
+          </p>
+          <div v-if="notices.length" class="item-list">
+            <div v-for="n in notices" :key="n.id" class="item" @click="router.push('/student/notices')">
+              <div class="item-main">
+                <div class="item-title">{{ n.title }}</div>
+                <div class="item-sub">{{ n.publisherName }} · {{ n.publishTime }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="panel-empty">暂无公告</div>
+        </div>
+
+        <RecentMeetingPanel :meeting="recentMeeting" meetings-path="/student/meetings" />
+
+        <!-- 聊天 · 笔记 -->
+        <div class="panel">
+          <p class="panel-title">聊天 · 笔记</p>
+          <div class="item">
+            <div class="item-main">
+              <div class="item-title">
+                组内聊天
+                <span v-if="chatUnread > 0" class="list-badge warn">{{ chatUnread }}</span>
+              </div>
+              <div class="item-sub">{{ chatUnread > 0 ? `有 ${chatUnread} 条未读消息` : '暂无未读消息' }}</div>
+            </div>
+            <div class="item-actions">
+              <button class="btn btn-sm" @click="router.push('/student/chat')">去聊天</button>
+            </div>
+          </div>
+          <div v-if="notes.length" class="item" @click="router.push('/student/notes')">
+            <div class="item-main">
+              <div class="item-title">最近笔记：{{ notes[0].title }}</div>
+              <div class="item-sub">共 {{ noteTotal }} 篇笔记，点击进入笔记列表</div>
+            </div>
+            <div class="item-actions">
+              <button class="btn btn-sm" @click="router.push('/student/notes')">管理</button>
+            </div>
+          </div>
+          <div v-else class="item">
+            <div class="item-main">
+              <div class="item-title">还没有笔记</div>
+              <div class="item-sub">记录文献阅读、实验数据与灵感</div>
+            </div>
+            <div class="item-actions">
+              <button class="btn btn-sm" @click="router.push('/student/notes')">新建</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -44,16 +206,28 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCurrentUser, getRecentMeeting, getTaskSummary } from '../../api'
+import { reportMyWeek, reportListMine } from '../../api/report'
+import { listNotices, getNoticeUnreadCount } from '../../api/notice'
+import { getChatUnreadCount } from '../../api/chat'
+import { listNotes } from '../../api/note'
 import { useSession } from '../../composables/useSession'
 import NotificationRecentCard from '../../components/notification/NotificationRecentCard.vue'
 import RecentMeetingPanel from '../../components/dashboard/RecentMeetingPanel.vue'
 import WelcomeInfoPanel from '../../components/dashboard/WelcomeInfoPanel.vue'
+import { reportStatusText, weekShortLabel } from '../../utils/labels'
 
 // 学生独立工作台（与其他角色工作台为独立文件）
 const { getSessionUser } = useSession()
 const user = ref(getSessionUser())
 const recentMeeting = ref(null)
 const taskSummary = ref({})
+const myWeek = ref(null)
+const myReports = ref([])
+const notices = ref([])
+const noticeUnread = ref(0)
+const chatUnread = ref(0)
+const notes = ref([])
+const noteTotal = ref(0)
 const router = useRouter()
 
 function goNotifications() {
@@ -81,11 +255,36 @@ function mentorText(u) {
 
 // 回库刷新，保证课题组 / 导师信息最新
 onMounted(async () => {
-  const res = await getCurrentUser()
-  if (res && res.success) user.value = res.data
+  const [u, w, m, t, n, nu, cu, ns] = await Promise.allSettled([
+    getCurrentUser(),
+    reportMyWeek(),
+    reportListMine(1),
+    getTaskSummary(),
+    listNotices({ page: 1 }),
+    getNoticeUnreadCount(),
+    getChatUnreadCount(),
+    listNotes({ page: 1 })
+  ])
+  if (u.status === 'fulfilled' && u.value && u.value.success) user.value = u.value.data
+  if (w.status === 'fulfilled' && w.value && w.value.success) myWeek.value = w.value.data
+  if (m.status === 'fulfilled' && m.value && m.value.success) myReports.value = (m.value.data && m.value.data.list) || []
+  if (t.status === 'fulfilled' && t.value && t.value.success) taskSummary.value = t.value.data || {}
+  if (n.status === 'fulfilled' && n.value && n.value.success) notices.value = ((n.value.data && n.value.data.list) || []).slice(0, 3)
+  if (nu.status === 'fulfilled' && nu.value && nu.value.success) noticeUnread.value = (nu.value.data && nu.value.data.unreadCount) || 0
+  if (cu.status === 'fulfilled' && cu.value && cu.value.success) chatUnread.value = (cu.value.data && cu.value.data.unreadCount) || 0
+  if (ns.status === 'fulfilled' && ns.value && ns.value.success) {
+    notes.value = (ns.value.data && ns.value.data.list) || []
+    noteTotal.value = (ns.value.data && ns.value.data.total) || 0
+  }
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
-  const t = await getTaskSummary()
-  if (t && t.success) taskSummary.value = t.data || {}
 })
 </script>
+
+<style scoped>
+.score {
+  margin-left: 8px;
+  color: var(--primary);
+  font-weight: 600;
+}
+</style>

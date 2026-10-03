@@ -96,3 +96,22 @@ export function taskPriorityTagClass(priority) {
   }
   return map[priority] || 'tag'
 }
+
+// ===== 周报状态 =====
+export const REPORT_STATUS_TEXT = {
+  draft: '草稿',
+  submitted: '已提交',
+  returned: '被打回',
+  reviewed: '已批阅'
+}
+
+export function reportStatusText(status) {
+  return REPORT_STATUS_TEXT[status] || '未写'
+}
+
+// 周 key（如 '2026-40'）→ 短文案（如 '2026年第40周'）
+export function weekShortLabel(weekKey) {
+  const m = /^(\d{4})-(\d{1,2})$/.exec(String(weekKey || ''))
+  if (!m) return String(weekKey || '-')
+  return `${m[1]}年第${Number(m[2])}周`
+}
