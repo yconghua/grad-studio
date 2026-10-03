@@ -3,10 +3,11 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">工作台</h2>
-        <p class="page-sub">课题组管理员工作台（本课题组管理入口）</p>
+        <p class="page-sub">课题组管理员工作台 · 本课题组管理入口</p>
       </div>
     </div>
 
+    <!-- 统计卡：统一 stat-cards 骨架，点击卡跳转对应页面 -->
     <div class="stat-cards">
       <div class="stat-card">
         <div class="num">{{ group ? group.name : '-' }}</div>
@@ -20,56 +21,41 @@
         <div class="num">{{ statStudents }}</div>
         <div class="label">本组学生</div>
       </div>
-      <div class="stat-card" style="cursor: pointer" @click="router.push('/group-admin/tasks?status=3')">
+      <div class="stat-card clickable" @click="router.push('/group-admin/tasks?status=3')">
         <div class="num">{{ taskSummary.mineCreatedPendingReview || 0 }}</div>
         <div class="label">我创建的待验收</div>
       </div>
-      <div class="stat-card" style="cursor: pointer" @click="router.push('/group-admin/tasks')">
+      <div class="stat-card clickable" @click="router.push('/group-admin/tasks')">
         <div class="num">{{ taskSummary.groupTotal || 0 }}</div>
         <div class="label">本组任务 / 逾期 {{ taskSummary.groupOverdue || 0 }}</div>
       </div>
-      <div class="stat-card" style="cursor: pointer" @click="router.push('/group-admin/tasks')">
+      <div class="stat-card clickable" @click="router.push('/group-admin/tasks')">
         <div class="num">{{ taskSummary.groupCompletionRate || 0 }}%</div>
         <div class="label">本组完成率</div>
       </div>
     </div>
 
-    <div class="panel">
-      <NotificationRecentCard @go="goNotifications" />
-    </div>
-
-    <div class="panel">
-      <p class="panel-title">最近会议</p>
-      <template v-if="recentMeeting">
-        <div class="desc-list">
-          <div class="row"><span class="k">主题</span><span class="v">{{ recentMeeting.title }}</span></div>
-          <div class="row"><span class="k">会议时间</span><span class="v">{{ recentMeeting.meetingTime }}</span></div>
-          <div class="row"><span class="k">地点</span><span class="v">{{ recentMeeting.location || '-' }}</span></div>
-          <div class="row"><span class="k">参与人数</span><span class="v">{{ recentMeeting.participantCount }} 人</span></div>
-        </div>
-        <div style="margin-top: 10px"><a class="btn btn-sm" href="#/group-admin/meetings">进入会议记录</a></div>
-      </template>
-      <div v-else class="empty">暂无已发布会议</div>
-    </div>
-
-    <div class="panel">
-      <p class="panel-title">欢迎使用</p>
-      <div class="desc-list">
-        <div class="row"><span class="k">当前账号</span><span class="v">{{ user ? user.realName || user.username : '' }}</span></div>
-        <div class="row"><span class="k">当前角色</span><span class="v">课题组管理员</span></div>
-        <div class="row"><span class="k">课题组唯一标识号</span><span class="v" style="font-family: monospace">{{ group ? group.code : '-' }}</span></div>
-        <div class="row"><span class="k">快捷入口</span><span class="v">左侧菜单可设置本课题组、管理成员与师生关系</span></div>
+    <!-- 内容区：左列内容流 + 右列信息栏 -->
+    <div class="dash-grid">
+      <div class="col">
+        <div class="panel"><NotificationRecentCard @go="goNotifications" /></div>
+        <RecentMeetingPanel :meeting="recentMeeting" meetings-path="/group-admin/meetings" />
+      </div>
+      <div class="col">
+        <WelcomeInfoPanel :fields="welcomeFields" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getOwnGroup, listMembers, getRecentMeeting, getTaskSummary } from '../../api'
 import { useSession } from '../../composables/useSession'
 import NotificationRecentCard from '../../components/notification/NotificationRecentCard.vue'
+import RecentMeetingPanel from '../../components/dashboard/RecentMeetingPanel.vue'
+import WelcomeInfoPanel from '../../components/dashboard/WelcomeInfoPanel.vue'
 
 // 课题组管理员独立工作台（与其他角色工作台为独立文件）
 const { getSessionUser } = useSession()
@@ -85,6 +71,14 @@ const statMentors = ref('-')
 const statStudents = ref('-')
 const recentMeeting = ref(null)
 const taskSummary = ref({})
+
+const welcomeFields = computed(() => [
+  { label: '当前账号', value: user ? user.realName || user.username : '' },
+  { label: '当前角色', value: '课题组管理员' },
+  { label: '所属课题组', value: group.value ? group.value.name : '-' },
+  { label: '课题组编号', value: group.value ? group.value.code : '-' },
+  { label: '快捷入口', value: '左侧菜单可设置本课题组、管理成员与师生关系' }
+])
 
 onMounted(async () => {
   const [g, m, s] = await Promise.allSettled([

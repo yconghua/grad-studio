@@ -7,6 +7,7 @@
  */
 const crypto = require('node:crypto')
 const userRepository = require('../db/repositories/userRepository')
+const groupRepository = require('../db/repositories/groupRepository')
 const ApiError = require('./apiError')
 const passwordService = require('./passwordService')
 // 聊天实时推送：登录后启动、登出停止（依赖登录态，联动点收敛在认证服务）
@@ -107,6 +108,31 @@ async function switchByTicket(username) {
   return { ok: true, user: safe }
 }
 
+// 当前用户附加课题组名 / 导师姓名：学生工作台展示组名与「姓名（账号）」用
+async function enrichUserNames(user) {
+  if (!user) return user
+  const out = { ...user }
+  if (user.groupId) {
+    try {
+      const group = await groupRepository.findById(user.groupId)
+      out.groupName = group ? group.name : ''
+    } catch (e) {
+      out.groupName = ''
+    }
+  }
+  if (user.mentorId) {
+    try {
+      const mentor = await userRepository.findById(user.mentorId)
+      out.mentorRealName = mentor ? mentor.real_name || '' : ''
+      out.mentorUsername = mentor ? mentor.username || '' : ''
+    } catch (e) {
+      out.mentorRealName = ''
+      out.mentorUsername = ''
+    }
+  }
+  return out
+}
+
 /**
  * 当前登录用户：每次调用回库刷新，保证状态 / 课题组 / 导师等变更后
  * 前端拿到最新值；数据库暂不可用时返回内存缓存，不阻断登录态判断。
@@ -119,7 +145,7 @@ async function getCurrentUser() {
       currentUser = null
       return null
     }
-    currentUser = toSafeUser(row)
+    currentUser = await enrichUserNames(toSafeUser(row))
   } catch (e) {
     // 数据库异常时保留缓存，登录态判断不受影响
   }
