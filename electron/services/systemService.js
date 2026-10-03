@@ -8,6 +8,7 @@
  * 系统参数 config_type 实际生效：string 原样存取；number / boolean / json 按类型校验并归一存储。
  */
 const os = require('node:os')
+const { app } = require('electron')
 const { getActiveConfig, acquireConn } = require('../db/connection')
 const systemConfigRepository = require('../db/repositories/systemConfigRepository')
 const ApiError = require('./apiError')
@@ -88,7 +89,7 @@ async function getInfo() {
   return {
     name,
     version: appPkg.version,
-    environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+    environment: app.isPackaged ? 'production' : 'development',
     serverTime: formatDate(Date.now()),
     startedAt: formatDate(STARTED_AT),
     platform: `${os.type()} ${os.release()}`,

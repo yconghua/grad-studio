@@ -312,9 +312,11 @@ function register(ipcMain) {
     return { success: true, code: 0, message: '已打开控制台' }
   })
 
-  // 打开程序所在文件夹目录
+  // 打开程序所在文件夹目录：打包后 app.getAppPath() 指向 resources/app.asar（文件），
+  // 需取其上级目录（安装根目录，含 exe）；开发模式 getAppPath() 即项目根目录
   ipcMain.handle('sys:open-app-folder', async () => {
-    const err = await shell.openPath(app.getAppPath())
+    const dir = app.isPackaged ? path.dirname(app.getAppPath()) : app.getAppPath()
+    const err = await shell.openPath(dir)
     if (err) return { success: false, code: 500, message: `打开失败：${err}` }
     return { success: true, code: 0, message: '已打开程序目录' }
   })
