@@ -294,5 +294,10 @@ contextBridge.exposeInMainWorld('api', {
     openAppFolder: createInvoke('sys:open-app-folder'),
     openDataFolder: createInvoke('sys:open-data-folder'),
     clearCache: createInvoke('sys:clear-cache')
+  },
+  // 窗口控制（对应 ipc/win.js，通道前缀 win:*）：无边框窗口标题栏按钮用
+  window: {
+    minimize: createInvoke('win:minimize'),
+    close: createInvoke('win:close')
   }
 })

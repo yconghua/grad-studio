@@ -51,6 +51,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
     height: 750,
+    frame: false, // 无边框窗口：标题栏由渲染层 AppTitleBar 自绘（拖拽 + 最小化/关闭）
     resizable: false, // 禁止拖拽缩放边框
     maximizable: false, // 禁止最大化
     center: true, // 启动时居中

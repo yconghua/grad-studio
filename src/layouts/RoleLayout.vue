@@ -1,5 +1,8 @@
 <template>
   <div class="role-layout">
+    <!-- 无边框窗口自绘标题栏（拖拽 + 最小化/关闭） -->
+    <AppTitleBar />
+
     <!-- 顶栏：左侧 logo + 系统名（固定字号完整显示），右侧头像下拉 -->
     <header class="topbar">
       <div class="brand">
@@ -52,6 +55,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UserAvatarMenu from '../components/layout/UserAvatarMenu.vue'
 import ThemeSwitcher from '../components/layout/ThemeSwitcher.vue'
+import AppTitleBar from '../components/layout/AppTitleBar.vue'
 import { useAppName } from '../composables/useAppName'
 import { useSession } from '../composables/useSession'
 import { pathForBiz } from '../config/notificationRoutes'

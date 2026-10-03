@@ -1,5 +1,8 @@
 <template>
   <div class="force-page">
+    <!-- 无边框窗口自绘标题栏（拖拽 + 最小化/关闭） -->
+    <AppTitleBar />
+
     <div class="force-card">
       <div class="head">
         <h2 class="title">首次登录需修改密码</h2>
@@ -35,6 +38,7 @@ import { useRouter } from 'vue-router'
 import { changePassword } from '../../api'
 import { useSession } from '../../composables/useSession'
 import { ROLE_HOME } from '../../router'
+import AppTitleBar from '../../components/layout/AppTitleBar.vue'
 
 const router = useRouter()
 const { getSessionUser, setSession } = useSession()
@@ -105,14 +109,14 @@ async function submit() {
 .force-page {
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   background: var(--primary-soft);
   overflow: auto;
 }
 .force-card {
   width: 420px;
   max-width: 92vw;
+  margin: auto; /* 标题栏占顶部，卡片在剩余空间居中 */
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   padding: 28px 30px 22px;

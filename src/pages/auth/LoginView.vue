@@ -1,5 +1,8 @@
 <template>
   <div class="login-page">
+    <!-- 无边框窗口自绘标题栏（拖拽 + 最小化/关闭） -->
+    <AppTitleBar />
+
     <!-- 中：系统介绍（左） + 登录表单（右） -->
     <main class="login-main">
       <!-- 左：品牌区（同源浅色分栏） -->
@@ -137,6 +140,7 @@ import { useAppName } from '../../composables/useAppName'
 import { ROLE_HOME } from '../../router'
 import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/dialogs'
 import ParticleBackground from '../../components/particles/ParticleBackground.vue'
+import AppTitleBar from '../../components/layout/AppTitleBar.vue'
 import logoUrl from '../../assets/logo.ico'
 
 const { setSession } = useSession()
