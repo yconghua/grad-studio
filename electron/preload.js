@@ -198,6 +198,17 @@ contextBridge.exposeInMainWorld('api', {
     stats: createInvoke('task:stats'),
     summary: createInvoke('task:summary')
   },
+  // 学生私人笔记（对应 ipc/note.js，通道前缀 note:*）
+  note: {
+    list: createInvoke('note:list'),
+    get: createInvoke('note:get'),
+    create: createInvoke('note:create'),
+    update: createInvoke('note:update'),
+    remove: createInvoke('note:delete'),
+    restore: createInvoke('note:restore'),
+    purge: createInvoke('note:purge'),
+    export: createInvoke('note:export')
+  },
   // 超管任务总览（对应 ipc/taskOverview.js，通道前缀 task-overview:*）
   taskOverview: {
     list: createInvoke('task-overview:list'),

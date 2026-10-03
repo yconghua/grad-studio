@@ -34,6 +34,19 @@ module.exports = {
   TASK_PRIORITY_HIGH: 3,      // 高
   TASK_PRIORITY_URGENT: 4,     // 紧急
 
+  // ===== 笔记类别（学生私人笔记，与 schemas/18_note.sql 一致） =====
+  // value 入库，label 为前端显示名；默认类别 other
+  NOTE_CATEGORIES: [
+    { value: 'experiment', label: '实验记录' },
+    { value: 'literature', label: '文献笔记' },
+    { value: 'meeting', label: '组会笔记' },
+    { value: 'idea', label: '研究想法' },
+    { value: 'failure', label: '失败记录' },
+    { value: 'weekly', label: '周报素材' },
+    { value: 'project', label: '项目笔记' },
+    { value: 'other', label: '其他' }
+  ],
+
   // ===== 角色默认密码（单一事实来源） =====
   // 新增用户 / 管理员重置密码统一使用；首次登录强制修改密码（must_change_password=1）
   // 所有默认密码均满足强度规则（长度≥6 且包含大小写字母）

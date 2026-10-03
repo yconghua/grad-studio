@@ -131,6 +131,7 @@ const routes = [
     meta: { role: ROLE_STUDENT },
     children: [
       { path: 'dashboard', name: 'student-dashboard', component: () => import('../pages/student/StudentDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'notes', name: 'student-notes', component: () => import('../pages/student/StudentNotes.vue'), meta: { title: '我的笔记' } },
       { path: 'notices', name: 'student-notices', component: () => import('../pages/student/StudentGroupNotice.vue'), meta: { title: '课题组公告' } },
       { path: 'meetings', name: 'student-meetings', component: () => import('../pages/student/StudentMeetingList.vue'), meta: { title: '会议记录' } },
       { path: 'tasks', name: 'student-tasks', component: () => import('../pages/task/TaskListView.vue'), meta: { title: '我的任务' } },

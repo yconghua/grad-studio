@@ -37,3 +37,6 @@ export const PASSWORD_MIN_LENGTH = sharedConstants.PASSWORD_MIN_LENGTH
 export const BCRYPT_ROUNDS = sharedConstants.BCRYPT_ROUNDS
 export const DEFAULT_DB_PORT = sharedConstants.DEFAULT_DB_PORT
 export const CONNECTION_LIMIT = sharedConstants.CONNECTION_LIMIT
+
+// ===== 笔记类别（学生私人笔记） =====
+export const NOTE_CATEGORIES = sharedConstants.NOTE_CATEGORIES
