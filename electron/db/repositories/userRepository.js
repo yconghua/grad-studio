@@ -369,7 +369,7 @@ class UserRepository extends BaseRepository {
     const { page, pageSize, limit, offset } = normalizePage(filters.page)
     const sql =
       `SELECT u.id, u.username, u.real_name, u.role, u.status, u.email, u.phone, u.gender,
-              u.group_id, u.mentor_id, u.created_at, m.real_name AS mentor_name
+              u.group_id, u.mentor_id, u.created_at, COALESCE(m.real_name, m.username) AS mentor_name
        FROM \`users\` u
        LEFT JOIN \`users\` m ON m.id = u.mentor_id
        WHERE ${whereSql}${keywordClause}
