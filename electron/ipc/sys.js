@@ -3,9 +3,10 @@
  *
  * 职责范围（与「系统配置页」的 system:* 区分开）：
  *   - 登录页可用的数据库连接管理：sys:db-info / sys:db-connections / sys:switch-db / sys:add-db / sys:delete-db / sys:tables-info；
- *   - 登录后基础设施能力：sys:info（系统信息）、sys:check-update（检查更新）、sys:export-db（数据库备份）、
+ *   - 登录后基础设施能力：sys:info（系统信息）、sys:export-db（数据库备份）、
  *     sys:pick-attachment / sys:open-attachment（附件选择与打开）；
  *   - 登录页品牌名：sys:get-public-info。
+ * 应用更新检查见 ipc/update.js（electron-updater 自动更新）。
  * 权限闸门按角色在前端对应页面内控制；导出备份额外校验仅超级管理员。
  */
 const path = require('node:path')
@@ -57,16 +58,6 @@ function register(ipcMain) {
       console.error('[sys:info] 未预期异常:', err)
       return { success: false, code: 500, message: '读取系统信息失败' }
     }
-  })
-
-  // 检查更新（登录后可用）：暂时返回当前版本 + 已是最新版本
-  ipcMain.handle('sys:check-update', async () => {
-    const user = await authService.getCurrentUser()
-    if (!user) {
-      return { success: false, code: 401, message: '未登录，请重新登录' }
-    }
-    const info = systemService.checkUpdate()
-    return { success: true, code: 0, message: 'success', ...info }
   })
 
   // 公开应用信息（无需登录）：读取 system_configs 中 system.name / system.theme，供登录页品牌名与默认主题使用

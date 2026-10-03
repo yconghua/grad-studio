@@ -1,4 +1,4 @@
-// 系统配置与公共系统接口：系统信息、数据库信息、系统参数、系统简介、检查更新
+// 系统配置与公共系统接口：系统信息、数据库信息、系统参数、系统简介
 export function getSystemInfo() {
   return window.api.system.info()
 }
@@ -19,7 +19,4 @@ export function deleteParam(id) {
 }
 export function getIntroduction() {
   return window.api.system.introduction()
-}
-export function checkUpdate() {
-  return window.api.system.checkUpdate()
 }

@@ -31,6 +31,8 @@
       @switch="onSwitchAccount"
       @add-new="onAddNewAccount"
     />
+    <!-- 检查更新弹窗：打开即检查，跟随主进程推送推进状态 -->
+    <UpdateDialog :visible="showUpdateDialog" @close="showUpdateDialog = false" />
   </div>
 </template>
 
@@ -38,12 +40,13 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSession } from '../../composables/useSession'
-import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
-import { checkUpdate, logout, switchAccount } from '../../api'
+import { dialogConfirm } from '../../composables/useDialog'
+import { logout, switchAccount } from '../../api'
 import { avatarUrl } from '../../utils/avatar'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 import { ROLE_HOME } from '../../router'
 import AccountSwitchDialog from '../dialogs/AccountSwitchDialog.vue'
+import UpdateDialog from '../dialogs/UpdateDialog.vue'
 
 // 头像下拉公共组件：菜单项顺序固定
 // 1 个人资料 / 2 系统简介 / 3 设置 / 4 检查更新 / 5 切换账号 / 6 退出登录
@@ -97,20 +100,11 @@ function go(path) {
   router.push(path)
 }
 
-// 检查更新：暂时返回当前版本 + 已是最新版本
-async function showUpdate() {
+// 检查更新：打开更新弹窗（弹窗内完成检查/下载/安装交互）
+const showUpdateDialog = ref(false)
+function showUpdate() {
   open.value = false
-  try {
-    const res = await checkUpdate()
-    if (res && res.success) {
-      const d = res.data || {}
-      dialogAlert(`当前版本：v${d.currentVersion || ''}\n${d.message || '当前已是最新版本'}`)
-    } else {
-      dialogAlert((res && res.message) || '检查更新失败')
-    }
-  } catch (e) {
-    dialogAlert('检查更新失败')
-  }
+  showUpdateDialog.value = true
 }
 
 // 切换账号弹窗状态

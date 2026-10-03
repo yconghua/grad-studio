@@ -260,8 +260,20 @@ contextBridge.exposeInMainWorld('api', {
     paramsCreate: createInvoke('system:params-create'),
     paramsUpdate: createInvoke('system:params-update'),
     paramsDelete: createInvoke('system:params-delete'),
-    introduction: createInvoke('system:introduction'),
-    checkUpdate: createInvoke('system:check-update')
+    introduction: createInvoke('system:introduction')
+  },
+  // 应用更新（对应 ipc/update.js，通道前缀 update:*）
+  update: {
+    check: createInvoke('update:check'),
+    download: createInvoke('update:download'),
+    install: createInvoke('update:install'),
+    getState: createInvoke('update:get-state'),
+    // 主进程更新事件推送订阅（检查/下载/安装进度）；返回取消订阅函数
+    onEvent: (cb) => {
+      const listener = (_evt, data) => cb(data)
+      ipcRenderer.on('update:event', listener)
+      return () => ipcRenderer.removeListener('update:event', listener)
+    }
   },
   // 系统基础设施（对应 ipc/sys.js，通道前缀 sys:*）
   sys: {

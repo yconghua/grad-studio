@@ -3,7 +3,8 @@
  *
  * 覆盖：
  *   - 超级管理员「系统配置」：系统信息、数据库信息、系统参数增删改查；
- *   - 公共接口（所有角色）：系统简介、检查更新。
+ *   - 公共接口（所有角色）：系统简介。
+ * 检查更新由 updaterService 负责（electron-updater 自动更新）。
  * 系统参数 config_type 实际生效：string 原样存取；number / boolean / json 按类型校验并归一存储。
  */
 const os = require('node:os')
@@ -244,18 +245,6 @@ async function getIntroduction() {
   return { name, version: appPkg.version, introduction, defaultTheme }
 }
 
-/**
- * 检查更新（所有角色）：暂时返回当前版本与「已是最新版本」
- */
-function checkUpdate() {
-  return {
-    currentVersion: appPkg.version,
-    latestVersion: appPkg.version,
-    upToDate: true,
-    message: '当前已是最新版本'
-  }
-}
-
 module.exports = {
   getInfo,
   getDatabaseInfo,
@@ -263,6 +252,5 @@ module.exports = {
   createParam,
   updateParam,
   deleteParam,
-  getIntroduction,
-  checkUpdate
+  getIntroduction
 }

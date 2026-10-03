@@ -63,12 +63,6 @@ function register(ipcMain) {
     await requireLogin()
     return systemService.getIntroduction()
   }))
-
-  // 检查更新（所有角色）
-  ipcMain.handle('system:check-update', handler(async () => {
-    await requireLogin()
-    return systemService.checkUpdate()
-  }))
 }
 
 module.exports = { register }
