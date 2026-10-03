@@ -8,6 +8,7 @@
           <span class="ring ring-1"></span>
           <span class="ring ring-2"></span>
         </div>
+        <ParticleBackground />
         <div class="brand-inner">
           <div class="brand-head">
             <img :src="logoUrl" class="brand-logo" alt="平台" />
@@ -69,16 +70,7 @@
           </form>
 
           <div class="card-foot">
-            <span>忘记密码请联系<span class="admin-link" @click="showAdminContact = true">管理员</span>重置</span>
-            <button type="button" class="default-link" @click="showDefaultPwd = !showDefaultPwd">
-              默认密码{{ showDefaultPwd ? '收起 ▲' : '展开 ▼' }}
-            </button>
-          </div>
-
-          <!-- 默认密码提示：默认折叠，点击展开 -->
-          <div v-if="showDefaultPwd" class="default-tip">
-            超级管理员 <b>SuperAdmin123</b> · 课题组管理员 <b>GroupAdmin123</b> · 导师 <b>Mentor123</b> ·
-            学生 <b>Student123</b>（首次登录需修改密码）
+            <button type="button" class="forgot-link" @click="showAdminContact = true">忘记密码</button>
           </div>
 
         </div>
@@ -144,6 +136,7 @@ import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
 import { ROLE_HOME } from '../../router'
 import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/dialogs'
+import ParticleBackground from '../../components/particles/ParticleBackground.vue'
 import logoUrl from '../../assets/logo.ico'
 
 const { setSession } = useSession()
@@ -261,7 +254,6 @@ onMounted(() => {
 
 const copyrightYear = new Date().getFullYear()
 const showAdminContact = ref(false)
-const showDefaultPwd = ref(false)
 
 // 数据库管理弹窗（协调层，逻辑在各弹窗组件内）
 const showBaseConfig = ref(false)
@@ -557,7 +549,7 @@ async function onDeleteConfirmed(id) {
   opacity: 0.6;
   cursor: not-allowed;
 }
-/* 卡片底部：忘记密码 / 默认密码入口 */
+/* 卡片底部：忘记密码入口 */
 .card-foot {
   display: flex;
   align-items: center;
@@ -567,34 +559,18 @@ async function onDeleteConfirmed(id) {
   font-size: 12px;
   color: var(--muted);
 }
-.admin-link {
-  color: var(--primary);
-  cursor: pointer;
-}
-.default-link {
-  flex: 0 0 auto;
+.forgot-link {
   border: none;
   background: none;
   padding: 0;
   font-size: 12px;
-  color: var(--primary);
+  color: var(--muted);
   cursor: pointer;
+  transition: color 0.2s;
 }
-/* 默认密码提示：展开块 */
-.default-tip {
-  margin-top: 10px;
-  padding: 8px 10px;
-  font-size: 12px;
-  line-height: 1.8;
-  color: var(--text-2);
-  background: var(--primary-soft);
-  border: 1px dashed color-mix(in srgb, var(--primary) 20%, var(--bg-card));
-  border-radius: var(--radius-md);
-}
-.default-tip b {
+.forgot-link:hover {
   color: var(--primary);
-}
-/* ===== 管理员联系方式弹窗 ===== */
+}/* ===== 管理员联系方式弹窗 ===== */
 .privacy-overlay {
   position: fixed;
   inset: 0;
