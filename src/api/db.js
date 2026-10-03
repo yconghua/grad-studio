@@ -14,6 +14,12 @@ export function switchDb(id) {
 export function addDb(data = {}) {
   return window.api.sys.addDb(data)
 }
+export function importDb(list = []) {
+  return window.api.sys.importDb({ list })
+}
+export function exportDbTemplate() {
+  return window.api.sys.exportDbTemplate()
+}
 export function deleteDb(id) {
   return window.api.sys.deleteDb({ id })
 }

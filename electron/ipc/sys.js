@@ -144,6 +144,49 @@ function register(ipcMain) {
     }
   })
 
+  // 批量导入数据库连接（渲染层完成 JSON Lines txt 解析后传入对象数组）。仅登录页（未登录）配置数据库时可用。
+  ipcMain.handle('sys:import-db', async (_evt, payload) => {
+    if (await authService.getCurrentUser()) {
+      return { success: false, code: 403, message: '已登录状态下不可导入数据库连接，请退出登录后在登录页操作' }
+    }
+    try {
+      return await connectionService.importMany(payload && payload.list)
+    } catch (err) {
+      console.error('[sys:import-db] 未预期异常:', err)
+      return { success: false, code: 500, message: '导入失败，请稍后重试' }
+    }
+  })
+
+  // 下载批量导入示例 TXT：弹保存对话框写入 JSON Lines 模板。仅登录页（未登录）配置数据库时可用。
+  ipcMain.handle('sys:export-db-template', async (event) => {
+    if (await authService.getCurrentUser()) {
+      return { success: false, code: 403, message: '已登录状态下不可下载模板，请退出登录后在登录页操作' }
+    }
+    const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null
+    const options = {
+      title: '保存批量导入示例',
+      defaultPath: 'db-connections-template.txt',
+      filters: [{ name: '文本文件', extensions: ['txt'] }]
+    }
+    let picked
+    try {
+      picked = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    } catch (err) {
+      console.error('[sys:export-db-template] 保存对话框异常:', err)
+      return { success: false, code: 500, message: '打开保存窗口失败，请重试' }
+    }
+    if (!picked || picked.canceled || !picked.filePath) {
+      return { success: false, code: 0, canceled: true, message: '已取消保存' }
+    }
+    try {
+      fs.writeFileSync(picked.filePath, connectionService.DB_IMPORT_TEMPLATE, 'utf8')
+      return { success: true, code: 0, message: '示例 TXT 已保存' }
+    } catch (err) {
+      console.error('[sys:export-db-template] 写入模板失败:', err)
+      return { success: false, code: 500, message: '保存失败，请重试' }
+    }
+  })
+
   // 删除连接。仅登录页（未登录）配置数据库时可用。
   ipcMain.handle('sys:delete-db', async (_evt, payload) => {
     if (await authService.getCurrentUser()) {

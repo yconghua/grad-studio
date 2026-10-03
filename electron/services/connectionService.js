@@ -32,6 +32,21 @@ function connsPath() {
   }
 }
 
+// 批量导入示例模板（JSON Lines，每行一条连接；# 注释行与空行由解析方跳过）
+const DB_IMPORT_TEMPLATE = [
+  '# ============================================',
+  '# grad-studio 数据库连接批量导入模板',
+  '# 每行一条 JSON，字段：name / host / port / user / password / database',
+  '# 说明：',
+  '#   - 端口可省略，默认 3306',
+  '#   - 数据库名仅支持字母、数字、下划线',
+  '#   - # 开头的行是注释，空行自动跳过',
+  '# 将下面示例替换成你的连接，保存后导入即可',
+  '# ============================================',
+  '{"name":"本地开发库","host":"localhost","port":3306,"user":"root","password":"123456","database":"grad_studio"}',
+  '{"name":"阿里云正式库","host":"rm-xxx.mysql.rds.aliyuncs.com","port":3306,"user":"admin","password":"Pass|w0rd","database":"grad_studio"}'
+].join('\n') + '\n'
+
 // 内存中的连接清单（启动时加载，运行时增删改后写回磁盘）
 let connections = null
 // 当前生效的 mysql2 连接配置（注入连接层，供 sys:db-info 读取元信息）
@@ -507,6 +522,81 @@ async function add(payload) {
   return { success: true, id, message: '已添加连接「' + name + '」，并完成初始化' }
 }
 
+/**
+ * 批量导入连接（渲染层已完成 JSON Lines 解析，本方法只接收对象数组）。
+ * 逐条执行与 add() 相同的必填校验与建库初始化；与已有连接及本次导入内
+ * 按 host+port+user+database 去重（跳过并计数）；全部处理完一次性落盘。
+ * 第一条成功且当前无生效连接时自动设为生效连接（与 add() 一致）。
+ */
+async function importMany(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { success: false, message: '没有可导入的连接' }
+  }
+  const added = []
+  const skipped = []
+  const failed = []
+  for (const item of items) {
+    const { name, host, port, user, password, database } = item || {}
+    if (!name || !host || !user || !database) {
+      failed.push({ name: name || '(未命名)', reason: '名称、主机、账号、数据库名均为必填' })
+      continue
+    }
+    if (typeof database !== 'string' || !/^[A-Za-z0-9_]+$/.test(database)) {
+      failed.push({ name, reason: '数据库名仅支持字母、数字、下划线' })
+      continue
+    }
+    const portNum = Number(port) || DEFAULT_DB_PORT
+    const isDup = (c) => c.host === host && Number(c.port) === portNum && c.user === user && c.database === database
+    if (connections.list.some(isDup)) {
+      skipped.push({ name, reason: '与已有连接重复，已跳过' })
+      continue
+    }
+    if (added.some(isDup)) {
+      skipped.push({ name, reason: '与本次导入中的连接重复，已跳过' })
+      continue
+    }
+    const conn = {
+      id: 'user-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      name,
+      host,
+      port: portNum,
+      user,
+      password: password || '',
+      database
+    }
+    try {
+      await initDatabase(conn)
+    } catch (err) {
+      failed.push({ name, reason: '初始化失败：' + (err && err.message ? err.message : err) })
+      continue
+    }
+    added.push(conn)
+  }
+  if (added.length === 0) {
+    return {
+      success: false,
+      message: '没有成功导入的连接',
+      added: 0,
+      skipped: skipped.length,
+      failed
+    }
+  }
+  connections.list.push(...added)
+  if (!connections.active) {
+    connections.active = added[0].id
+    activeConfig = buildConfig(added[0])
+    setActiveConfig(activeConfig)
+  }
+  saveConnections()
+  return {
+    success: true,
+    added: added.length,
+    skipped: skipped.length,
+    failed,
+    message: '成功导入 ' + added.length + ' 条连接'
+  }
+}
+
 // 删除连接：在用需先切换、至少保留一个（后端兜底）
 async function remove(id) {
   const target = connections.list.find((x) => x.id === id)
@@ -532,5 +622,7 @@ module.exports = {
   list,
   switchConnection,
   add,
-  remove
+  importMany,
+  remove,
+  DB_IMPORT_TEMPLATE
 }

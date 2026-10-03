@@ -222,6 +222,8 @@ contextBridge.exposeInMainWorld('api', {
     dbConnections: createInvoke('sys:db-connections'),
     switchDb: createInvoke('sys:switch-db'),
     addDb: createInvoke('sys:add-db'),
+    importDb: createInvoke('sys:import-db'),
+    exportDbTemplate: createInvoke('sys:export-db-template'),
     deleteDb: createInvoke('sys:delete-db'),
     exportDb: createInvoke('sys:export-db'),
     pickAttachment: createInvoke('sys:pick-attachment'),
