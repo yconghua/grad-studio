@@ -3,7 +3,7 @@
  *
  * 本文件现在只负责三件事：
  *   1. 创建固定尺寸的登录 / 主窗口；
- *   2. 应用生命周期管理（ready / window-all-closed / activate）；
+ *   2. 应用生命周期管理（ready / window-all-closed / activate）+ 单实例锁 + 系统托盘；
  *   3. 启动时初始化连接服务 + 注册全部 IPC 路由。
  *
  * 所有业务逻辑（连接配置 CRUD、会话、用户管理、系统信息）已下沉到：
@@ -15,7 +15,7 @@
  * 渲染层（Vue3）仍通过 preload 暴露的 window.api 与本进程通信，
  * 页面脚本拿不到 Node 能力（nodeIntegration:false + contextIsolation:true）。
  */
-const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeImage, protocol, net } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, shell, nativeImage, protocol, net, Tray } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
@@ -38,14 +38,14 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'gradapp', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
 ])
 
-// 解析窗口 / 程序图标：复用 build/icon.ico（缺失时回退到系统默认）
+// 解析窗口 / 程序 / 托盘图标：复用 build/icon.ico（缺失时回退到系统默认）
 function resolveIcon() {
   const iconPath = path.join(__dirname, '..', 'build', 'icon.ico')
   return fs.existsSync(iconPath) ? iconPath : undefined
 }
 
 /** 创建主窗口：固定 1100×750，不可缩放、不可最大化、居中 */
-// 关闭确认标志：用户已确认退出后放行 close，避免二次弹窗；窗口销毁后重置，保证新窗口仍提示
+// 退出确认标志：托盘「退出」置位后放行 close；窗口销毁后重置，保证新窗口仍可正常关闭
 let isQuitting = false
 function createWindow() {
   const win = new BrowserWindow({
@@ -65,28 +65,13 @@ function createWindow() {
     }
   })
 
-  // 拦截标题栏 × / Alt+F4：登录页直接关闭；登录后的页面弹原生确认框，确认后再真正关闭
-  win.on('close', async (e) => {
+  // 拦截标题栏 × / Alt+F4：登录页无会话直接关闭退出；登录后隐藏到系统托盘，应用后台驻留
+  win.on('close', (e) => {
     if (isQuitting) return
     // 登录页无会话可退出，直接放行不提示（hash 路由：#/login）
     if (win.webContents.getURL().includes('#/login')) return
     e.preventDefault()
-    // 自定义弹窗图标：复用应用图标（build/icon.ico），缺失时由系统默认展示
-    const iconPath = resolveIcon()
-    const { response } = await dialog.showMessageBox(win, {
-      type: 'question',
-      icon: iconPath ? nativeImage.createFromPath(iconPath) : undefined,
-      title: '确认退出',
-      message: '确定要退出 grad.studio 吗？',
-      detail: '退出后需重新打开应用才能继续使用。',
-      buttons: ['取消', '退出'],
-      defaultId: 0,
-      cancelId: 0
-    })
-    if (response === 1) {
-      isQuitting = true
-      win.destroy() // 直接销毁，不再次触发 close 事件，避免循环弹窗
-    }
+    win.hide()
   })
 
   // 阻止页面 <title> 覆盖窗口标题，保持标题栏空白
@@ -129,46 +114,102 @@ function createWindow() {
 
   win.on('closed', () => {
     // 仅单窗口应用，关闭即清空引用
-    // 窗口销毁后重置关闭确认标志，macOS 经 activate 重建的新窗口仍会弹出确认
+    // 窗口销毁后重置退出标志，macOS 经 activate 重建的新窗口仍可正常关闭
     isQuitting = false
+  })
+
+  return win
+}
+
+// 系统托盘：仅提供驻留入口与基础菜单，不做消息提示
+let tray = null
+function createTray(win) {
+  const iconPath = resolveIcon()
+  if (!iconPath) return
+  tray = new Tray(nativeImage.createFromPath(iconPath))
+  tray.setToolTip('grad.studio')
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: '显示主窗口',
+        click: () => {
+          if (win.isMinimized()) win.restore()
+          win.show()
+          win.focus()
+        }
+      },
+      { type: 'separator' },
+      {
+        label: '退出',
+        click: () => {
+          // 菜单点击即为明确退出意图，置位后放行 close，不再二次确认
+          isQuitting = true
+          app.quit()
+        }
+      }
+    ])
+  )
+  // 左键单击托盘：显示 / 恢复主窗口（已显示则聚焦）
+  tray.on('click', () => {
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
   })
 }
 
-app.whenReady().then(() => {
-  // 移除窗口自带的菜单栏（文件 / 编辑 / 视图等那一行）
-  Menu.setApplicationMenu(null)
-  // 注册 gradapp 协议：仅映射用户数据目录 uploads/ 内的文件，basename 防路径穿越
-  const uploadsDir = path.join(app.getPath('userData'), 'uploads')
-  protocol.handle('gradapp', (request) => {
-    const name = decodeURIComponent(new URL(request.url).pathname.replace(/^\//, ''))
-    const filePath = path.join(uploadsDir, path.basename(name))
-    if (!fs.existsSync(filePath)) return new Response('Not Found', { status: 404 })
-    return net.fetch(pathToFileURL(filePath).toString())
+// 单实例锁：同一台电脑只允许运行一份程序；第二份启动时聚焦已有窗口后自动退出
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+    } else {
+      createWindow()
+    }
   })
-  // 初始化连接服务（加载连接清单、建立连接池）——须在 app ready 之后
-  connectionService.init()
-  // 初始化免密票据服务（加载本机密钥与票据表）
-  ticketService.init()
-  // 注册全部 IPC 路由（auth: / sys: 等），渲染层即可通信
-  registerAll(require('electron').ipcMain)
-  // 启动任务定时扫描（数据库未配置时内部自动跳过）
-  taskScheduler.start()
-  // 启动周报定时提醒（未交 / 批阅超时 / 打回未改）
-  reportScheduler.start()
-  // 创建窗口
-  createWindow()
-})
 
-// 应用退出前停止定时扫描
-app.on('will-quit', () => {
-  taskScheduler.stop()
-  reportScheduler.stop()
-})
+  app.whenReady().then(() => {
+    // 移除窗口自带的菜单栏（文件 / 编辑 / 视图等那一行）
+    Menu.setApplicationMenu(null)
+    // 注册 gradapp 协议：仅映射用户数据目录 uploads/ 内的文件，basename 防路径穿越
+    const uploadsDir = path.join(app.getPath('userData'), 'uploads')
+    protocol.handle('gradapp', (request) => {
+      const name = decodeURIComponent(new URL(request.url).pathname.replace(/^\//, ''))
+      const filePath = path.join(uploadsDir, path.basename(name))
+      if (!fs.existsSync(filePath)) return new Response('Not Found', { status: 404 })
+      return net.fetch(pathToFileURL(filePath).toString())
+    })
+    // 初始化连接服务（加载连接清单、建立连接池）——须在 app ready 之后
+    connectionService.init()
+    // 初始化免密票据服务（加载本机密钥与票据表）
+    ticketService.init()
+    // 注册全部 IPC 路由（auth: / sys: 等），渲染层即可通信
+    registerAll(require('electron').ipcMain)
+    // 启动任务定时扫描（数据库未配置时内部自动跳过）
+    taskScheduler.start()
+    // 启动周报定时提醒（未交 / 批阅超时 / 打回未改）
+    reportScheduler.start()
+    // 创建窗口，并挂载系统托盘
+    const mainWin = createWindow()
+    createTray(mainWin)
+  })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  // 应用退出前停止定时扫描
+  app.on('will-quit', () => {
+    taskScheduler.stop()
+    reportScheduler.stop()
+  })
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
-})
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+}
