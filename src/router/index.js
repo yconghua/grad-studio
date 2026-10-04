@@ -24,6 +24,7 @@ import MentorLayout from '../layouts/MentorLayout.vue'
 import StudentLayout from '../layouts/StudentLayout.vue'
 import NotFoundView from '../pages/notfound/index.vue'
 import { useSession } from '../composables/useSession'
+import { useTabs } from '../composables/useTabs'
 import { getCurrentUser } from '../api/auth'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../config/constants'
 import { SUPER_ADMIN_HOME } from '../config/nav/super-admin'
@@ -32,6 +33,8 @@ import { MENTOR_HOME } from '../config/nav/mentor'
 import { STUDENT_HOME } from '../config/nav/student'
 
 const { getSessionUser, updateSessionUser, isSessionValid } = useSession()
+// 标签页状态单例：afterEach 进标签、守卫清空标签共用同一份状态
+const tabsStore = useTabs()
 
 // 角色 → 登录后工作台
 export const ROLE_HOME = {
@@ -177,9 +180,11 @@ router.beforeEach(async (to) => {
   let user = getSessionUser()
   const valid = isSessionValid()
 
-  // 登录页：已登录直接进本角色工作台
+  // 登录页：已登录直接进本角色工作台；未登录进入（登出/会话过期/切换账号失败）
+  // 时清空标签存储，避免下次登录恢复出上个账号的标签
   if (to.path === '/login') {
     if (valid && user) return ROLE_HOME[user.role] || '/login'
+    tabsStore.clearTabs()
     return true
   }
   // 强制改密页：仅允许「需改密」的登录用户访问
@@ -223,6 +228,16 @@ router.beforeEach(async (to) => {
   if (to.path === '/guide') return ROLE_HOME[user.role] || '/login'
 
   return true
+})
+
+// 标签页联动：每次导航完成后，命中业务页则打开/激活对应标签
+// 判定：路径位于四个角色路由前缀下即为业务页；登录/改密/引导/404 天然不匹配自动跳过，
+// meta.tab === false 作为显式排除的后备开关（当前路由未使用）
+router.afterEach((to) => {
+  if (to.name === 'notfound') return
+  if (to.meta && to.meta.tab === false) return
+  if (!/^\/(admin|group-admin|mentor|student)\//.test(to.path)) return
+  tabsStore.addTab(to)
 })
 
 export default router

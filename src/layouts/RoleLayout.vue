@@ -12,9 +12,9 @@
       <UserAvatarMenu :profile-path="profilePath" :introduction-path="introductionPath" :settings-path="settingsPath" />
     </header>
 
-    <!-- 主体：左侧导航（固定 220px）+ 右侧内容区 -->
+    <!-- 主体：左侧导航（固定 220px）+ 右侧内容区（标签栏 + 页面内容） -->
     <div class="body">
-      <aside class="side">
+      <aside class="side" :style="{ width: sideWidth + 'px' }">
         <nav class="nav">
           <router-link
             v-for="item in navItems"
@@ -41,11 +41,18 @@
         <div class="side-foot">
           <ThemeSwitcher />
         </div>
+        <!-- 右侧拖拽条：左右拖动调整导航栏宽度 -->
+        <div class="side-resizer" title="拖动调整导航栏宽度" @mousedown="onResizeStart"></div>
       </aside>
 
-      <main class="content" :class="{ 'is-chat': isChatPage }">
-        <router-view />
-      </main>
+      <!-- 右侧列：标签栏 + 页面内容，标签栏只占内容区宽度、不占用左侧导航栏 -->
+      <div class="main-col">
+        <!-- 标签栏：浏览器风格多标签页（打开/关闭/拖拽排序，固定工作台标签在最前） -->
+        <TabBar />
+        <main class="content" :class="{ 'is-chat': isChatPage }">
+          <router-view />
+        </main>
+      </div>
     </div>
   </div>
 </template>
@@ -56,6 +63,7 @@ import { useRoute, useRouter } from 'vue-router'
 import UserAvatarMenu from '../components/layout/UserAvatarMenu.vue'
 import ThemeSwitcher from '../components/layout/ThemeSwitcher.vue'
 import AppTitleBar from '../components/layout/AppTitleBar.vue'
+import TabBar from '../components/layout/TabBar.vue'
 import { useAppName } from '../composables/useAppName'
 import { useSession } from '../composables/useSession'
 import { pathForBiz } from '../config/notificationRoutes'
@@ -85,6 +93,61 @@ const route = useRoute()
 const router = useRouter()
 const { getSessionUser } = useSession()
 const { appName } = useAppName()
+
+// ===== 左侧导航栏宽度（可拖动调整，localStorage 记忆） =====
+const SIDE_MIN = 160
+const SIDE_MAX = 360
+const SIDE_STORAGE_KEY = 'gra_studio_side_width'
+let savedSideWidth = 0
+try {
+  savedSideWidth = parseInt(localStorage.getItem(SIDE_STORAGE_KEY) || '', 10) || 0
+} catch (e) {
+  // 读取失败沿用默认宽度
+}
+const sideWidth = ref(savedSideWidth >= SIDE_MIN && savedSideWidth <= SIDE_MAX ? savedSideWidth : 220)
+
+let resizing = false
+let resizeStartX = 0
+let resizeStartWidth = 0
+
+// 按下拖拽条开始：记录起点，挂全局移动/松开监听
+function onResizeStart(e) {
+  resizing = true
+  resizeStartX = e.clientX
+  resizeStartWidth = sideWidth.value
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'col-resize'
+  document.addEventListener('mousemove', onResizeMove)
+  document.addEventListener('mouseup', onResizeEnd)
+  e.preventDefault()
+}
+
+// 拖动中：按鼠标横向位移更新宽度，限制在 [SIDE_MIN, SIDE_MAX]
+function onResizeMove(e) {
+  if (!resizing) return
+  const next = resizeStartWidth + (e.clientX - resizeStartX)
+  sideWidth.value = Math.min(SIDE_MAX, Math.max(SIDE_MIN, next))
+}
+
+// 松开结束：移除监听并保存宽度
+function onResizeEnd() {
+  if (!resizing) return
+  resizing = false
+  document.body.style.userSelect = ''
+  document.body.style.cursor = ''
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+  try {
+    localStorage.setItem(SIDE_STORAGE_KEY, String(sideWidth.value))
+  } catch (e) {
+    // 存储失败静默，宽度仅本次会话生效
+  }
+}
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+})
 
 // 聊天页（* -chat 路由）占满内容区：聊天界面自带内部滚动，外层不再滚动，避免双层滚动条
 const isChatPage = computed(() => /-chat$/.test(String(route.name || '')))
@@ -256,13 +319,32 @@ onUnmounted(() => {
   display: flex;
   min-height: 0;
 }
+.main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 .side {
+  position: relative;
   width: 220px;
   flex-shrink: 0;
   background: var(--bg-card);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+}
+.side-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 20;
+}
+.side-resizer:hover {
+  background: var(--primary-soft);
 }
 .nav {
   flex: 1;

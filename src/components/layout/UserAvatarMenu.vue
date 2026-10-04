@@ -45,6 +45,7 @@ import { logout, switchAccount } from '../../api'
 import { avatarUrl } from '../../utils/avatar'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 import { ROLE_HOME } from '../../router'
+import { useTabs } from '../../composables/useTabs'
 import AccountSwitchDialog from '../dialogs/AccountSwitchDialog.vue'
 import UpdateDialog from '../dialogs/UpdateDialog.vue'
 
@@ -61,6 +62,7 @@ const props = defineProps({
 
 const router = useRouter()
 const { getSessionUser, clearSession, setSession } = useSession()
+const { clearTabs } = useTabs()
 
 const user = getSessionUser()
 const open = ref(false)
@@ -129,6 +131,8 @@ async function onSwitchAccount(username) {
     const d = res && res.data
     if (res && res.success && d && d.ok && d.user) {
       setSession(d.user)
+      // 换账号：清空上个账号的标签，防止恢复出不属于新账号的页面
+      clearTabs()
       router.replace(ROLE_HOME[d.user.role] || '/login')
       return
     }

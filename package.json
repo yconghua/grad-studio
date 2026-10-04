@@ -26,7 +26,8 @@
     "papaparse": "^5.7.0",
     "qrcode": "^1.5.4",
     "vue": "^3.4.27",
-    "vue-router": "^4.3.2"
+    "vue-router": "^4.3.2",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
