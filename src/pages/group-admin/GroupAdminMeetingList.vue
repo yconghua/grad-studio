@@ -131,6 +131,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MeetingFormDialog from '../../components/MeetingFormDialog.vue'
 import MeetingDetailDialog from '../../components/MeetingDetailDialog.vue'
 import { listMeetings, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleMeetingArchive, publishMeetingAsNotice, getMeetingStats } from '../../api'
@@ -164,6 +165,7 @@ const formInitial = ref(null)
 
 const detailVisible = ref(false)
 const detailMeetingId = ref(null)
+const route = useRoute()
 
 const showStats = ref(false)
 const stats = ref({ total: 0, monthTotal: 0, latestTime: null, latestTitle: null, audience: 0, participationRate: 0 })
@@ -290,6 +292,11 @@ onMounted(async () => {
     groupStopped.value = res.data.status === 0
   }
   load()
+  // 全局搜索直达：?open=<id>&group=<gid> → 自动打开会议详情
+  const openId = route.query.open
+  if (openId != null && /^\d+$/.test(String(openId))) {
+    openDetail({ id: Number(openId), groupId: route.query.group ? Number(route.query.group) : null })
+  }
 })
 </script>
 

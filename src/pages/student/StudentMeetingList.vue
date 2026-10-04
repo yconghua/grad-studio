@@ -72,6 +72,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MeetingDetailDialog from '../../components/MeetingDetailDialog.vue'
 import { listMeetings } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
@@ -90,6 +91,7 @@ const meetingStatusClass = (s) => (Number(s) === 1 ? 'tag tag-orange' : Number(s
 
 const detailVisible = ref(false)
 const detailMeetingId = ref(null)
+const route = useRoute()
 
 async function load() {
   const res = await listMeetings({ page: page.value, keyword: keyword.value, status: status.value })
@@ -122,5 +124,10 @@ function openDetail(m) {
 
 onMounted(() => {
   load()
+  // 全局搜索直达：?open=<id>&group=<gid> → 自动打开会议详情
+  const openId = route.query.open
+  if (openId != null && /^\d+$/.test(String(openId))) {
+    openDetail({ id: Number(openId), groupId: route.query.group ? Number(route.query.group) : null })
+  }
 })
 </script>

@@ -134,6 +134,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MeetingFormDialog from '../../components/MeetingFormDialog.vue'
 import MeetingDetailDialog from '../../components/MeetingDetailDialog.vue'
 import { listMeetings, listMyDrafts, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleMeetingArchive, publishMeetingAsNotice, getMeetingStats } from '../../api'
@@ -153,6 +154,7 @@ const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
 const groups = ref([])
+const route = useRoute()
 
 // 指定课题组是否已停用（超管全部课题组视图下按行归属判断）
 function groupStoppedOf(gid) {
@@ -311,6 +313,11 @@ async function doStats(m) {
 onMounted(async () => {
   groups.value = await fetchAll(listGroups)
   load()
+  // 全局搜索直达：?open=<id>&group=<gid> → 自动打开会议详情
+  const openId = route.query.open
+  if (openId != null && /^\d+$/.test(String(openId))) {
+    openDetail({ id: Number(openId), groupId: route.query.group ? Number(route.query.group) : null })
+  }
 })
 </script>
 

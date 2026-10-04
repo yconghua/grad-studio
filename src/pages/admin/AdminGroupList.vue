@@ -110,6 +110,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { listGroups, createGroup, getGroup, updateGroup, deleteGroup, listUsers } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -130,6 +131,7 @@ const saving = ref(false)
 const editId = ref(null)
 const admins = ref([])
 const detailId = ref(null)
+const route = useRoute()
 const form = reactive({ name: '', description: '', adminUserId: '', status: 1, code: '', groupId: null })
 
 async function load() {
@@ -226,5 +228,10 @@ async function doDelete(g) {
 onMounted(async () => {
   admins.value = await fetchAll(listUsers, { role: 'group_admin' })
   load()
+  // 全局搜索直达：?open=<id> → 自动打开课题组详情
+  const openId = route.query.open
+  if (openId != null && /^\d+$/.test(String(openId))) {
+    openDetail({ id: Number(openId) })
+  }
 })
 </script>

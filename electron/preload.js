@@ -191,6 +191,10 @@ contextBridge.exposeInMainWorld('api', {
       return () => ipcRenderer.removeListener('notification:event', listener)
     }
   },
+  // 全局搜索（对应 ipc/search.js，通道前缀 search:*）
+  search: {
+    global: createInvoke('search:global')
+  },
   // 任务模块（对应 ipc/task.js，通道前缀 task:*）
   task: {
     create: createInvoke('task:create'),

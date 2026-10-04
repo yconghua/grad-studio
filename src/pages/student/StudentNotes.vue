@@ -108,8 +108,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { ref, computed, watch, onBeforeUnmount, onMounted } from 'vue'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { listNotes, getNote, createNote, updateNote, deleteNote, restoreNote, purgeNote, exportNote } from '../../api'
 import { NOTE_CATEGORIES } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
@@ -211,6 +211,16 @@ async function openNoteById(id) {
     currentNote.value = null
   }
 }
+
+const route = useRoute()
+
+// 全局搜索直达：?open=<id> → 自动打开笔记
+onMounted(() => {
+  const openId = route.query.open
+  if (openId != null && /^\d+$/.test(String(openId))) {
+    openNoteById(Number(openId))
+  }
+})
 
 function onPick(n) {
   // 回收站笔记不可编辑，仅提供恢复/彻底删除

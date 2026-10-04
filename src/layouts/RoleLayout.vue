@@ -9,6 +9,7 @@
         <img :src="logoUrl" class="brand-logo" alt="平台标识" />
         <span class="brand-name">{{ appName }}</span>
       </div>
+      <GlobalSearch />
       <UserAvatarMenu :profile-path="profilePath" :introduction-path="introductionPath" :settings-path="settingsPath" />
     </header>
 
@@ -64,6 +65,7 @@ import UserAvatarMenu from '../components/layout/UserAvatarMenu.vue'
 import ThemeSwitcher from '../components/layout/ThemeSwitcher.vue'
 import AppTitleBar from '../components/layout/AppTitleBar.vue'
 import TabBar from '../components/layout/TabBar.vue'
+import GlobalSearch from '../components/layout/GlobalSearch.vue'
 import { useAppName } from '../composables/useAppName'
 import { useSession } from '../composables/useSession'
 import { pathForBiz } from '../config/notificationRoutes'
