@@ -50,7 +50,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import MemberManagePanel from '../MemberManagePanel.vue'
+import MemberManagePanel from '../member/MemberManagePanel.vue'
 import { listGroups, getGroup, listUsers, listNotices, getMeetingStats } from '../../api'
 import { superGetMemberStats } from '../../api/member'
 import { fetchAll } from '../../utils/fetchAll'

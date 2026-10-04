@@ -92,9 +92,9 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
-import NoticeContent from './NoticeContent.vue'
-import { createMeeting, updateMeeting, publishMeeting, getMeetingMemberOptions } from '../api'
-import { dialogAlert } from '../composables/useDialog'
+import NoticeContent from '../notice/NoticeContent.vue'
+import { createMeeting, updateMeeting, publishMeeting, getMeetingMemberOptions } from '../../api'
+import { dialogAlert } from '../../composables/useDialog'
 
 // 组会新建 / 编辑弹窗（仅超管、组管可用）：
 //   - 组管 fixedGroupId 固定本组；超管新建时在弹窗内下拉选择课题组；

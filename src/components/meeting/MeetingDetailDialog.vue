@@ -82,9 +82,9 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import NoticeContent from './NoticeContent.vue'
-import { getMeetingDetail, publishMeetingAsNotice } from '../api'
-import { dialogAlert, dialogConfirm } from '../composables/useDialog'
+import NoticeContent from '../notice/NoticeContent.vue'
+import { getMeetingDetail, publishMeetingAsNotice } from '../../api'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 
 // 组会详情弹窗（纯只读展示）：进入时按 meetingId 请求详情全文 + 参与人 + noticeId；
 // 仅超管/组管可见底部「发布为公告」按钮（仅 status=2 且 noticeId 为空时可用），

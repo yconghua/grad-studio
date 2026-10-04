@@ -172,7 +172,7 @@ import {
 import { REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 import { useSession } from '../../composables/useSession'
-import MarkdownPreview from '../../components/MarkdownPreview.vue'
+import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
 const tab = ref('todo')
 const page = ref(1)

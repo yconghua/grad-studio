@@ -136,15 +136,15 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import RowDetailDialog from './RowDetailDialog.vue'
+import RowDetailDialog from '../common/RowDetailDialog.vue'
 import {
   listMembers, addMembers, removeMember, batchRemoveMembers, batchAssignMentor, setStudentMentor, listCandidates,
   superListMembers, superAddMembers, superRemoveMember, superBatchRemoveMembers, superBatchAssignMentor, superSetStudentMentor
-} from '../api'
-import { dialogAlert, dialogConfirm } from '../composables/useDialog'
-import { refreshAfterWrite } from '../composables/useGlobalRefresh'
-import { fetchAll } from '../utils/fetchAll'
-import { roleText, statusText } from '../utils/labels'
+} from '../../api'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { fetchAll } from '../../utils/fetchAll'
+import { roleText, statusText } from '../../utils/labels'
 
 // 课题组成员管理公共面板：超管（任意组，group:* + groupId）与组管（本组，group-admin:*）共用
 const props = defineProps({

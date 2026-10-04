@@ -58,8 +58,8 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { listNotices, markNoticeRead, markAllNoticeRead, getNotice } from '../../api'
-import NoticeContent from '../../components/NoticeContent.vue'
-import RowDetailDialog from '../../components/RowDetailDialog.vue'
+import NoticeContent from '../../components/notice/NoticeContent.vue'
+import RowDetailDialog from '../../components/common/RowDetailDialog.vue'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 

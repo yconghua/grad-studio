@@ -15,7 +15,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import MemberManagePanel from '../../components/MemberManagePanel.vue'
+import MemberManagePanel from '../../components/member/MemberManagePanel.vue'
 import { getOwnGroup } from '../../api'
 
 const groupId = ref(null)

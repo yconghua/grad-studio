@@ -149,7 +149,7 @@ import {
 } from '../../api'
 import { REPORT_BACKFILL_WEEKS, REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
-import MarkdownPreview from '../../components/MarkdownPreview.vue'
+import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
 const BACKFILL = REPORT_BACKFILL_WEEKS
 

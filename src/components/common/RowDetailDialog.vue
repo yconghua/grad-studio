@@ -28,7 +28,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import NoticeContent from './NoticeContent.vue'
+import NoticeContent from '../notice/NoticeContent.vue'
 
 // 通用行详情弹窗：由页面传入一行数据 + 字段映射配置，纯只读展示，不含任何操作按钮。
 // fields: [{ key, label, render?, markdown? }]，render(value, row) 返回格式化后的展示文本；

@@ -113,7 +113,7 @@ import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { listNotes, getNote, createNote, updateNote, deleteNote, restoreNote, purgeNote, exportNote } from '../../api'
 import { NOTE_CATEGORIES } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
-import MarkdownPreview from '../../components/MarkdownPreview.vue'
+import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
 // ===== 列表 =====
 const tab = ref('active') // active 全部 / deleted 回收站

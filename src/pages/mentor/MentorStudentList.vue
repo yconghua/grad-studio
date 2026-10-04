@@ -56,7 +56,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import RowDetailDialog from '../../components/RowDetailDialog.vue'
+import RowDetailDialog from '../../components/common/RowDetailDialog.vue'
 import { listMyStudents } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { statusText, statusTagClass } from '../../utils/labels'

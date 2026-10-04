@@ -73,7 +73,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import MeetingDetailDialog from '../../components/MeetingDetailDialog.vue'
+import MeetingDetailDialog from '../../components/meeting/MeetingDetailDialog.vue'
 import { listMeetings } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 

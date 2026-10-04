@@ -86,27 +86,12 @@
     </div>
 
     <!-- 统计弹窗 -->
-    <div v-if="showStats" class="modal-mask" @click.self="showStats = false">
-      <div class="modal">
-        <div class="modal-head">
-          <h3>会议统计</h3>
-          <button type="button" class="modal-close" @click="showStats = false">×</button>
-        </div>
-        <div class="modal-body">
-          <p class="panel-sub" style="margin-bottom: 10px">统计范围：{{ groupName }}（仅统计已发布会议）</p>
-          <div class="desc-list">
-            <div class="row"><span class="k">会议总数</span><span class="v">{{ stats.total }}</span></div>
-            <div class="row"><span class="k">本月会议数</span><span class="v">{{ stats.monthTotal }}</span></div>
-            <div class="row"><span class="k">最近一次会议</span><span class="v">{{ stats.latestTitle ? `${stats.latestTitle}（${stats.latestTime}）` : '-' }}</span></div>
-            <div class="row"><span class="k">应参与人数</span><span class="v">{{ stats.audience }} 人（本组启用导师+学生）</span></div>
-            <div class="row"><span class="k">参与率</span><span class="v">{{ (stats.participationRate * 100).toFixed(2) }}%</span></div>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button class="btn" @click="showStats = false">关闭</button>
-        </div>
-      </div>
-    </div>
+    <MeetingStatsDialog
+      v-model:visible="showStats"
+      :stats="stats"
+      :scope-text="groupName"
+      audience-hint="本组启用导师+学生"
+    />
 
     <!-- 新建 / 编辑弹窗（固定本组） -->
     <MeetingFormDialog
@@ -132,8 +117,9 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import MeetingFormDialog from '../../components/MeetingFormDialog.vue'
-import MeetingDetailDialog from '../../components/MeetingDetailDialog.vue'
+import MeetingFormDialog from '../../components/meeting/MeetingFormDialog.vue'
+import MeetingDetailDialog from '../../components/meeting/MeetingDetailDialog.vue'
+import MeetingStatsDialog from '../../components/meeting/MeetingStatsDialog.vue'
 import { listMeetings, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleMeetingArchive, publishMeetingAsNotice, getMeetingStats } from '../../api'
 import { getOwnGroup } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
