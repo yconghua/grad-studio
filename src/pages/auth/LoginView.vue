@@ -27,7 +27,20 @@
       <section class="form-panel">
         <div class="login-card">
           <div class="card-head">
-            <h2 class="card-title">账号登录</h2>
+            <div class="login-tabs" role="tablist">
+              <button
+                type="button"
+                class="login-tab"
+                :class="{ active: loginMode === 'account' }"
+                @click="switchMode('account')"
+              >账号登录</button>
+              <button
+                type="button"
+                class="login-tab"
+                :class="{ active: loginMode === 'scan' }"
+                @click="switchMode('scan')"
+              >扫码登录</button>
+            </div>
             <span
               class="db-status"
               :class="dbStatusClass"
@@ -40,9 +53,9 @@
               <i class="db-dot"></i>{{ dbStatusText }}
             </span>
           </div>
-          <p class="card-sub">请输入账号密码以进入系统</p>
+          <p class="card-sub">{{ loginMode === 'account' ? '请输入账号密码以进入系统' : '请使用手机扫描二维码登录' }}</p>
 
-          <form @submit.prevent="onSubmit">
+          <form v-if="loginMode === 'account'" @submit.prevent="onSubmit">
             <label class="field-label" for="username">账号</label>
             <input
               id="username"
@@ -104,7 +117,40 @@
             </label>
           </form>
 
-          <div class="card-foot">
+          <!-- 扫码登录面板（协议确认与账号 Tab 共用同一勾选状态） -->
+          <div v-else class="scan-panel">
+            <div class="scan-qr-wrap">
+              <img v-if="scanQrDataUrl" :src="scanQrDataUrl" class="scan-qr" alt="扫码登录二维码" />
+              <span v-else class="scan-qr-loading">二维码加载中…</span>
+              <div v-if="!agreed" class="scan-qr-mask">请先阅读并同意<br />用户协议与隐私政策</div>
+            </div>
+            <p class="scan-status" :class="scanStatusClass">{{ scanStatusText }}</p>
+            <!-- 多网卡（含手机热点/电脑热点）时显示地址切换：手机连不上时切换为当前所在网络的地址 -->
+            <div v-if="scanCandidates.length > 1" class="scan-addr-row">
+              <span class="scan-addr-label">二维码地址</span>
+              <button
+                v-for="c in scanCandidates"
+                :key="c.ip"
+                type="button"
+                class="scan-addr-btn"
+                :class="{ active: scanBaseUrl === c.baseUrl }"
+                :disabled="scanLoading"
+                @click="switchScanAddr(c.baseUrl)"
+              >{{ c.name }}<em>{{ c.ip }}</em></button>
+            </div>
+            <button type="button" class="scan-refresh" :disabled="scanLoading" @click="startScanLogin">
+              {{ scanLoading ? '加载中…' : '刷新二维码' }}
+            </button>
+            <label class="agree-row">
+              <input v-model="agreed" type="checkbox" class="agree-check" />
+              <span class="agree-text">
+                我已阅读并同意<a href="#" @click.prevent="openAgreement('user')">《用户协议》</a>和<a href="#" @click.prevent="openAgreement('privacy')">《隐私政策》</a>
+              </span>
+            </label>
+            <p class="scan-hint">请使用微信 / 支付宝 / 手机浏览器扫码</p>
+          </div>
+
+          <div v-if="loginMode === 'account'" class="card-foot">
             <button type="button" class="forgot-link" @click="showAdminContact = true">忘记密码</button>
           </div>
 
@@ -177,9 +223,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import QRCode from 'qrcode'
 import { useRoute, useRouter } from 'vue-router'
-import { login, getCaptcha, deleteDb, getDbInfo, getPublicInfo } from '../../api'
+import { login, getCaptcha, getScanQr, scanStatus, scanCancel, deleteDb, getDbInfo, getPublicInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
 import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
@@ -206,9 +253,170 @@ const needCaptcha = ref(false)
 const captchaId = ref('')
 const captchaCode = ref('')
 const captchaSvg = ref('')
-// 协议确认：默认不勾选，未勾选时拦截登录
+// 协议确认：默认不勾选，未勾选时拦截登录（账号 / 扫码两个 Tab 共用）
 const agreed = ref(false)
 const agreementType = ref('')
+
+// 登录方式：account 账号登录 / scan 扫码登录
+const loginMode = ref('account')
+// 扫码登录：二维码 data URL、状态文案、ticket、轮询句柄
+const scanQrDataUrl = ref('')
+const scanTicket = ref('')
+const scanStatusText = ref('')
+const scanStatusClass = ref('')
+const scanLoading = ref(false)
+// 扫码地址候选与当前选择（多网卡时在二维码下方切换，默认自动探测的首选地址）
+const scanCandidates = ref([])
+const scanBaseUrl = ref('')
+let scanTimer = null
+let scanStartAt = 0
+// 扫码登录成功标志：成功后跳转不再作废 ticket（否则手机确认页会被误标"已取消登录"）
+let scanSucceeded = false
+const SCAN_POLL_MS = 1500
+const SCAN_TIMEOUT_MS = 120 * 1000
+
+// 切换登录方式：离开扫码 Tab 时停止轮询并作废二维码
+function switchMode(mode) {
+  if (loginMode.value === mode) return
+  stopScanPolling()
+  if (scanTicket.value) {
+    const t = scanTicket.value
+    const base = scanBaseUrl.value
+    scanTicket.value = ''
+    scanCancel(t, base).catch(() => {})
+  }
+  loginMode.value = mode
+  if (mode === 'scan') startScanLogin()
+}
+
+// 获取二维码并启动轮询（进入扫码 Tab / 点击刷新时调用）
+async function startScanLogin() {
+  stopScanPolling()
+  scanLoading.value = true
+  scanStatusText.value = ''
+  scanStatusClass.value = ''
+  // 先作废旧二维码：刷新后旧 ticket 立即失效（旧码在 TTL 内再扫会提示"二维码已失效"）
+  if (scanTicket.value) {
+    const t = scanTicket.value
+    const base = scanBaseUrl.value
+    scanTicket.value = ''
+    scanCancel(t, base).catch(() => {})
+  }
+  try {
+    const res = await getScanQr({ baseUrl: scanBaseUrl.value || undefined })
+    if (!res || !res.success || !res.data) {
+      scanStatusText.value = '二维码获取失败，请重试'
+      scanStatusClass.value = 'is-error'
+      return
+    }
+    scanTicket.value = res.data.ticket
+    scanQrDataUrl.value = await QRCode.toDataURL(res.data.qrUrl, {
+      width: 200,
+      margin: 1,
+      errorCorrectionLevel: 'M'
+    })
+    scanBaseUrl.value = res.data.baseUrl || scanBaseUrl.value
+    scanCandidates.value = Array.isArray(res.data.candidates) ? res.data.candidates : []
+    scanStartAt = Date.now()
+    scanStatusText.value = '等待扫码…'
+    scanStatusClass.value = 'is-waiting'
+    scanTimer = setInterval(pollScanStatus, SCAN_POLL_MS)
+  } catch (e) {
+    scanStatusText.value = '二维码获取失败，请重试'
+    scanStatusClass.value = 'is-error'
+  } finally {
+    scanLoading.value = false
+  }
+}
+
+// 切换二维码地址（多网卡时）：先作废旧 ticket，再按新地址重新签发
+async function switchScanAddr(baseUrl) {
+  if (scanLoading.value || scanBaseUrl.value === baseUrl) return
+  if (scanTicket.value) {
+    const t = scanTicket.value
+    const oldBase = scanBaseUrl.value
+    scanTicket.value = ''
+    scanCancel(t, oldBase).catch(() => {})
+  }
+  scanBaseUrl.value = baseUrl
+  await startScanLogin()
+}
+
+// 轮询二维码状态：按后端契约推进 pending → scanned → approved / denied / expired
+async function pollScanStatus() {
+  if (!scanTicket.value) return
+  if (Date.now() - scanStartAt > SCAN_TIMEOUT_MS) {
+    stopScanPolling()
+    scanStatusText.value = '二维码已失效，请刷新'
+    scanStatusClass.value = 'is-error'
+    return
+  }
+  let res
+  try {
+    res = await scanStatus(scanTicket.value, scanBaseUrl.value)
+  } catch (e) {
+    return
+  }
+  if (!res || !res.success) return
+  const status = res.data && res.data.status
+  if (status === 'pending') {
+    scanStatusText.value = '等待扫码…'
+    scanStatusClass.value = 'is-waiting'
+  } else if (status === 'scanned') {
+    scanStatusText.value = '已扫码，请在手机上确认'
+    scanStatusClass.value = 'is-waiting'
+  } else if (status === 'approved') {
+    stopScanPolling()
+    const user = res.data && res.data.user
+    if (!user) {
+      scanStatusText.value = '登录响应异常，请刷新重试'
+      scanStatusClass.value = 'is-error'
+      return
+    }
+    if (!agreed.value) {
+      scanStatusText.value = '请先阅读并同意用户协议与隐私政策'
+      scanStatusClass.value = 'is-error'
+      return
+    }
+    scanSucceeded = true
+    setSession(user)
+    recordLogin(user)
+    if (user.mustChangePassword) {
+      router.replace('/force-password')
+    } else {
+      router.replace(ROLE_HOME[user.role] || '/login')
+    }
+  } else if (status === 'denied') {
+    stopScanPolling()
+    scanStatusText.value = '已拒绝，请刷新二维码重试'
+    scanStatusClass.value = 'is-error'
+  } else if (status === 'verify-failed') {
+    // 手机端提交的账号密码校验失败：提示并继续轮询（等待手机端重试，或过期/刷新）
+    scanStatusText.value = (res.data && res.data.message) || '验证失败，请在手机上重试'
+    scanStatusClass.value = 'is-error'
+  } else if (status === 'expired') {
+    stopScanPolling()
+    scanStatusText.value = '二维码已过期，正在刷新…'
+    scanStatusClass.value = 'is-error'
+    startScanLogin()
+  }
+}
+
+// 停止轮询（成功 / 失败 / 切 Tab / 离开页面共用）
+function stopScanPolling() {
+  if (scanTimer) {
+    clearInterval(scanTimer)
+    scanTimer = null
+  }
+}
+
+// 离开登录页：清理轮询并作废二维码（登录成功跳转时不作废，保留 approved 终态）
+onUnmounted(() => {
+  stopScanPolling()
+  if (scanTicket.value && !scanSucceeded) {
+    scanCancel(scanTicket.value, scanBaseUrl.value).catch(() => {})
+  }
+})
 
 // 获取/刷新验证码：主进程返回 captchaId + SVG，以 data URL 展示
 async function loadCaptcha() {
@@ -531,10 +739,27 @@ async function onDeleteConfirmed(id) {
   gap: 10px;
   margin: 0 0 6px;
 }
-.card-title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
+/* 登录方式 Tab（账号登录 / 扫码登录） */
+.login-tabs {
+  display: flex;
+  gap: 16px;
+}
+.login-tab {
+  border: none;
+  background: none;
+  padding: 4px 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.login-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+.login-tab:hover {
   color: var(--text);
 }
 /* 数据库状态：登录卡右上角胶囊，点击进入数据库配置 */
@@ -736,6 +961,120 @@ async function onDeleteConfirmed(id) {
 /* 协议全文按换行分段展示 */
 .agreement-body {
   white-space: pre-line;
+}
+/* ===== 扫码登录面板 ===== */
+.scan-panel {
+  margin-top: 8px;
+}
+.scan-qr-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 8px auto 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scan-qr {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: var(--radius-md);
+}
+.scan-qr-loading {
+  font-size: 13px;
+  color: var(--muted);
+}
+/* 未勾选协议时的覆盖提示：阻止扫码流程 */
+.scan-qr-mask {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-card) 62%, transparent);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: center;
+  line-height: 1.8;
+}
+.scan-status {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 13px;
+  min-height: 18px;
+  color: var(--text-2);
+}
+.scan-status.is-error {
+  color: var(--danger);
+}
+.scan-refresh {
+  display: block;
+  width: 100%;
+  height: 40px;
+  margin-top: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.scan-refresh:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.scan-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* 多网卡地址切换行（手机热点/电脑热点/虚拟机多网卡时显示） */
+.scan-addr-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.scan-addr-label {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.scan-addr-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.scan-addr-btn em {
+  font-style: normal;
+  opacity: 0.75;
+  margin-left: 4px;
+}
+.scan-addr-btn.active {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.scan-addr-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.scan-hint {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
 }
 /* 卡片底部：忘记密码入口 */
 .card-foot {

@@ -24,6 +24,7 @@
     "marked": "^18.0.14",
     "mysql2": "^3.11.0",
     "papaparse": "^5.7.0",
+    "qrcode": "^1.5.4",
     "vue": "^3.4.27",
     "vue-router": "^4.3.2"
   },
@@ -50,6 +51,12 @@
       "shared/**/*",
       "dist/**/*",
       "build/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "scan-server",
+        "to": "scan-server"
+      }
     ],
     "directories": {
       "output": "release"

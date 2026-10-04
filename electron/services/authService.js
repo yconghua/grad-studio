@@ -42,6 +42,22 @@ function toSafeUser(row) {
   }
 }
 
+// 建立登录会话（账号密码登录 / 扫码登录共用）：设置内存登录态 + 签发免密票据 + 启动推送
+function establishSession(row) {
+  const safe = toSafeUser(row)
+  currentUser = safe
+  // 登录成功后签发 / 刷新免密票据（仅用于登录后切换账号）
+  ticketService.issue(safe.username)
+  // 登录后启动聊天实时推送（每 2 秒轮询共享库增量，有变化推给渲染层）
+  chatPoller.start(safe.id)
+  // 登录后启动通知中心实时推送（每 10 秒轮询新通知/未读数）
+  notificationPoller.start(safe.id)
+  return {
+    token: crypto.randomUUID(), // 会话凭证（桌面单窗口下与前端 localStorage 会话配合使用）
+    user: safe
+  }
+}
+
 /**
  * 登录校验：用户名 / 密码均区分大小写（users.username 列排序规则 utf8mb4_bin），
  * 密码用 bcrypt 哈希比对；失败统一返回「账号或密码错误」，不暴露具体原因。
@@ -72,18 +88,25 @@ async function login({ username, password, captchaId, captchaCode } = {}) {
     throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha() })
   }
   captchaService.resetFailures()
-  const safe = toSafeUser(user)
-  currentUser = safe
-  // 登录成功后签发 / 刷新免密票据（仅用于登录后切换账号）
-  ticketService.issue(safe.username)
-  // 登录后启动聊天实时推送（每 2 秒轮询共享库增量，有变化推给渲染层）
-  chatPoller.start(safe.id)
-  // 登录后启动通知中心实时推送（每 10 秒轮询新通知/未读数）
-  notificationPoller.start(safe.id)
-  return {
-    token: crypto.randomUUID(), // 会话凭证（桌面单窗口下与前端 localStorage 会话配合使用）
-    user: safe
+  return establishSession(user)
+}
+
+/**
+ * 扫码登录凭据验证：手机确认页提交的账号密码由桌面端本地校验。
+ * 不走验证码 / 协议（这两者由手机确认页流程承担），校验通过即建立会话。
+ */
+async function loginByCredentials(username, password) {
+  if (!username || !password) {
+    throw new ApiError('请输入账号和密码', 400)
   }
+  const user = await userRepository.findByUsername(username)
+  if (!user || user.status !== ACCOUNT_STATUS_ENABLED) {
+    throw new ApiError('账号或密码错误', 400)
+  }
+  if (!passwordService.verifyPassword(password, user.password_hash)) {
+    throw new ApiError('账号或密码错误', 400)
+  }
+  return establishSession(user)
 }
 
 // 退出登录：停止聊天/通知推送并清除内存登录态（不吊销免密票据，票据仅 7 天到期失效）
@@ -203,4 +226,4 @@ async function changePassword({ username, oldPassword, newPassword, confirmPassw
   return true
 }
 
-module.exports = { login, logout, switchByTicket, getCurrentUser, isAdmin, changePassword, toSafeUser }
+module.exports = { login, loginByCredentials, logout, switchByTicket, getCurrentUser, isAdmin, changePassword, toSafeUser }

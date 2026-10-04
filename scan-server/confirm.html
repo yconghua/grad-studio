@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>扫码登录确认</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .card {
+    width: 100%;
+    max-width: 380px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+    padding: 24px 20px;
+  }
+  .head { text-align: center; margin-bottom: 18px; }
+  .head h1 { font-size: 19px; font-weight: 700; }
+  .head p { font-size: 13px; color: #64748b; margin-top: 6px; }
+  .status-box {
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 14px;
+    display: none;
+    text-align: center;
+  }
+  .status-box.show { display: block; }
+  .status-box.info { background: #eff6ff; color: #1d4ed8; }
+  .status-box.success { background: #f0fdf4; color: #15803d; }
+  .status-box.error { background: #fef2f2; color: #b91c1c; }
+  .status-box.warn { background: #fffbeb; color: #92400e; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 13px; color: #475569; margin-bottom: 6px; }
+  .field input {
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    font-size: 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    outline: none;
+    background: #fff;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: #3b82f6; }
+  .btn {
+    width: 100%;
+    height: 46px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary { background: #2563eb; color: #fff; margin-top: 6px; }
+  .btn-plain { background: #f1f5f9; color: #475569; margin-top: 10px; }
+  .foot { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 14px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <h1>扫码登录确认</h1>
+      <p id="reqTime">检测到电脑端登录请求</p>
+    </div>
+
+    <div id="statusBox" class="status-box"></div>
+
+    <form id="confirmForm">
+      <div class="field">
+        <label for="username">账号</label>
+        <input id="username" name="username" type="text" autocomplete="username" placeholder="请输入账号" />
+      </div>
+      <div class="field">
+        <label for="password">密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" />
+      </div>
+      <button id="confirmBtn" class="btn btn-primary" type="submit">确认登录</button>
+    </form>
+
+    <button id="denyBtn" class="btn btn-plain" type="button">拒绝</button>
+    <div class="foot">确认后电脑端将登录该账号</div>
+  </div>
+
+<script>
+(function () {
+  'use strict'
+  var ticket = (location.pathname.split('/').pop() || '').trim()
+  var form = document.getElementById('confirmForm')
+  var statusBox = document.getElementById('statusBox')
+  var confirmBtn = document.getElementById('confirmBtn')
+  var denyBtn = document.getElementById('denyBtn')
+  var reqTime = document.getElementById('reqTime')
+  reqTime.textContent = '登录请求时间：' + new Date().toLocaleString('zh-CN')
+
+  function showStatus(kind, text) {
+    statusBox.className = 'status-box show ' + kind
+    statusBox.textContent = text
+  }
+  function hideStatus() {
+    statusBox.className = 'status-box'
+  }
+  function setFormEnabled(enabled) {
+    form.style.display = enabled ? 'block' : 'none'
+    denyBtn.style.display = enabled ? 'block' : 'none'
+    if (enabled) hideStatus()
+  }
+
+  async function api(path, body) {
+    var opts = { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } }
+    if (body) opts.body = JSON.stringify(body)
+    var res = await fetch(path, opts)
+    return res.json()
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault()
+    var username = document.getElementById('username').value.trim()
+    var password = document.getElementById('password').value
+    if (!username || !password) {
+      showStatus('error', '请输入账号和密码')
+      return
+    }
+    confirmBtn.disabled = true
+    try {
+      var res = await api('/api/scan/confirm', { ticket: ticket, username: username, password: password })
+      if (res && res.success) {
+        showStatus('info', '凭据已提交，正在验证，请稍候…')
+      } else {
+        showStatus('error', (res && res.message) || '提交失败，请重试')
+        confirmBtn.disabled = false
+      }
+    } catch (err) {
+      showStatus('error', '网络异常，请重试')
+      confirmBtn.disabled = false
+    }
+  })
+
+  denyBtn.addEventListener('click', async function () {
+    denyBtn.disabled = true
+    try {
+      await api('/api/scan/deny', { ticket: ticket })
+    } catch (err) { /* 状态由轮询兜底 */ }
+  })
+
+  // 轮询状态：pending/scanned 显示表单；submitted/verifying 等待验证；
+  // approved 成功；verify-failed 显示错误并允许重输；denied/expired 收尾
+  setInterval(async function () {
+    try {
+      var res = await api('/api/scan/status?ticket=' + encodeURIComponent(ticket))
+      var st = res && res.success && res.data ? res.data : null
+      if (!st) return
+      if (st.status === 'submitted' || st.status === 'verifying') {
+        showStatus('info', '正在验证，请稍候…')
+      } else if (st.status === 'approved') {
+        showStatus('success', '登录成功，请回到电脑端')
+        setFormEnabled(false)
+      } else if (st.status === 'verify-failed') {
+        showStatus('error', (st.message || '账号或密码错误') + '，请重新输入')
+        setFormEnabled(true)
+      } else if (st.status === 'denied') {
+        showStatus('warn', '已取消登录')
+        setFormEnabled(false)
+      } else if (st.status === 'expired') {
+        showStatus('warn', '二维码已过期，请在电脑端刷新')
+        setFormEnabled(false)
+      } else if (st.status === 'scanned' || st.status === 'pending') {
+        hideStatus()
+      }
+    } catch (err) { /* 网络抖动时保持当前界面 */ }
+  }, 1000)
+})()
+</script>
+</body>
+</html>

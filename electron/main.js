@@ -26,6 +26,8 @@ const ticketService = require('./services/ticketService')
 // 任务定时扫描：到期/逾期/待验收超时提醒（应用 ready 后启动）
 const taskScheduler = require('./services/taskScheduler')
 const reportScheduler = require('./services/reportScheduler')
+// scan-server 独立进程管理器：扫码登录时按需拉起，应用退出时停止
+const scanServerManager = require('./services/scanServerManager')
 // 路由聚合：一行注册全部 auth:* / sys:* 等 IPC 接口
 const { registerAll } = require('./ipc')
 
@@ -200,10 +202,11 @@ if (!gotTheLock) {
     createTray(mainWin)
   })
 
-  // 应用退出前停止定时扫描
+  // 应用退出前停止定时扫描与扫码服务子进程
   app.on('will-quit', () => {
     taskScheduler.stop()
     reportScheduler.stop()
+    scanServerManager.stop()
   })
 
   app.on('window-all-closed', () => {

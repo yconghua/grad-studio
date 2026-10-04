@@ -72,6 +72,9 @@ contextBridge.exposeInMainWorld('api', {
   auth: {
     login: createInvoke('auth:login'),
     getCaptcha: createInvoke('auth:captcha'),
+    getScanQr: createInvoke('auth:scan-qr'),
+    scanStatus: createInvoke('auth:scan-status'),
+    scanCancel: createInvoke('auth:scan-cancel'),
     logout: createInvoke('auth:logout'),
     getCurrentUser: createInvoke('auth:get-current-user'),
     changePassword: createInvoke('auth:change-password'),

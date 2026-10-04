@@ -7,12 +7,24 @@
 const authService = require('../services/authService')
 const ticketService = require('../services/ticketService')
 const captchaService = require('../services/captchaService')
+const scanLoginService = require('../services/scanLoginService')
 const ApiError = require('../services/apiError')
 const { handler } = require('./helper')
 
 function register(ipcMain) {
   // 获取图形验证码：返回 { captchaId, svg }，答案仅存主进程内存
   ipcMain.handle('auth:captcha', handler(() => captchaService.create()))
+
+  // 扫码登录：签发二维码，返回 { ticket, qrUrl, baseUrl, candidates }（payload.baseUrl 可选，多网卡切换）
+  ipcMain.handle('auth:scan-qr', handler((_evt, payload) => scanLoginService.create(payload)))
+
+  // 扫码登录：轮询状态（手机提交凭据后由主进程本地验证并回填结果）
+  ipcMain.handle('auth:scan-status', handler((_evt, payload) =>
+    scanLoginService.status(payload && payload.ticket, payload && payload.baseUrl)))
+
+  // 扫码登录：作废二维码（切 Tab / 离开登录页）
+  ipcMain.handle('auth:scan-cancel', handler((_evt, payload) =>
+    scanLoginService.cancel(payload && payload.ticket, payload && payload.baseUrl)))
 
   // 登录校验（用户名/密码区分大小写；连续失败后需带验证码）
   ipcMain.handle('auth:login', handler((_evt, payload) => authService.login(payload || {})))
