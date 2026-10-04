@@ -34,6 +34,11 @@ const { registerAll } = require('./ipc')
 const isDev = !app.isPackaged
 const DEV_URL = 'http://localhost:5173'
 
+// Windows 任务栏 / 通知 / JumpList 按 AppUserModelID 识别应用：
+// 不设置时系统回退到 exe 本身（开发模式为 electron.exe），右键菜单会显示默认 Electron 图标与名称。
+// 必须在 app ready 之前调用，且与 package.json 的 build.appId 保持一致。
+app.setAppUserModelId('com.grad.studio')
+
 // 自定义协议：gradapp://uploads/<文件名> → 用户数据目录 uploads/ 下的文件，
 // 供渲染层在 http / file 页面加载本地头像等附件，规避 file:// 跨协议拦截
 protocol.registerSchemesAsPrivileged([
@@ -59,7 +64,8 @@ function createWindow() {
     center: true, // 启动时居中
     show: false,
     icon: resolveIcon(),
-    title: '',
+    // 任务栏按钮显示的应用名；页面 <title> 更新被下方 page-title-updated 拦截，不会覆盖此值
+    title: 'Grad Studio',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -130,7 +136,7 @@ function createTray(win) {
   const iconPath = resolveIcon()
   if (!iconPath) return
   tray = new Tray(nativeImage.createFromPath(iconPath))
-  tray.setToolTip('grad.studio')
+  tray.setToolTip('Grad Studio')
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
