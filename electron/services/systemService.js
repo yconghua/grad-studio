@@ -16,7 +16,7 @@ const appPkg = require('../../package.json')
 
 // 应用启动时间戳：模块加载时机 ≈ 主进程启动
 const STARTED_AT = Date.now()
-const DEFAULT_APP_NAME = '课题组科研管理平台'
+const DEFAULT_APP_NAME = '小组管理平台'
 
 // 默认主题：light / dark / system（system_configs 参数缺失或值非法时回退）
 const DEFAULT_THEME = 'system'

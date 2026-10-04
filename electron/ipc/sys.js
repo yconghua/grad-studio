@@ -17,7 +17,7 @@ const authService = require('../services/authService')
 const systemService = require('../services/systemService')
 
 // 默认系统名称（system_configs 参数缺失时回退）
-const DEFAULT_APP_NAME = '课题组科研管理平台'
+const DEFAULT_APP_NAME = '团队管理平台'
 
 // 安全删除目录：Windows 下缓存文件可能被当前进程占用（EPERM/EBUSY），
 // 逐个文件尝试删除，被占用的跳过并计数，不中断整体清理

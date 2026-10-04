@@ -4,7 +4,7 @@ import { reactive, computed } from 'vue'
 import { getPublicInfo } from '../api'
 
 const state = reactive({
-  appName: '课题组科研管理平台',
+  appName: '小组管理平台',
   loaded: false
 })
 
