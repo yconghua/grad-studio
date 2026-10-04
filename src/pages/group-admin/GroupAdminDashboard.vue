@@ -95,7 +95,7 @@
           <div class="dash-quick">
             <button class="btn btn-sm btn-primary" @click="router.push('/group-admin/notices')">发布公告</button>
             <button class="btn btn-sm" @click="router.push('/group-admin/meetings')">发起会议</button>
-            <button class="btn btn-sm" @click="router.push('/group-admin/tasks/create')">分配任务</button>
+            <button class="btn btn-sm" @click="createVisible = true">分配任务</button>
             <button class="btn btn-sm" @click="router.push('/group-admin/members')">添加成员</button>
           </div>
         </div>
@@ -117,6 +117,13 @@
         <RecentMeetingPanel :meeting="recentMeeting" meetings-path="/group-admin/meetings" />
       </div>
     </div>
+
+    <!-- 新建任务弹窗：创建成功后跳任务列表并打开新任务详情 -->
+    <TaskCreateDialog
+      v-if="createVisible"
+      @close="createVisible = false"
+      @created="onTaskCreated"
+    />
   </div>
 </template>
 
@@ -131,6 +138,7 @@ import { useSession } from '../../composables/useSession'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import RecentMeetingPanel from '../../components/dashboard/RecentMeetingPanel.vue'
 import WelcomeInfoPanel from '../../components/dashboard/WelcomeInfoPanel.vue'
+import TaskCreateDialog from '../../components/task/TaskCreateDialog.vue'
 import { weekShortLabel } from '../../utils/labels'
 
 // 课题组管理员独立工作台（与其他角色工作台为独立文件）
@@ -148,6 +156,14 @@ const missedList = ref([])
 const meetingStats = ref({})
 const notices = ref([])
 const reminding = ref(false)
+// 新建任务弹窗
+const createVisible = ref(false)
+
+// 创建成功：跳任务列表并携带 open 参数，列表页加载后自动打开新任务详情
+function onTaskCreated(id) {
+  createVisible.value = false
+  if (id != null) router.push({ name: 'group_admin-tasks', query: { open: id } })
+}
 
 const welcomeFields = computed(() => [
   { label: '当前账号', value: user ? user.realName || user.username : '' },

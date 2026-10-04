@@ -5,7 +5,7 @@
         <h2 class="page-title">{{ pageTitle }}</h2>
         <p class="page-sub">{{ pageSub }}</p>
       </div>
-      <button v-if="canCreate" class="btn btn-primary" type="button" @click="goCreate">+ 创建任务</button>
+      <button v-if="canCreate" class="btn btn-primary" type="button" @click="createVisible = true">+ 创建任务</button>
     </div>
 
     <!-- 角色 Tab（学生无 Tab） -->
@@ -160,13 +160,20 @@
     @close="editVisible = false"
     @saved="onEditSaved"
   />
+  <!-- 新建任务弹窗：创建入口改为弹窗，不跳转独立页面 -->
+  <TaskCreateDialog
+    v-if="createVisible"
+    @close="createVisible = false"
+    @created="onCreated"
+  />
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import TaskDetailDialog from '../../components/task/TaskDetailDialog.vue'
 import TaskEditDialog from '../../components/task/TaskEditDialog.vue'
+import TaskCreateDialog from '../../components/task/TaskCreateDialog.vue'
 import {
   listTasks,
   deleteTask,
@@ -194,7 +201,6 @@ import {
 } from '../../utils/labels'
 
 const route = useRoute()
-const router = useRouter()
 const { getSessionUser } = useSession()
 const user = getSessionUser()
 const role = user && user.role
@@ -291,17 +297,13 @@ function reset() {
   load()
 }
 
-// ===== 操作 =====
-function goCreate() {
-  router.push({ name: `${role}-task-create` })
-}
-
-// ===== 详情 / 编辑弹窗（行点击与按钮交互，不跳转页面） =====
+// ===== 详情 / 编辑 / 创建弹窗（行点击与按钮交互，不跳转页面） =====
 const detailVisible = ref(false)
 const detailId = ref(null)
 const detailProgress = ref(false)
 const editVisible = ref(false)
 const editId = ref(null)
+const createVisible = ref(false)
 
 function openDetail(t, progress) {
   detailId.value = t.id
@@ -311,6 +313,12 @@ function openDetail(t, progress) {
 function openEdit(id) {
   editId.value = id
   editVisible.value = true
+}
+// 创建成功：关弹窗、刷新列表、打开新任务详情
+function onCreated(id) {
+  createVisible.value = false
+  load()
+  if (id != null) openDetail({ id: Number(id) })
 }
 // 详情弹窗内「编辑」：先关详情，再开编辑弹窗
 function onDetailEdit(id) {
