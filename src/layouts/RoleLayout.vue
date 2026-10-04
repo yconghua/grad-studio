@@ -106,7 +106,10 @@ try {
 } catch (e) {
   // 读取失败沿用默认宽度
 }
-const sideWidth = ref(savedSideWidth >= SIDE_MIN && savedSideWidth <= SIDE_MAX ? savedSideWidth : 220)
+// 默认导航栏宽度（可拖动调整，localStorage 记忆）；
+// 旧默认值 220 视为未自定义，直接采用新默认 200
+const SIDE_DEFAULT = 200
+const sideWidth = ref(savedSideWidth >= SIDE_MIN && savedSideWidth <= SIDE_MAX && savedSideWidth !== 220 ? savedSideWidth : SIDE_DEFAULT)
 
 let resizing = false
 let resizeStartX = 0
@@ -329,7 +332,7 @@ onUnmounted(() => {
 }
 .side {
   position: relative;
-  width: 220px;
+  width: 200px;
   flex-shrink: 0;
   background: var(--bg-card);
   border-right: 1px solid var(--border);

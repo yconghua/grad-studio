@@ -59,7 +59,6 @@
             <th>状态</th>
             <th>优先级</th>
             <th>截止时间</th>
-            <th>进度</th>
           </tr>
         </thead>
         <tbody>
@@ -71,15 +70,9 @@
             <td><span :class="taskStatusTagClass(t.status)">{{ taskStatusText(t.status) }}</span></td>
             <td><span :class="taskPriorityTagClass(t.priority)">{{ taskPriorityText(t.priority) }}</span></td>
             <td>{{ t.dueTime || '-' }}</td>
-            <td>
-              <div class="prog">
-                <span class="prog-bar" :style="{ width: t.progress + '%' }"></span>
-                <span class="prog-num">{{ t.progress }}%</span>
-              </div>
-            </td>
           </tr>
           <tr v-if="g.tasks.length === 0">
-            <td colspan="8"><span class="no-task">暂无任务</span></td>
+            <td colspan="7"><span class="no-task">暂无任务</span></td>
           </tr>
         </tbody>
       </table>
@@ -138,7 +131,6 @@ const exportRows = computed(() => {
         status: taskStatusText(t.status),
         priority: taskPriorityText(t.priority),
         dueTime: t.dueTime || '',
-        progress: `${t.progress}%`,
         createdAt: t.createdAt
       })
     }
@@ -196,7 +188,6 @@ function doExport() {
       { key: 'status', label: '状态' },
       { key: 'priority', label: '优先级' },
       { key: 'dueTime', label: '截止时间' },
-      { key: 'progress', label: '进度' },
       { key: 'createdAt', label: '创建时间' }
     ]
   )
@@ -264,28 +255,5 @@ onMounted(() => {
 }
 .tbl tbody tr:hover {
   background: var(--bg-hover);
-}
-.prog {
-  position: relative;
-  width: 90px;
-  height: 16px;
-  border-radius: var(--radius-md);
-  background: var(--border-light);
-  overflow: hidden;
-}
-.prog-bar {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-md);
-  background: var(--primary);
-}
-.prog-num {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--text-2);
 }
 </style>

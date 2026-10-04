@@ -44,17 +44,22 @@ function detectLanIpCandidates() {
   return { preferred, candidates: real.concat(virtual) }
 }
 
-function detectLanBaseUrl() {
+// 确认服务地址：环境变量可手动固定；否则每次调用时实时探测局域网 IP
+// （网络切换后重新取码即自动换新地址，不再受启动时探测结果影响）
+const SCAN_SERVER_ENV = process.env.SCAN_SERVER_BASE_URL
+function currentBaseUrl() {
+  if (SCAN_SERVER_ENV) return SCAN_SERVER_ENV
   const { preferred } = detectLanIpCandidates()
   return preferred ? 'http://' + preferred.ip + ':8787' : 'http://127.0.0.1:8787'
 }
 
-// 校验并规范化确认服务地址：仅允许局域网 IP:端口 形式的 http 地址（防止被带入任意 URL）
+// 校验并规范化确认服务地址：仅允许局域网 IP:端口 形式的 http 地址（防止被带入任意 URL）；
+// 未显式指定时回落到实时探测结果
 function pickBaseUrl(baseUrl) {
-  if (!baseUrl) return SCAN_SERVER_BASE_URL
+  if (!baseUrl) return currentBaseUrl()
   const norm = String(baseUrl).trim().replace(/\/+$/, '')
   if (/^http:\/\/\d{1,3}(\.\d{1,3}){3}:\d+$/.test(norm)) return norm
-  return SCAN_SERVER_BASE_URL
+  return currentBaseUrl()
 }
 
 // 候选列表（供前端多网卡时切换地址）
@@ -66,13 +71,11 @@ function listCandidates() {
   }))
 }
 
-// 确认服务地址：默认自动探测局域网 IP（模式①②）；多网卡时可用环境变量手动指定
-const SCAN_SERVER_BASE_URL = process.env.SCAN_SERVER_BASE_URL || detectLanBaseUrl()
-
 // 启动日志：提示当前地址与按需启动机制（服务由扫码触发自动拉起，非程序启动默认启动）
 {
+  const base = currentBaseUrl()
   const { candidates } = detectLanIpCandidates()
-  console.log(`[scan] 扫码服务地址：${SCAN_SERVER_BASE_URL}（局域网/手机热点模式）`)
+  console.log(`[scan] 扫码服务地址：${base}（局域网/手机热点模式）`)
   if (candidates.length) {
     console.log(`[scan] 本机局域网 IP 候选：${candidates.map((c) => c.name + '=' + c.ip).join('，')}`)
   }

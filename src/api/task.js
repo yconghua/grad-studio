@@ -26,8 +26,9 @@ export function removeTaskParticipant(id, userId) {
 export function getTaskParticipantOptions() {
   return window.api.task.participantOptions()
 }
-export function submitTaskProgress(id, progress, note = '') {
-  return window.api.task.submitProgress({ id, data: { progress, note } })
+// 提交任务进展：只提交必填的进度记录（不再提交进度数字）
+export function submitTaskProgress(id, note) {
+  return window.api.task.submitProgress({ id, data: { note } })
 }
 export function completeTask(id) {
   return window.api.task.complete({ id })

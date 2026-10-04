@@ -139,6 +139,7 @@ contextBridge.exposeInMainWorld('api', {
     top: createInvoke('notice:top'),
     readStats: createInvoke('notice:read-stats'),
     readSelf: createInvoke('notice:read-self'),
+    readAll: createInvoke('notice:read-all'),
     unreadCount: createInvoke('notice:unread-count')
   },
   // 课题组组会（对应 ipc/meeting.js，通道前缀 meeting:*）

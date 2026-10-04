@@ -74,6 +74,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); color: var(--text); vertical-align: middle; white-space: nowrap; }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tbody tr:hover td { background: var(--bg-hover-soft); }
+.tbl tbody tr { cursor: pointer; }
 .tbl .ops { display: flex; gap: 6px; }
 
 /* 表格列宽拖拽手柄（v-resizable-columns 指令注入到表头） */

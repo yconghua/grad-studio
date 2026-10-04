@@ -61,10 +61,6 @@
                   <span v-if="isOverdue" class="tag tag-red">已逾期</span>
                 </div>
               </div>
-              <div class="prog">
-                <span class="prog-bar" :style="{ width: task.progress + '%' }"></span>
-                <span class="prog-num">{{ task.progress }}%</span>
-              </div>
             </div>
 
             <div class="detail-meta">
@@ -126,20 +122,14 @@
             </div>
             <div class="prog-form">
               <div class="prog-row">
-                <span class="meta-label">进度</span>
-                <input v-model.number="progressVal" class="input" type="number" min="0" max="100" style="width: 90px" />
-                <input
-                  v-model="progressVal"
-                  class="range"
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                />
-              </div>
-              <div class="prog-row">
-                <span class="meta-label">说明</span>
-                <input v-model="progressNote" class="input" style="flex: 1" maxlength="200" placeholder="进展说明（选填）" />
+                <span class="meta-label">进度记录</span>
+                <textarea
+                  v-model="progressNote"
+                  class="textarea"
+                  rows="3"
+                  maxlength="500"
+                  placeholder="请填写本次进展记录（必填）"
+                ></textarea>
               </div>
               <div class="prog-actions">
                 <button class="btn btn-primary" type="button" @click="submitProgress">提交</button>
@@ -351,22 +341,20 @@ async function doDelete() {
 
 // ===== 参与人操作 =====
 const progressVisible = ref(false)
-const progressVal = ref(50)
 const progressNote = ref('')
 
 function openProgress() {
-  progressVal.value = task.value ? task.value.progress || 0 : 0
   progressNote.value = ''
   progressVisible.value = true
 }
 
 async function submitProgress() {
-  const val = Number(progressVal.value)
-  if (!Number.isInteger(val) || val < 0 || val > 100) {
-    dialogAlert('进度必须是 0~100 的整数')
+  const note = progressNote.value.trim()
+  if (!note) {
+    dialogAlert('请填写进度记录')
     return
   }
-  const res = await submitTaskProgress(props.taskId, val, progressNote.value)
+  const res = await submitTaskProgress(props.taskId, note)
   if (res && res.success) {
     dialogAlert('进展已提交')
     progressVisible.value = false
@@ -446,30 +434,6 @@ onMounted(load)
 .detail-tags {
   display: flex;
   gap: 6px;
-}
-.prog {
-  position: relative;
-  width: 140px;
-  height: 20px;
-  border-radius: var(--radius-lg);
-  background: var(--border-light);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.prog-bar {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-lg);
-  background: var(--primary);
-}
-.prog-num {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: var(--text-2);
 }
 .detail-meta {
   display: flex;
@@ -574,12 +538,28 @@ onMounted(load)
 }
 .prog-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
 }
-.range {
+.prog-row .meta-label {
+  line-height: 34px;
+}
+.prog-row .textarea {
   flex: 1;
-  max-width: 320px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+}
+.prog-row .textarea:focus {
+  border-color: var(--primary);
 }
 .prog-actions {
   display: flex;

@@ -19,10 +19,6 @@
                   <span :class="taskPriorityTagClass(task.priority)">{{ taskPriorityText(task.priority) }}</span>
                 </div>
               </div>
-              <div class="prog">
-                <span class="prog-bar" :style="{ width: task.progress + '%' }"></span>
-                <span class="prog-num">{{ task.progress }}%</span>
-              </div>
             </div>
 
             <div class="detail-meta">
@@ -129,30 +125,6 @@ onMounted(load)
 .detail-tags {
   display: flex;
   gap: 6px;
-}
-.prog {
-  position: relative;
-  width: 140px;
-  height: 20px;
-  border-radius: var(--radius-lg);
-  background: var(--border-light);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.prog-bar {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-lg);
-  background: var(--primary);
-}
-.prog-num {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: var(--text-2);
 }
 .detail-meta {
   display: flex;

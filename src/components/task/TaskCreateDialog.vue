@@ -172,6 +172,7 @@ onMounted(loadOptions)
 .textarea {
   flex: 1;
   min-width: 0;
+  min-height: 80px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

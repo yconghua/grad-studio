@@ -24,6 +24,10 @@ export function getNoticeReadStats(id) {
 export function markNoticeRead(id) {
   return window.api.notice.readSelf({ id })
 }
+// 导师/学生一键已读：当前课题组全部已发布公告标记已读
+export function markAllNoticeRead() {
+  return window.api.notice.readAll()
+}
 // 当前用户未读公告数（导师/学生侧边菜单角标；超管/组管返回 0）
 export function getNoticeUnreadCount() {
   return window.api.notice.unreadCount()

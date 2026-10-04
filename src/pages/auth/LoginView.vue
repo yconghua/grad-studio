@@ -329,6 +329,9 @@ let scanStartAt = 0
 let scanSucceeded = false
 const SCAN_POLL_MS = 1500
 const SCAN_TIMEOUT_MS = 120 * 1000
+// 轮询连续失败达到该次数时自动重新取码（网络切换后自动换新地址）
+const SCAN_FAIL_AUTO_REFRESH = 3
+let scanFailCount = 0
 
 // 协议勾选联动：勾选后（扫码 Tab 且无二维码）自动加载；取消勾选立即作废已生成二维码
 watch(agreed, (val) => {
@@ -364,8 +367,11 @@ function switchMode(mode) {
 }
 
 // 获取二维码并启动轮询（进入扫码 Tab / 点击刷新时调用）
-async function startScanLogin() {
+// 获取二维码并启动轮询（进入扫码 Tab / 点击刷新时调用）；
+// reprobe=true 表示网络变化自动重取：不携带旧地址，由后端每次实时探测当前局域网 IP
+async function startScanLogin(reprobe = false) {
   stopScanPolling()
+  scanFailCount = 0
   // 未勾选协议时不生成二维码，真正阻止扫码（非仅视觉遮挡）
   if (!agreed.value) {
     scanQrDataUrl.value = ''
@@ -384,7 +390,7 @@ async function startScanLogin() {
     scanCancel(t, base).catch(() => {})
   }
   try {
-    const res = await getScanQr({ baseUrl: scanBaseUrl.value || undefined })
+    const res = await getScanQr(reprobe ? undefined : { baseUrl: scanBaseUrl.value || undefined })
     if (!res || !res.success || !res.data) {
       scanStatusText.value = '二维码获取失败，请重试'
       scanStatusClass.value = 'is-error'
@@ -436,8 +442,17 @@ async function pollScanStatus() {
   try {
     res = await scanStatus(scanTicket.value, scanBaseUrl.value)
   } catch (e) {
+    // 网络切换等导致当前地址不可达：连续失败达到阈值时自动重新取码（后端实时重探测 IP）
+    scanFailCount++
+    if (scanFailCount >= SCAN_FAIL_AUTO_REFRESH) {
+      stopScanPolling()
+      scanStatusText.value = '网络已变化，正在自动刷新二维码…'
+      scanStatusClass.value = 'is-error'
+      startScanLogin(true)
+    }
     return
   }
+  scanFailCount = 0
   if (!res || !res.success) return
   const status = res.data && res.data.status
   if (status === 'pending') {
@@ -491,10 +506,30 @@ function stopScanPolling() {
   }
 }
 
+// 网络断开：二维码地址必然不可达，直接提示
+function onNetworkOffline() {
+  if (loginMode.value !== 'scan') return
+  scanStatusText.value = '网络已断开，请检查网络连接'
+  scanStatusClass.value = 'is-error'
+}
+
+// 网络恢复：自动重新取码（后端实时重探测 IP，换新地址继续）
+function onNetworkOnline() {
+  if (loginMode.value !== 'scan' || scanLoading.value) return
+  if (scanTicket.value || scanQrDataUrl.value) {
+    stopScanPolling()
+    scanStatusText.value = '网络已恢复，正在刷新二维码…'
+    scanStatusClass.value = 'is-error'
+    startScanLogin(true)
+  }
+}
+
 // 离开登录页：清理轮询并作废二维码（登录成功跳转时不作废，保留 approved 终态）
 onUnmounted(() => {
   stopScanPolling()
   stopLockCountdown()
+  window.removeEventListener('online', onNetworkOnline)
+  window.removeEventListener('offline', onNetworkOffline)
   if (scanTicket.value && !scanSucceeded) {
     scanCancel(scanTicket.value, scanBaseUrl.value).catch(() => {})
   }
@@ -670,6 +705,9 @@ async function refreshDbStatus() {
 onMounted(() => {
   loadVersion()
   refreshDbStatus()
+  // 网络切换感知：离线提示，恢复后自动刷新二维码
+  window.addEventListener('online', onNetworkOnline)
+  window.addEventListener('offline', onNetworkOffline)
   // 从「切换账号」跳转而来：?pre=账号名 → 预填该账号输密码；?new=1 → 清空账号框输新账号
   const q = route.query
   if (q.pre && typeof q.pre === 'string' && q.pre) {

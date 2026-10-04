@@ -56,6 +56,10 @@ function register(ipcMain) {
     await requireRole(ROLE_MENTOR, ROLE_STUDENT)
     return noticeService.markRead(payload && payload.id)
   }))
+  ipcMain.handle('notice:read-all', handler(async () => {
+    await requireRole(ROLE_MENTOR, ROLE_STUDENT)
+    return noticeService.markAllRead()
+  }))
   ipcMain.handle('notice:unread-count', handler(async () => {
     await requireRole(ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT)
     // 未读角标口径由服务端收敛：仅导师/学生返回真实未读数，超管/组管固定为 0

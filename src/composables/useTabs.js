@@ -37,6 +37,10 @@ const ROLE_HOME_PATH = {
   [ROLE_STUDENT]: STUDENT_HOME
 }
 
+// 可拖（非固定）标签数量上限：达到上限后自动关闭最先打开的标签，
+// 避免标签栏出现横向滚动条（工作台固定标签不参与计数）
+const MAX_TABS = 8
+
 // 模块级单例状态
 const tabs = ref([])
 const activeKey = ref('')
@@ -91,6 +95,8 @@ function restoreOnce() {
       activeKey.value = savedKey
     }
   }
+  // 历史会话可能存有超过上限的标签：恢复后裁剪，只保留最新打开的
+  trimOverflow()
 }
 
 // 确保当前角色的固定工作台标签存在且位于最前；激活态无效时回落到工作台
@@ -117,6 +123,17 @@ function ensureHomeTab() {
   persist()
 }
 
+// 超出上限时裁剪：优先关闭最先打开的（数组最靠前）非当前标签，保证当前页不被自动关闭
+function trimOverflow() {
+  while (tabs.value.filter((t) => !t.pinned).length > MAX_TABS) {
+    const victim = tabs.value.find((t) => !t.pinned && t.key !== activeKey.value) || tabs.value.find((t) => !t.pinned)
+    if (!victim) break
+    const idx = tabs.value.findIndex((t) => t.key === victim.key)
+    tabs.value.splice(idx, 1)
+    // 自动关闭的通常不是当前标签，无需路由跳转
+  }
+}
+
 // 路由切换进入业务页时调用：已存在同 key 仅激活，否则追加到最右边。
 // key 取基础路径（不含 query）：带 ?open=/?status= 等参数的直达跳转
 // （全局搜索 / 通知 / 工作台）复用同一页面标签，不会因参数不同而新开标签。
@@ -133,6 +150,7 @@ function addTab(route) {
   const title = (route.meta && route.meta.title) || route.name || key
   tabs.value.push({ key, path: key, title, pinned: false })
   activeKey.value = key
+  trimOverflow()
   persist()
 }
 

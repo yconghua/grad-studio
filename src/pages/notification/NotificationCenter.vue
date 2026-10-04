@@ -16,7 +16,6 @@
           <option :value="1">仅未读</option>
         </select>
         <button class="nc-btn" type="button" :disabled="unreadTotal === 0" @click="markAllRead">全部已读</button>
-        <button class="nc-btn" type="button" @click="clearRead">清空已读</button>
       </div>
     </div>
 
@@ -58,7 +57,6 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
-  clearReadNotifications,
   listNotificationTypes,
   onNotificationEvent
 } from '../../api/notification'
@@ -165,13 +163,6 @@ async function markAllRead() {
   if (res && res.success) {
     unreadTotal.value = 0
     for (const item of list.value) item.isRead = 1
-  }
-}
-
-async function clearRead() {
-  const res = await clearReadNotifications()
-  if (res && res.success) {
-    list.value = list.value.filter((x) => !x.isRead)
   }
 }
 

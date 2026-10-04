@@ -575,7 +575,7 @@ async function listParticipantOptions() {
 /**
  * 提交任务进展（仅参与人；待办状态下提交会自动进入进行中）
  * @param {number} id
- * @param {{ progress:number, note?:string }} data
+ * @param {{ note:string }} data
  */
 async function submitProgress(id, data = {}) {
   const me = await currentUser()
@@ -584,16 +584,15 @@ async function submitProgress(id, data = {}) {
   const participant = await taskParticipantRepository.findByTaskAndUser(task.id, me.id)
   if (!participant) throw new ApiError('只有参与人可以提交进展', 403)
 
-  const progress = Number(data.progress)
-  if (!Number.isInteger(progress) || progress < 0 || progress > PROGRESS_MAX) {
-    throw new ApiError('进度必须是 0~100 的整数', 400)
-  }
-  const note = data.note === undefined || data.note === null ? '' : String(data.note).slice(0, NOTE_MAX)
+  // 进度记录必填（不再提交进度数字）
+  const note = String(data.note || '').trim()
+  if (!note) throw new ApiError('请填写进度记录', 400)
+  const noteSafe = note.slice(0, NOTE_MAX)
   if (task.status !== TASK_STATUS_TODO && task.status !== TASK_STATUS_DOING) {
     throw new ApiError('当前状态不允许提交进展', 400)
   }
 
-  const patch = { progress }
+  const patch = {}
   // 待办 → 进行中（提交进展视为开始任务）
   if (task.status === TASK_STATUS_TODO) patch.status = TASK_STATUS_DOING
 
@@ -603,13 +602,13 @@ async function submitProgress(id, data = {}) {
   }
 
   await taskDynamicRepository.create(task.id, me.id, ACT.progress, {
-    detail: `提交进展：${progress}%${note ? `（${note}）` : ''}`
+    detail: `提交进展：${noteSafe}`
   })
   await notificationService.createForUsers({
     recipients: [task.creator_id],
     typeKey: 'task_progress',
     title: task.title,
-    summary: `${me.real_name || me.username || `用户#${me.id}`} 提交进展 ${progress}%`,
+    summary: `${me.real_name || me.username || `用户#${me.id}`} 提交进展：${noteSafe}`,
     bizType: 'task',
     bizId: task.id,
     groupId: task.group_id

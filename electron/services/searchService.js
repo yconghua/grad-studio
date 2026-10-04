@@ -171,7 +171,7 @@ function buildQueries(me, kw) {
 
   // ===== 任务（未软删除；超管走任务总览，不在全局搜索范围） =====
   if (role === ROLE_GROUP_ADMIN || role === ROLE_MENTOR || role === ROLE_STUDENT) {
-    let sql = `SELECT t.id, t.group_id, t.title, t.description, t.status, t.priority, t.due_time, t.progress
+    let sql = `SELECT t.id, t.group_id, t.title, t.description, t.status, t.priority, t.due_time
       FROM \`task\` t`
     const params = []
     if (role === ROLE_STUDENT && me.id != null) {
@@ -199,7 +199,7 @@ function buildQueries(me, kw) {
       map: (r) => ({
         id: r.id,
         title: r.title,
-        snippet: snippetOf(r.description, kw) || `进度 ${r.progress}%`,
+        snippet: snippetOf(r.description, kw) || r.title,
         groupId: r.group_id,
         extra: { status: r.status, dueTime: r.due_time }
       })

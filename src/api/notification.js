@@ -14,9 +14,6 @@ export function markAllNotificationsRead() {
 export function deleteNotification(id) {
   return window.api.notification.delete({ id })
 }
-export function clearReadNotifications() {
-  return window.api.notification.clearRead()
-}
 export function listNotificationTypes() {
   return window.api.notification.listTypes()
 }

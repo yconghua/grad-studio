@@ -25,6 +25,28 @@ class GroupNoticeReadRepository extends BaseRepository {
   }
 
   /**
+   * 一键已读：把某组内指定状态的公告全部批量标记为该用户已读（幂等，跳过已读过的）
+   * @param {number} groupId
+   * @param {number} userId
+   * @param {number} status 公告状态（如已发布 1）
+   * @returns {number} 本次新增的已读记录数
+   */
+  async markAllByGroup(groupId, userId, status) {
+    const sql =
+      'INSERT INTO `group_notice_read` (`notice_id`, `user_id`, `read_at`) ' +
+      'SELECT n.id, ?, NOW() FROM `group_notice` n ' +
+      'WHERE n.group_id = ? AND n.status = ? AND NOT EXISTS (' +
+      '  SELECT 1 FROM `group_notice_read` r WHERE r.notice_id = n.id AND r.user_id = ?' +
+      ') ON DUPLICATE KEY UPDATE `read_at` = `read_at`'
+    const [result] = await this._execute(
+      sql,
+      [Number(userId), Number(groupId), Number(status), Number(userId)],
+      'markAllByGroup'
+    )
+    return result.affectedRows
+  }
+
+  /**
    * 某公告已读人数
    * @param {number} noticeId
    * @returns {number}

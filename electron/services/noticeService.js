@@ -342,6 +342,22 @@ async function markRead(id) {
 }
 
 /**
+ * 一键已读：当前有效课题组内全部「已发布」公告标记为本人已读（幂等）
+ */
+async function markAllRead() {
+  const me = await currentUser()
+  if (me.role !== ROLE_MENTOR && me.role !== ROLE_STUDENT) {
+    throw new ApiError('无权限：仅导师/学生可标记已读', 403)
+  }
+  const myGroupId = await memberGroupId(me)
+  if (!myGroupId) {
+    throw new ApiError('当前未加入课题组，无法标记公告已读', 403)
+  }
+  const count = await groupNoticeReadRepository.markAllByGroup(myGroupId, me.id, NOTICE_STATUS_PUBLISHED)
+  return { count }
+}
+
+/**
  * 当前用户未读公告数（导师/学生侧边菜单角标专用）：
  * 口径 = 当前有效课题组 + 已发布 + 没有已读记录。
  * 导师/学生每次实时查当前有效课题组（换组/离组立即按新组重算）；
@@ -368,6 +384,7 @@ module.exports = {
   getNoticeForUser,
   readStats,
   markRead,
+  markAllRead,
   getGroupAudience,
   unreadCount
 }

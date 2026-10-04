@@ -58,7 +58,6 @@
               <th>状态</th>
               <th>优先级</th>
               <th>截止时间</th>
-              <th>进度</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -76,12 +75,6 @@
               </td>
               <td><span :class="taskPriorityTagClass(t.priority)">{{ taskPriorityText(t.priority) }}</span></td>
               <td>{{ t.dueTime || '-' }}</td>
-              <td>
-                <div class="prog">
-                  <span class="prog-bar" :style="{ width: t.progress + '%' }"></span>
-                  <span class="prog-num">{{ t.progress }}%</span>
-                </div>
-              </td>
               <td>
                 <div class="ops" @click.stop>
                   <button
@@ -467,28 +460,5 @@ watch(
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-}
-.prog {
-  position: relative;
-  width: 90px;
-  height: 16px;
-  border-radius: var(--radius-md);
-  background: var(--border-light);
-  overflow: hidden;
-}
-.prog-bar {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-md);
-  background: var(--primary);
-}
-.prog-num {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--text-2);
 }
 </style>

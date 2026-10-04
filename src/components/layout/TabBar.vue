@@ -47,8 +47,8 @@
 // 标签栏组件：浏览器风格的多标签页
 // - 固定标签（工作台）单独渲染在可拖列表外 → 天然不可拖、恒在最前
 // - 可拖标签放 vuedraggable 内，拖拽结束把新顺序写回 useTabs 并持久化
-// - 宽度自适应：标签多时 flex 收缩（150px → 64px），收缩到底后容器横向滚动；
-//   当前激活标签不收缩（flex-basis auto），始终完整显示标题
+// - 宽度自适应：标签多时 flex 收缩（150px → 64px）；达到上限（useTabs.MAX_TABS）
+//   时自动关闭最先打开的标签，不出现横向滚动条（overflow-x hidden 兜底裁切）
 import { ref, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
@@ -133,7 +133,7 @@ watch(
   padding: 0 8px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
 }
 .tab-draggable {

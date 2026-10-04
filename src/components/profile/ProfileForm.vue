@@ -13,8 +13,8 @@
       <div class="desc-list">
         <div class="row"><span class="k">用户名</span><span class="v">{{ (user && user.username) || '-' }}</span></div>
         <div class="row"><span class="k">角色</span><span class="v">{{ user ? roleText(user.role) : '-' }}</span></div>
-        <div class="row" v-if="user && user.groupId"><span class="k">所属课题组</span><span class="v">课题组 #{{ user.groupId }}</span></div>
-        <div class="row" v-if="user && user.mentorId"><span class="k">导师</span><span class="v">导师 #{{ user.mentorId }}</span></div>
+        <div class="row" v-if="user && user.groupId"><span class="k">所属课题组</span><span class="v">{{ user.groupName || ('课题组 #' + user.groupId) }}</span></div>
+        <div class="row" v-if="user && user.mentorId"><span class="k">导师</span><span class="v">{{ mentorLabel }}</span></div>
       </div>
 
       <!-- 基本资料（可编辑） -->
@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCurrentUser, updateOwnProfile, changePassword, pickAttachment } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
@@ -107,6 +107,15 @@ const { setSession, clearSession } = useSession()
 const router = useRouter()
 
 const user = ref(null)
+
+// 导师展示：优先「姓名（账号）」，无姓名时显示账号，兜底导师 #id
+const mentorLabel = computed(() => {
+  if (!user.value || !user.value.mentorId) return '-'
+  const name = user.value.mentorRealName
+  const acc = user.value.mentorUsername
+  if (name) return `${name}（${acc || ''}）`
+  return acc || ('导师 #' + user.value.mentorId)
+})
 const realName = ref('')
 const phone = ref('')
 const email = ref('')

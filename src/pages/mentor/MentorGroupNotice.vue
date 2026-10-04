@@ -3,8 +3,14 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">课题组公告</h2>
-        <p class="page-sub">查看当前课题组的公告，可标记自己已读（只读）</p>
+        <p class="page-sub">点击公告查看详情，可标记自己已读（只读）</p>
       </div>
+      <button
+        v-if="!notInGroup && hasUnread"
+        class="btn btn-primary btn-sm"
+        :disabled="markAllLoading"
+        @click="markAllRead"
+      >{{ markAllLoading ? '标记中…' : '一键已读' }}</button>
     </div>
 
     <!-- 未入组空态 -->
@@ -12,8 +18,8 @@
       <div class="empty">当前未加入课题组，无法查看课题组公告</div>
     </div>
 
-    <!-- 公告列表（卡片式，只读） -->
-    <div v-else class="panel notice-card" :class="{ 'notice-hit': highlightId === n.id }" :data-notice-id="n.id" style="margin-bottom: 12px" v-for="n in list" :key="n.id">
+    <!-- 公告列表（卡片式，只读；内容截断预览，点击卡片弹详情窗口查看全文） -->
+    <div v-else class="panel notice-card" :class="{ 'notice-hit': highlightId === n.id }" :data-notice-id="n.id" style="margin-bottom: 12px" v-for="n in list" :key="n.id" @click="openDetailById(n.id)">
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
         <h3 style="margin: 0; font-size: 15px; color: var(--text); flex: 1; min-width: 200px">{{ n.title }}</h3>
         <span v-if="n.isTop" class="tag">置顶</span>
@@ -22,16 +28,19 @@
         </span>
       </div>
       <p style="font-size: 12px; color: var(--text-disabled); margin: 6px 0 10px">发布于 {{ n.publishTime }} · {{ n.publisherName }}</p>
-      <div style="word-break: break-word">
+      <div class="notice-preview">
         <NoticeContent :content="n.content" />
       </div>
       <div style="margin-top: 12px; text-align: right">
-        <button v-if="!n.read" class="btn btn-primary btn-sm" :disabled="readingId === n.id" @click="doRead(n)">
+        <button v-if="!n.read" class="btn btn-primary btn-sm" :disabled="readingId === n.id" @click.stop="doRead(n)">
           {{ readingId === n.id ? '标记中…' : '标记已读' }}
         </button>
         <span v-else style="font-size: 13px; color: var(--success)">已读</span>
       </div>
     </div>
+
+    <!-- 公告详情弹窗（统一走 notice:get，查看全文） -->
+    <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
 
     <div v-if="!notInGroup && list.length === 0" class="panel">
       <div class="empty">暂无公告</div>
@@ -46,10 +55,11 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { listNotices, markNoticeRead } from '../../api'
+import { listNotices, markNoticeRead, markAllNoticeRead, getNotice } from '../../api'
 import NoticeContent from '../../components/NoticeContent.vue'
+import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 
@@ -60,8 +70,53 @@ const totalPages = ref(1)
 const notInGroup = ref(false)
 const readingId = ref(null)
 const highlightId = ref(null)
+const markAllLoading = ref(false)
 
-// 全局搜索直达：?open=<id> → 滚动定位并高亮对应公告卡片
+// 当前列表是否存在未读公告（决定「一键已读」按钮是否显示/可用）
+const hasUnread = computed(() => list.value.some((n) => !n.read))
+
+// 一键已读：当前课题组全部已发布公告标记已读，成功后弹提示并整页刷新（角标同步更新）
+async function markAllRead() {
+  if (markAllLoading.value) return
+  markAllLoading.value = true
+  try {
+    const res = await markAllNoticeRead()
+    if (res && res.success) {
+      await refreshAfterWrite('已全部标记为已读')
+    } else {
+      dialogAlert((res && res.message) || '操作失败')
+    }
+  } finally {
+    markAllLoading.value = false
+  }
+}
+
+// 公告详情弹窗：统一走 notice:get（内容不再内联展示，窗口内查看全文）
+const detailVisible = ref(false)
+const detailRow = ref(null)
+const detailFields = ref([])
+const detailTitle = ref('')
+const noticeDetailFields = [
+  { key: 'id', label: 'ID' },
+  { key: 'title', label: '标题' },
+  { key: 'isTop', label: '置顶', render: (v) => (v ? '是' : '否') },
+  { key: 'publisherName', label: '发布人' },
+  { key: 'publishTime', label: '发布时间' },
+  { key: 'content', label: '内容', markdown: true }
+]
+async function openDetailById(id) {
+  const res = await getNotice(id)
+  if (res && res.success) {
+    detailRow.value = res.data
+    detailFields.value = noticeDetailFields
+    detailTitle.value = '公告详情'
+    detailVisible.value = true
+  } else {
+    dialogAlert((res && res.message) || '加载公告详情失败')
+  }
+}
+
+// 全局搜索直达：?open=<id> → 滚动定位并高亮对应公告卡片，同时打开详情弹窗
 // （目标可能不在当前页：先翻页找到包含目标的那一页）
 const route = useRoute()
 async function locateNotice(openId) {
@@ -77,6 +132,7 @@ async function locateNotice(openId) {
   await nextTick()
   const el = document.querySelector(`[data-notice-id="${openId}"]`)
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  openDetailById(openId)
 }
 
 async function load() {
@@ -133,5 +189,22 @@ onUnmounted(() => {
 .notice-hit {
   outline: 2px solid var(--primary);
   border-radius: var(--radius-md);
+}
+/* 公告内容预览：截断显示，全文在详情弹窗中查看（底部渐变提示还有内容） */
+.notice-preview {
+  max-height: 96px;
+  overflow: hidden;
+  position: relative;
+  word-break: break-word;
+}
+.notice-preview::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  background: linear-gradient(transparent, var(--bg-card));
+  pointer-events: none;
 }
 </style>
