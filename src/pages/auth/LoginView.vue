@@ -68,15 +68,27 @@
             />
 
             <label class="field-label" for="password">密码</label>
-            <input
-              id="password"
-              v-model="password"
-              class="field-input"
-              type="password"
-              placeholder="请输入密码"
-              autocomplete="current-password"
-              @keyup.enter="onSubmit"
-            />
+            <div class="field-input-wrap">
+              <input
+                id="password"
+                v-model="password"
+                class="field-input"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="请输入密码"
+                autocomplete="current-password"
+                @keyup.enter="onSubmit"
+              />
+              <button
+                type="button"
+                class="pwd-toggle"
+                :title="showPassword ? '隐藏密码' : '显示密码'"
+                aria-label="显示或隐藏密码"
+                @mousedown.prevent="showPassword = !showPassword"
+              >
+                <EyeOutlined v-if="!showPassword" />
+                <EyeInvisibleOutlined v-else />
+              </button>
+            </div>
 
             <template v-if="needCaptcha">
               <label class="field-label" for="captcha">验证码</label>
@@ -121,7 +133,7 @@
           <div v-else class="scan-panel">
             <div class="scan-qr-wrap">
               <img v-if="scanQrDataUrl" :src="scanQrDataUrl" class="scan-qr" alt="扫码登录二维码" />
-              <span v-else class="scan-qr-loading">二维码加载中…</span>
+              <span v-else class="scan-qr-loading">{{ scanQrPlaceholder }}</span>
               <div v-if="!agreed" class="scan-qr-mask">请先阅读并同意<br />用户协议与隐私政策</div>
             </div>
             <p class="scan-status" :class="scanStatusClass">{{ scanStatusText }}</p>
@@ -150,8 +162,11 @@
             <p class="scan-hint">请使用微信 / 支付宝 / 手机浏览器扫码</p>
           </div>
 
-          <div v-if="loginMode === 'account'" class="card-foot">
+          <!-- 卡片底部：忘记密码 + 使用帮助（账号 / 扫码两个模式共用） -->
+          <div class="card-foot">
             <button type="button" class="forgot-link" @click="showAdminContact = true">忘记密码</button>
+            <span class="foot-divider" aria-hidden="true"></span>
+            <button type="button" class="forgot-link" @click="showHelp = true">使用帮助</button>
           </div>
 
         </div>
@@ -195,6 +210,18 @@
       </div>
     </div>
 
+    <!-- 使用帮助弹窗（内置手册：快速上手 / 登录方式 / 快捷键 / 常见问题） -->
+    <div v-if="showHelp" class="privacy-overlay">
+      <div class="privacy-backdrop" @click="showHelp = false"></div>
+      <div class="privacy-dialog help-dialog" role="dialog" aria-modal="true">
+        <div class="privacy-head">
+          <h3>使用帮助</h3>
+          <button type="button" class="privacy-close" @click="showHelp = false" aria-label="关闭">×</button>
+        </div>
+        <div class="privacy-body help-body">{{ HELP_CONTENT }}</div>
+      </div>
+    </div>
+
     <!-- 数据库管理相关弹窗（组件位于 components/db/） -->
     <BaseConfig
       :visible="showBaseConfig"
@@ -223,8 +250,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import QRCode from 'qrcode'
+import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { login, getCaptcha, getScanQr, scanStatus, scanCancel, deleteDb, getDbInfo, getPublicInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
@@ -237,6 +265,24 @@ import ParticleBackground from '../../components/particles/ParticleBackground.vu
 import AppTitleBar from '../../components/layout/AppTitleBar.vue'
 import logoUrl from '../../assets/logo.ico'
 
+// 使用帮助手册（内置文本，随版本更新）
+const HELP_CONTENT = `【快速上手】
+1. 首次使用：先配置数据库连接。点击登录卡片右上角的数据库状态指示（圆点+文字），在「数据库配置」中填写主机、端口、库名与账号密码；连接成功后即可登录。
+2. 默认账号由管理员创建；首次登录后按提示修改初始密码。
+
+【登录方式】
+· 账号登录：输入账号与密码（区分大小写），连续失败 3 次后需输入图形验证码；连续失败 5 次该账号锁定 5 分钟。
+· 扫码登录：需要手机与电脑处于同一网络（同一 WiFi，或电脑连手机热点后用另一台手机扫码）。如手机打不开二维码，可在二维码下方切换网络地址。
+
+【常用快捷键】
+· 回车：在账号/密码/验证码输入框内按回车可直接登录。
+
+【常见问题】
+· 数据库连不上：检查 MySQL 是否已启动、账号密码与库名是否正确，点击数据库状态指示查看连接信息。
+· 扫码手机打不开二维码：确认手机与电脑同一网络。
+· 忘记密码：点击登录卡片下方「忘记密码」查看管理员联系方式，由管理员重置。
+· 账号被锁定：连续失败 5 次触发锁定，5 分钟后自动解锁，无需联系管理员。`
+
 const { setSession } = useSession()
 const { recordLogin } = useAccountHistory()
 const { appName } = useAppName()
@@ -247,6 +293,13 @@ const username = ref('')
 const password = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
+// 密码显示/隐藏（眼睛图标切换，不改变输入内容）
+const showPassword = ref(false)
+// 账号锁定倒计时（毫秒）：>0 时锁定登录按钮并每秒刷新剩余时间
+const lockRemainMs = ref(0)
+let lockTimer = null
+// 使用帮助弹窗
+const showHelp = ref(false)
 
 // 图形验证码（连续登录失败后强制显示）：captchaId + SVG 由主进程下发，答案不落前端
 const needCaptcha = ref(false)
@@ -268,12 +321,33 @@ const scanLoading = ref(false)
 // 扫码地址候选与当前选择（多网卡时在二维码下方切换，默认自动探测的首选地址）
 const scanCandidates = ref([])
 const scanBaseUrl = ref('')
+// 二维码占位：未勾选协议时不生成二维码（遮罩提示），勾选后显示加载中
+const scanQrPlaceholder = computed(() => (agreed.value ? '二维码加载中…' : ''))
 let scanTimer = null
 let scanStartAt = 0
 // 扫码登录成功标志：成功后跳转不再作废 ticket（否则手机确认页会被误标"已取消登录"）
 let scanSucceeded = false
 const SCAN_POLL_MS = 1500
 const SCAN_TIMEOUT_MS = 120 * 1000
+
+// 协议勾选联动：勾选后（扫码 Tab 且无二维码）自动加载；取消勾选立即作废已生成二维码
+watch(agreed, (val) => {
+  if (loginMode.value !== 'scan') return
+  if (val) {
+    if (!scanTicket.value && !scanLoading.value) startScanLogin()
+  } else {
+    stopScanPolling()
+    if (scanTicket.value) {
+      const t = scanTicket.value
+      const base = scanBaseUrl.value
+      scanTicket.value = ''
+      scanCancel(t, base).catch(() => {})
+    }
+    scanQrDataUrl.value = ''
+    scanStatusText.value = ''
+    scanStatusClass.value = ''
+  }
+})
 
 // 切换登录方式：离开扫码 Tab 时停止轮询并作废二维码
 function switchMode(mode) {
@@ -292,6 +366,13 @@ function switchMode(mode) {
 // 获取二维码并启动轮询（进入扫码 Tab / 点击刷新时调用）
 async function startScanLogin() {
   stopScanPolling()
+  // 未勾选协议时不生成二维码，真正阻止扫码（非仅视觉遮挡）
+  if (!agreed.value) {
+    scanQrDataUrl.value = ''
+    scanStatusText.value = '请先阅读并同意用户协议与隐私政策'
+    scanStatusClass.value = 'is-error'
+    return
+  }
   scanLoading.value = true
   scanStatusText.value = ''
   scanStatusClass.value = ''
@@ -413,6 +494,7 @@ function stopScanPolling() {
 // 离开登录页：清理轮询并作废二维码（登录成功跳转时不作废，保留 approved 终态）
 onUnmounted(() => {
   stopScanPolling()
+  stopLockCountdown()
   if (scanTicket.value && !scanSucceeded) {
     scanCancel(scanTicket.value, scanBaseUrl.value).catch(() => {})
   }
@@ -437,9 +519,40 @@ function openAgreement(type) {
   agreementType.value = type
 }
 
+// 锁定剩余时长文案：'X 分 Y 秒' / 'Y 秒'
+function formatLockRemain(ms) {
+  const totalSec = Math.max(1, Math.ceil(ms / 1000))
+  const min = Math.floor(totalSec / 60)
+  return min > 0 ? `账号已锁定，请 ${min} 分 ${totalSec % 60} 秒后重试` : `账号已锁定，请 ${totalSec} 秒后重试`
+}
+
+// 账号锁定倒计时：每秒刷新提示，归零后清除
+function startLockCountdown(remainMs) {
+  stopLockCountdown()
+  lockRemainMs.value = remainMs
+  errorMsg.value = formatLockRemain(remainMs)
+  lockTimer = setInterval(() => {
+    lockRemainMs.value -= 1000
+    if (lockRemainMs.value <= 0) {
+      stopLockCountdown()
+      errorMsg.value = ''
+      return
+    }
+    errorMsg.value = formatLockRemain(lockRemainMs.value)
+  }, 1000)
+}
+
+function stopLockCountdown() {
+  if (lockTimer) {
+    clearInterval(lockTimer)
+    lockTimer = null
+  }
+}
+
 // 登录：成功后按角色跳转对应工作台；首次登录（mustChangePassword）先强制改密
 async function onSubmit() {
   if (loading.value) return
+  if (lockRemainMs.value > 0) return // 锁定期间禁止提交
   errorMsg.value = ''
   if (!agreed.value) {
     errorMsg.value = '请先阅读并同意用户协议与隐私政策'
@@ -478,10 +591,23 @@ async function onSubmit() {
       // 登录成功：保持 loading，防止页面跳转完成前重复提交
       return
     }
-    // 失败：主进程要求验证码时显示区域并自动刷新
-    if (res && res.data && res.data.needCaptcha) {
-      needCaptcha.value = true
-      await loadCaptcha()
+    // 失败：主进程要求验证码时显示区域并自动刷新；账号锁定时启动倒计时
+    if (res && res.data) {
+      if (res.data.needCaptcha) {
+        needCaptcha.value = true
+        await loadCaptcha()
+      }
+      if (res.data.lock && res.data.lock.locked) {
+        startLockCountdown(res.data.lock.remainMs)
+        loading.value = false
+        return
+      }
+      if (res.data.lock && res.data.lock.failures > 0) {
+        const left = 5 - res.data.lock.failures
+        errorMsg.value = `${res.message || '账号或密码错误'}（连续失败 5 次账号将锁定 5 分钟，还可尝试 ${left} 次）`
+        loading.value = false
+        return
+      }
     }
     errorMsg.value = (res && res.message) || '登录失败，请重试'
   } catch (e) {
@@ -810,6 +936,7 @@ async function onDeleteConfirmed(id) {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
 }
 .footer-copy {
   max-width: 80vw;
@@ -820,6 +947,7 @@ async function onDeleteConfirmed(id) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 页脚「使用帮助」入口 */
 .card-sub {
   margin: 6px 0 4px;
   font-size: 13px;
@@ -844,6 +972,45 @@ async function onDeleteConfirmed(id) {
 }
 .field-input:focus {
   border-color: var(--primary);
+}
+/* 密码输入框容器与显示/隐藏眼睛按钮 */
+.field-input-wrap {
+  position: relative;
+}
+.field-input-wrap .field-input {
+  padding-right: 38px;
+}
+.pwd-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+.pwd-toggle:hover {
+  color: var(--primary);
+}
+/* 使用帮助弹窗：内容可滚动 */
+.help-dialog .privacy-body {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.help-body {
+  white-space: pre-line;
+  line-height: 1.8;
+  font-size: 13px;
+  color: var(--text-2);
 }
 .error-msg {
   margin: 14px 0 0;
@@ -953,7 +1120,7 @@ async function onDeleteConfirmed(id) {
 }
 .agree-text a {
   color: var(--primary);
-  text-decoration: underline;
+  text-decoration: none;
 }
 .agree-text a:hover {
   opacity: 0.85;
@@ -1097,6 +1264,13 @@ async function onDeleteConfirmed(id) {
 }
 .forgot-link:hover {
   color: var(--primary);
+}
+/* 忘记密码 / 使用帮助 之间的分隔线 */
+.foot-divider {
+  width: 1px;
+  height: 12px;
+  background: var(--border-strong);
+  opacity: 0.7;
 }/* ===== 管理员联系方式弹窗 ===== */
 .privacy-overlay {
   position: fixed;

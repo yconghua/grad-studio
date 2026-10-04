@@ -19,6 +19,16 @@ const { ROLE_SUPER_ADMIN, ACCOUNT_STATUS_ENABLED } = require('../../shared/const
 const ticketService = require('./ticketService')
 // 图形验证码：连续失败达到阈值后强制校验（自适应防爆破）
 const captchaService = require('./captchaService')
+// 登录失败锁定：同一账号连续失败满 5 次锁定 5 分钟（内存态，重启清零）
+const loginLockService = require('./loginLockService')
+
+// 锁定剩余时长文案：'X 分 Y 秒'
+function formatRemainMs(ms) {
+  const totalSec = Math.max(1, Math.ceil(ms / 1000))
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+  return min > 0 ? `${min} 分 ${sec} 秒` : `${sec} 秒`
+}
 
 // 主进程内存中的当前登录用户（单用户桌面应用，同一时刻只允许一人登录）
 let currentUser = null
@@ -68,6 +78,14 @@ async function login({ username, password, captchaId, captchaCode } = {}) {
   if (!username || !password) {
     throw new ApiError('请输入账号和密码', 400)
   }
+  // 账号锁定检查：锁定期间直接拒绝（即使密码正确），返回剩余时间
+  const lock = loginLockService.checkLocked(username)
+  if (lock) {
+    throw new ApiError(`账号已锁定，请 ${formatRemainMs(lock.remainMs)} 后重试`, 423, {
+      locked: true,
+      remainMs: lock.remainMs
+    })
+  }
   const captchaRequired = captchaService.shouldRequireCaptcha()
   if (captchaRequired && (!captchaId || !captchaCode)) {
     throw new ApiError('请输入验证码', 400, { needCaptcha: true })
@@ -75,37 +93,52 @@ async function login({ username, password, captchaId, captchaCode } = {}) {
   if (captchaRequired || captchaCode) {
     if (!captchaService.verify(captchaId, captchaCode)) {
       captchaService.recordFailure()
-      throw new ApiError('验证码错误或已过期', 400, { needCaptcha: true })
+      const lk = loginLockService.recordFailure(username)
+      throw new ApiError('验证码错误或已过期', 400, { needCaptcha: true, lock: lk })
     }
   }
   const user = await userRepository.findByUsername(username)
   if (!user || user.status !== ACCOUNT_STATUS_ENABLED) {
     captchaService.recordFailure()
-    throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha() })
+    const lk = loginLockService.recordFailure(username)
+    throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha(), lock: lk })
   }
   if (!passwordService.verifyPassword(password, user.password_hash)) {
     captchaService.recordFailure()
-    throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha() })
+    const lk = loginLockService.recordFailure(username)
+    throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha(), lock: lk })
   }
   captchaService.resetFailures()
+  loginLockService.reset(username)
   return establishSession(user)
 }
 
 /**
  * 扫码登录凭据验证：手机确认页提交的账号密码由桌面端本地校验。
  * 不走验证码 / 协议（这两者由手机确认页流程承担），校验通过即建立会话。
+ * 与账号密码登录共用锁定：锁定期间扫码提交同样被拒绝（防止绕过锁定）。
  */
 async function loginByCredentials(username, password) {
   if (!username || !password) {
     throw new ApiError('请输入账号和密码', 400)
   }
+  const lock = loginLockService.checkLocked(username)
+  if (lock) {
+    throw new ApiError(`账号已锁定，请 ${formatRemainMs(lock.remainMs)} 后重试`, 423, {
+      locked: true,
+      remainMs: lock.remainMs
+    })
+  }
   const user = await userRepository.findByUsername(username)
   if (!user || user.status !== ACCOUNT_STATUS_ENABLED) {
+    loginLockService.recordFailure(username)
     throw new ApiError('账号或密码错误', 400)
   }
   if (!passwordService.verifyPassword(password, user.password_hash)) {
+    loginLockService.recordFailure(username)
     throw new ApiError('账号或密码错误', 400)
   }
+  loginLockService.reset(username)
   return establishSession(user)
 }
 
