@@ -214,13 +214,17 @@ async function openNoteById(id) {
 
 const route = useRoute()
 
-// 全局搜索直达：?open=<id> → 自动打开笔记
-onMounted(() => {
-  const openId = route.query.open
-  if (openId != null && /^\d+$/.test(String(openId))) {
-    openNoteById(Number(openId))
-  }
-})
+// 全局搜索直达：?open=<id> → 自动打开笔记。
+// 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。
+watch(
+  () => route.query.open,
+  (openId) => {
+    if (openId != null && /^\d+$/.test(String(openId))) {
+      openNoteById(Number(openId))
+    }
+  },
+  { immediate: true }
+)
 
 function onPick(n) {
   // 回收站笔记不可编辑，仅提供恢复/彻底删除

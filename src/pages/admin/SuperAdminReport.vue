@@ -42,7 +42,7 @@
           <span class="panel-title">各组成绩排名（本周）</span>
         </div>
         <div class="table-wrap">
-          <table class="table">
+          <table v-resizable-columns class="table">
             <thead>
               <tr>
                 <th>#</th>
@@ -98,7 +98,7 @@
         </div>
       </div>
       <div class="table-wrap">
-        <table class="table">
+        <table v-resizable-columns class="table">
           <thead>
             <tr>
               <th>学生</th>

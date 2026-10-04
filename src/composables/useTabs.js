@@ -79,12 +79,17 @@ function restoreOnce() {
   if (!saved || !prefix) return
   for (const t of saved.tabs) {
     if (!t || typeof t.key !== 'string' || t.pinned) continue
-    if (!t.key.startsWith(prefix)) continue
-    if (tabs.value.some((x) => x.key === t.key)) continue
-    tabs.value.push({ key: t.key, path: t.key, title: t.title || t.key, pinned: false })
+    // 历史数据可能存过带 query 的 key（旧逻辑），恢复时归一化为基础路径
+    const key = t.key.split('?')[0]
+    if (!key.startsWith(prefix)) continue
+    if (tabs.value.some((x) => x.key === key)) continue
+    tabs.value.push({ key, path: key, title: t.title || key, pinned: false })
   }
-  if (saved.activeKey && tabs.value.some((t) => t.key === saved.activeKey)) {
-    activeKey.value = saved.activeKey
+  if (saved.activeKey) {
+    const savedKey = String(saved.activeKey).split('?')[0]
+    if (savedKey && tabs.value.some((t) => t.key === savedKey)) {
+      activeKey.value = savedKey
+    }
   }
 }
 
@@ -112,9 +117,11 @@ function ensureHomeTab() {
   persist()
 }
 
-// 路由切换进入业务页时调用：已存在同 key 仅激活，否则追加到最右边
+// 路由切换进入业务页时调用：已存在同 key 仅激活，否则追加到最右边。
+// key 取基础路径（不含 query）：带 ?open=/?status= 等参数的直达跳转
+// （全局搜索 / 通知 / 工作台）复用同一页面标签，不会因参数不同而新开标签。
 function addTab(route) {
-  const key = route && (route.fullPath || route.path)
+  const key = (route && (route.path || route.fullPath)) || ''
   if (!key) return
   ensureHomeTab()
   const exist = tabs.value.find((t) => t.key === key)

@@ -38,23 +38,23 @@
       <button class="btn btn-sm" @click="selected = []">取消选择</button>
     </div>
 
-    <!-- 用户表格 -->
+    <!-- 用户表格：通用列宽拖拽（v-resizable-columns），操作列保底 184px 不被挤压 -->
     <div class="tbl-wrap">
-      <table class="tbl tbl-fixed">
+      <table v-resizable-columns="{ min: 48, minByIndex: { 9: 184 } }" class="tbl tbl-fixed">
         <thead>
           <tr>
-            <th style="width: 36px">
+            <th>
               <input type="checkbox" :checked="allChecked" @change="toggleAll" />
             </th>
-            <th style="width: 40px">ID</th>
-            <th style="width: 56px">用户名</th>
-            <th style="width: 56px">真实姓名</th>
-            <th style="width: 118px">角色</th>
-            <th style="width: 66px">状态</th>
-            <th style="width: 56px">课题组</th>
-            <th style="width: 88px">创建时间</th>
-            <th style="width: 88px">最近重置</th>
-            <th style="width: 184px">操作</th>
+            <th>ID</th>
+            <th>用户名</th>
+            <th>真实姓名</th>
+            <th>角色</th>
+            <th>状态</th>
+            <th>课题组</th>
+            <th>创建时间</th>
+            <th>最近重置</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
@@ -68,7 +68,7 @@
             <td class="ellipsis">{{ u.groupId ? '#' + u.groupId : '-' }}</td>
             <td class="ellipsis">{{ fmtDate(u.createdAt) }}</td>
             <td class="ellipsis">{{ fmtDate(u.passwordResetAt) }}</td>
-            <td>
+            <td style="min-width: 184px">
               <div class="ops" @click.stop>
                 <button class="btn btn-sm" @click="goEdit(u)">编辑</button>
                 <button class="btn btn-sm" @click="doResetPwd(u)">重置密码</button>
@@ -111,7 +111,7 @@
               </div>
               <div class="field">
                 <label>角色</label>
-                <select v-model="form.role" class="select">
+                <select v-model="form.role" class="select" @change="onRoleChange">
                   <option v-for="(t, r) in CREATE_ROLES" :key="r" :value="r">{{ t }}</option>
                 </select>
               </div>
@@ -170,7 +170,8 @@
                   </div>
                 </div>
               </div>
-              <div class="field">
+              <!-- 课题组管理员不绑定课题组（绑定关系由课题组管理的「管理员」字段维护） -->
+              <div class="field" v-if="form.role !== 'group_admin'">
                 <label>所属课题组</label>
                 <select v-model="form.groupId" class="select" @change="onGroupChange">
                   <option value="">暂不加入课题组</option>
@@ -194,6 +195,9 @@
       </div>
     </div>
   </div>
+
+  <!-- 编辑用户弹窗（账号密码 / 资料 两个 Tab，分别保存） -->
+  <AdminUserEditDialog v-model:visible="showEditModal" :user-id="editUserId" />
 
   <!-- 批量新增用户弹窗：上传 CSV / 粘贴 CSV 文本 → 预览校验 → 提交 -->
   <div v-if="showBatch" class="modal-mask" @click.self="showBatch = false">
@@ -246,7 +250,7 @@
             <span style="color: var(--text-3); margin-left: 8px">仅勾选且校验通过的行会提交；错误行需修改外部文件后重新导入</span>
           </div>
           <div class="tbl-wrap">
-            <table class="tbl tbl-fixed">
+            <table v-resizable-columns class="tbl tbl-fixed">
               <thead>
                 <tr>
                   <th style="width: 36px"><input type="checkbox" :checked="allPreviewChecked" @change="toggleAllPreview" /></th>
@@ -309,7 +313,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
 import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import { listUsers, createUser, listGroups, listCandidates, deleteUser, resetPassword, batchUpdateStatus, batchDeleteUsers, batchCreateUsers, downloadCsvTemplate, listAllUsernames, pickAttachment } from '../../api'
@@ -320,10 +325,15 @@ import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { avatarUrl } from '../../utils/avatar'
 import { fetchAll } from '../../utils/fetchAll'
 import { roleText, statusText, statusTagClass, ROLE_TEXT } from '../../utils/labels'
+import AdminUserEditDialog from '../../components/admin/AdminUserEditDialog.vue'
 import { DEFAULT_PASSWORD_BY_ROLE } from '../../config/constants'
 
 // 超级管理员独立页面：用户管理列表（一页固定 8 条）
 const router = useRouter()
+const route = useRoute()
+// 编辑用户弹窗
+const showEditModal = ref(false)
+const editUserId = ref(null)
 
 const keyword = ref('')
 const role = ref('')
@@ -403,7 +413,8 @@ function reset() {
   load()
 }
 function goEdit(u) {
-  router.push(`/admin/users/${u.id}/edit`)
+  editUserId.value = u.id
+  showEditModal.value = true
 }
 
 // 时间列只显示日期部分（YYYY-MM-DD），完整时间在行详情弹窗查看，避免列表过宽
@@ -501,6 +512,15 @@ async function openCreate() {
   groups.value = await fetchAll(listGroups)
   mentors.value = []
   showModal.value = true
+}
+
+// 切换角色：课题组管理员不绑定课题组，清空已选课题组与导师
+function onRoleChange() {
+  if (form.role === 'group_admin') {
+    form.groupId = ''
+    form.mentorId = ''
+    mentors.value = []
+  }
 }
 
 // 选择课题组后加载该组导师（供指定导师）
@@ -643,7 +663,22 @@ async function submitBatch() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+})
+
+// 全局搜索/跳转直达：?open=<id> → 自动打开编辑用户弹窗。
+// 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。
+watch(
+  () => route.query.open,
+  (openId) => {
+    if (openId != null && /^\d+$/.test(String(openId))) {
+      editUserId.value = Number(openId)
+      showEditModal.value = true
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

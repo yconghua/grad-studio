@@ -66,7 +66,7 @@
           </div>
         </div>
         <div class="table-wrap">
-          <table class="table">
+          <table v-resizable-columns class="table">
             <thead>
               <tr>
                 <th>学生</th>

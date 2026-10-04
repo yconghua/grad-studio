@@ -1,4 +1,7 @@
-// 课题组公告接口（notice:*）：列表 / 发布 / 编辑 / 删除 / 置顶 / 已读统计 / 标记已读
+// 课题组公告接口（notice:*）：详情 / 列表 / 发布 / 编辑 / 删除 / 置顶 / 已读统计 / 标记已读
+export function getNotice(id) {
+  return window.api.notice.get({ id })
+}
 export function listNotices(params = {}) {
   return window.api.notice.list(params)
 }

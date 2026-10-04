@@ -35,7 +35,7 @@
 
     <!-- 会议表格 -->
     <div class="tbl-wrap">
-      <table class="tbl">
+      <table v-resizable-columns class="tbl">
         <thead>
           <tr>
             <th>ID</th>
@@ -133,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import MeetingFormDialog from '../../components/MeetingFormDialog.vue'
 import MeetingDetailDialog from '../../components/MeetingDetailDialog.vue'
@@ -313,12 +313,19 @@ async function doStats(m) {
 onMounted(async () => {
   groups.value = await fetchAll(listGroups)
   load()
-  // 全局搜索直达：?open=<id>&group=<gid> → 自动打开会议详情
-  const openId = route.query.open
-  if (openId != null && /^\d+$/.test(String(openId))) {
-    openDetail({ id: Number(openId), groupId: route.query.group ? Number(route.query.group) : null })
-  }
 })
+
+// 全局搜索直达：?open=<id>&group=<gid> → 自动打开会议详情。
+// 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。
+watch(
+  () => route.query.open,
+  (openId) => {
+    if (openId != null && /^\d+$/.test(String(openId))) {
+      openDetail({ id: Number(openId), groupId: route.query.group ? Number(route.query.group) : null })
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

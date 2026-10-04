@@ -59,7 +59,7 @@
 
         <!-- 预览表格：仅展示有效 / 重复行，密码打码 -->
         <div v-if="validRows.length" class="preview-wrap">
-          <table class="preview-table">
+          <table v-resizable-columns class="preview-table">
             <thead>
               <tr>
                 <th>行</th><th>名称</th><th>主机</th><th>端口</th><th>账号</th><th>数据库</th><th>密码</th><th>状态</th>

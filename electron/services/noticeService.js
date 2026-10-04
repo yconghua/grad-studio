@@ -273,6 +273,27 @@ async function getNotice(id) {
   return toNoticeDto(row)
 }
 
+/**
+ * 公告详情（按角色收敛的只读入口，行点击/全局搜索直达共用）：
+ * 超管任意公告；组管仅本组；导师/学生仅本组「已发布」。
+ */
+async function getNoticeForUser(id) {
+  const me = await currentUser()
+  const notice = await groupNoticeRepository.findById(Number(id))
+  if (!notice) throw new ApiError('公告不存在', 404)
+  if (me.role === ROLE_SUPER_ADMIN) return toNoticeDto(notice)
+  if (me.role === ROLE_GROUP_ADMIN) {
+    const myGroupId = await groupAdminGroupId(me)
+    if (notice.group_id !== myGroupId) throw new ApiError('无权限：只能查看本课题组的公告', 403)
+    return toNoticeDto(notice)
+  }
+  // 导师/学生：仅本组已发布公告
+  if (notice.status !== NOTICE_STATUS_PUBLISHED) throw new ApiError('公告不存在或已下架', 404)
+  const myGroupId = await memberGroupId(me)
+  if (!myGroupId || myGroupId !== notice.group_id) throw new ApiError('无权限：你不是该课题组的有效成员', 403)
+  return toNoticeDto(notice)
+}
+
 // ===== 已读 =====
 
 /**
@@ -344,6 +365,7 @@ module.exports = {
   deleteNotice,
   toggleTop,
   getNotice,
+  getNoticeForUser,
   readStats,
   markRead,
   getGroupAudience,

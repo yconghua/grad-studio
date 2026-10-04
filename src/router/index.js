@@ -68,7 +68,6 @@ const routes = [
       { path: 'dashboard', name: 'admin-dashboard', component: () => import('../pages/admin/AdminDashboard.vue'), meta: { title: '工作台' } },
       { path: 'report', name: 'admin-report', component: () => import('../pages/admin/SuperAdminReport.vue'), meta: { title: '周报统计' } },
       { path: 'users', name: 'admin-users', component: () => import('../pages/admin/AdminUserList.vue'), meta: { title: '用户管理' } },
-      { path: 'users/:id/edit', name: 'admin-user-edit', component: () => import('../pages/admin/AdminUserEdit.vue'), meta: { title: '编辑用户' } },
       { path: 'groups', name: 'admin-groups', component: () => import('../pages/admin/AdminGroupList.vue'), meta: { title: '课题组设置' } },
       { path: 'task-overview', name: 'admin-task-overview', component: () => import('../pages/task/TaskOverviewView.vue'), meta: { title: '任务总览' } },
       { path: 'notices', name: 'admin-notices', component: () => import('../pages/admin/AdminGroupNotice.vue'), meta: { title: '课题组公告管理' } },

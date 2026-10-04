@@ -27,6 +27,10 @@ function register(ipcMain) {
     await requireRole(ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT)
     return noticeService.listNotices(payload || {})
   }))
+  ipcMain.handle('notice:get', handler(async (_evt, payload) => {
+    await requireRole(ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT)
+    return noticeService.getNoticeForUser(payload && payload.id)
+  }))
   ipcMain.handle('notice:create', handler(async (_evt, payload) => {
     await requireRole(ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN)
     return noticeService.createNotice(payload || {})

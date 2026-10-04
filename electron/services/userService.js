@@ -137,7 +137,8 @@ async function createUser(payload = {}) {
     email: payload.email,
     gender: payload.gender,
     avatar: payload.avatar,
-    group_id: payload.groupId,
+    // 课题组管理员不绑定课题组（绑定关系由课题组管理的「管理员」字段维护），强制置空
+    group_id: role === ROLE_GROUP_ADMIN ? null : payload.groupId,
     mentor_id: payload.mentorId
   })
   return getUser(id)
@@ -232,16 +233,21 @@ async function updateProfile(id, payload = {}) {
   }
   if (avatar !== undefined) data.avatar = String(avatar).trim() || null
 
-  // 所属课题组：必须存在；学生离开课题组时解除导师关系
+  // 所属课题组：必须存在；学生离开课题组时解除导师关系。
+  // 课题组管理员 / 超级管理员不绑定课题组（绑定关系在课题组管理的「管理员」字段），忽略传入并强制置空。
   if (groupId !== undefined) {
-    const gid = groupId === null || groupId === '' ? null : Number(groupId)
-    if (gid !== null) {
-      const group = await groupRepository.findById(gid)
-      if (!group) throw new ApiError('所选课题组不存在', 400)
-    }
-    data.group_id = gid
-    if (row.role === ROLE_STUDENT && gid === null && row.mentor_id) {
-      data.mentor_id = null
+    if (row.role === ROLE_GROUP_ADMIN || row.role === ROLE_SUPER_ADMIN) {
+      data.group_id = null
+    } else {
+      const gid = groupId === null || groupId === '' ? null : Number(groupId)
+      if (gid !== null) {
+        const group = await groupRepository.findById(gid)
+        if (!group) throw new ApiError('所选课题组不存在', 400)
+      }
+      data.group_id = gid
+      if (row.role === ROLE_STUDENT && gid === null && row.mentor_id) {
+        data.mentor_id = null
+      }
     }
   }
 

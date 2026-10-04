@@ -30,7 +30,7 @@
 
     <!-- 公告表格 -->
     <div class="tbl-wrap">
-      <table class="tbl">
+      <table v-resizable-columns class="tbl">
         <thead>
           <tr>
             <th>ID</th>
@@ -43,7 +43,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="n in list" :key="n.id" @click="openDetail(n, noticeDetailFields, '公告详情')">
+          <tr v-for="n in list" :key="n.id" @click="openDetailById(n.id)">
             <td>{{ n.id }}</td>
             <td class="ellipsis">{{ n.groupName }}</td>
             <td class="ellipsis" style="max-width: 180px">
@@ -144,7 +144,7 @@
             应读 <b>{{ stats.totalMembers }}</b> 人（本组启用状态的导师 + 学生）／已读 <b>{{ stats.readCount }}</b> 人
           </p>
           <div class="tbl-wrap" v-if="stats.list && stats.list.length">
-            <table class="tbl">
+            <table v-resizable-columns class="tbl">
               <thead>
                 <tr><th>姓名</th><th>用户名</th><th>已读时间</th></tr>
               </thead>
@@ -171,10 +171,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import RowDetailDialog from '../../components/RowDetailDialog.vue'
 import NoticeContent from '../../components/NoticeContent.vue'
-import { listNotices, createNotice, updateNotice, deleteNotice, toggleNoticeTop, getNoticeReadStats } from '../../api'
+import { listNotices, getNotice, createNotice, updateNotice, deleteNotice, toggleNoticeTop, getNoticeReadStats } from '../../api'
 import { listGroups } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -233,6 +234,27 @@ function openDetail(row, fields, title) {
   detailTitle.value = title
   detailVisible.value = true
 }
+
+// 行点击 / 全局搜索直达统一走详情接口：目标公告可能不在当前列表页，按 id 直接取
+async function openDetailById(id) {
+  const res = await getNotice(id)
+  if (res && res.success) {
+    openDetail(res.data, noticeDetailFields, '公告详情')
+  } else {
+    dialogAlert((res && res.message) || '加载公告详情失败')
+  }
+}
+
+// 全局搜索直达：?open=<id> → 自动打开公告详情。
+// 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。
+const route = useRoute()
+watch(
+  () => route.query.open,
+  (openId) => {
+    if (openId != null && /^\d+$/.test(String(openId))) openDetailById(openId)
+  },
+  { immediate: true }
+)
 
 async function load() {
   const res = await listNotices({ page: page.value, keyword: keyword.value, status: status.value, groupId: groupId.value })

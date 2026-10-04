@@ -67,7 +67,7 @@
 .panel-title .tip { float: right; font-size: 12px; font-weight: 400; color: var(--muted); }
 
 /* ===== 表格 ===== */
-.tbl-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.tbl-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow-x: auto; }
 table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tbl th { background: var(--bg-muted); text-align: left; padding: 10px 12px; font-weight: 600; color: var(--text-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
 /* 单元格统一不换行，保证行恒为单行；长文本列由 .ellipsis 省略，完整内容点击行查看详情 */
@@ -75,6 +75,20 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tbody tr:hover td { background: var(--bg-hover-soft); }
 .tbl .ops { display: flex; gap: 6px; }
+
+/* 表格列宽拖拽手柄（v-resizable-columns 指令注入到表头） */
+.rc-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+.rc-resizer:hover {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+}
 /* 长文本列单行省略（宽度收紧，避免表格过宽）：完整内容点击行后在详情弹窗查看 */
 .ellipsis { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -112,7 +126,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
 .field .input, .field .select, .field textarea { width: 100%; }
-.field textarea { height: 80px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; resize: vertical; outline: none; }
+.field textarea { min-height: 80px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; resize: vertical; outline: none; }
 .field textarea:focus { border-color: var(--primary); }
 .field .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }

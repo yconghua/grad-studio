@@ -24,7 +24,7 @@
 
     <!-- 成员列表 -->
     <div class="tbl-wrap">
-      <table class="tbl">
+      <table v-resizable-columns class="tbl">
         <thead>
           <tr>
             <th style="width: 40px">

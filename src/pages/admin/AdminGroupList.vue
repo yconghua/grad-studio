@@ -15,7 +15,7 @@
     </div>
 
     <div class="tbl-wrap">
-      <table class="tbl">
+      <table v-resizable-columns class="tbl">
         <thead>
           <tr>
             <th>ID</th>
@@ -82,11 +82,12 @@
           <div class="field">
             <label>课题组管理员（从已有用户中选择，一个管理员只能管理一个课题组）</label>
             <select v-model="form.adminUserId" class="select">
-              <option value="">暂不指定</option>
+              <option value="">{{ isEdit ? '暂不指定' : '请选择课题组管理员' }}</option>
               <option v-for="a in admins" :key="a.id" :value="a.id" :disabled="a.groupId !== null && a.groupId !== form.groupId">
                 {{ a.realName || a.username }}{{ a.groupId ? '（已绑定课题组）' : '' }}
               </option>
             </select>
+            <p v-if="!isEdit" class="hint">新建课题组必须指定管理员</p>
           </div>
           <div class="field">
             <label>状态</label>
@@ -109,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { listGroups, createGroup, getGroup, updateGroup, deleteGroup, listUsers } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
@@ -194,6 +195,8 @@ async function openEdit(g) {
 
 async function save() {
   if (!form.name) return dialogAlert('请输入课题组名称')
+  // 新建课题组必须指定管理员；编辑时允许暂不更换
+  if (!isEdit.value && !form.adminUserId) return dialogAlert('请选择课题组管理员')
   saving.value = true
   try {
     const data = {
@@ -228,10 +231,17 @@ async function doDelete(g) {
 onMounted(async () => {
   admins.value = await fetchAll(listUsers, { role: 'group_admin' })
   load()
-  // 全局搜索直达：?open=<id> → 自动打开课题组详情
-  const openId = route.query.open
-  if (openId != null && /^\d+$/.test(String(openId))) {
-    openDetail({ id: Number(openId) })
-  }
 })
+
+// 全局搜索直达：?open=<id> → 自动打开课题组详情。
+// 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。
+watch(
+  () => route.query.open,
+  (openId) => {
+    if (openId != null && /^\d+$/.test(String(openId))) {
+      openDetail({ id: Number(openId) })
+    }
+  },
+  { immediate: true }
+)
 </script>

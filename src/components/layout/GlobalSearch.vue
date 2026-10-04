@@ -42,7 +42,7 @@
             :key="`${g.type}-${it.id}`"
             class="group-item"
             :class="{ active: flatIndexOf(gi, ii) === activeIndex }"
-            @mousedown.prevent="go(it)"
+            @mousedown.prevent="go(g.type, it)"
           >
             <div class="item-title">
               <template v-for="(p, pi) in highlightParts(it.title)" :key="pi">
@@ -82,7 +82,7 @@ import {
 // notice/report 第一版跳对应列表页。
 const SEARCH_ROUTES = {
   user: {
-    [ROLE_SUPER_ADMIN]: (id) => `/admin/users/${id}/edit`,
+    [ROLE_SUPER_ADMIN]: (id) => `/admin/users?open=${id}`,
     [ROLE_GROUP_ADMIN]: () => '/group-admin/members',
     [ROLE_MENTOR]: () => '/mentor/students'
   },
@@ -90,10 +90,10 @@ const SEARCH_ROUTES = {
     [ROLE_SUPER_ADMIN]: (id) => `/admin/groups?open=${id}`
   },
   notice: {
-    [ROLE_SUPER_ADMIN]: () => '/admin/notices',
-    [ROLE_GROUP_ADMIN]: () => '/group-admin/notices',
-    [ROLE_MENTOR]: () => '/mentor/notices',
-    [ROLE_STUDENT]: () => '/student/notices'
+    [ROLE_SUPER_ADMIN]: (id) => `/admin/notices?open=${id}`,
+    [ROLE_GROUP_ADMIN]: (id) => `/group-admin/notices?open=${id}`,
+    [ROLE_MENTOR]: (id) => `/mentor/notices?open=${id}`,
+    [ROLE_STUDENT]: (id) => `/student/notices?open=${id}`
   },
   meeting: {
     [ROLE_SUPER_ADMIN]: (id, gid) => `/admin/meetings?open=${id}${gid ? `&group=${gid}` : ''}`,
@@ -193,10 +193,10 @@ async function runSearch() {
   }
 }
 
-// 跳转：按结果类型 + 当前角色拼路由，关闭面板
-function go(item) {
-  if (!item || !item.type) return
-  const table = SEARCH_ROUTES[item.type]
+// 跳转：type 来自结果分组（条目本身不含 type），按当前角色拼路由后关闭面板
+function go(type, item) {
+  if (!item || !type) return
+  const table = SEARCH_ROUTES[type]
   const fn = table && table[role.value]
   if (!fn) return
   const target = fn(item.id, item.groupId)
@@ -230,7 +230,7 @@ function onKeydown(e) {
     let rest = activeIndex.value
     for (const g of groups.value) {
       if (rest < g.items.length) {
-        go(g.items[rest])
+        go(g.type, g.items[rest])
         return
       }
       rest -= g.items.length

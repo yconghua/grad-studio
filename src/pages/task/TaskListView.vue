@@ -49,7 +49,7 @@
 
       <!-- 任务表格 -->
       <div class="tbl-wrap">
-        <table class="tbl">
+        <table v-resizable-columns class="tbl">
           <thead>
             <tr>
               <th>ID</th>
@@ -169,7 +169,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import TaskDetailDialog from '../../components/task/TaskDetailDialog.vue'
 import TaskEditDialog from '../../components/task/TaskEditDialog.vue'
@@ -413,12 +413,19 @@ onMounted(async () => {
   const qStatus = route.query.status
   if (qStatus) status.value = Number(qStatus)
   await load()
-  // 通知跳转带 open=<taskId>：列表加载后自动打开新版详情弹窗
-  const openId = route.query.open
-  if (openId != null && /^\d+$/.test(String(openId))) {
-    openDetail({ id: Number(openId) })
-  }
 })
+
+// 全局搜索/通知跳转带 open=<taskId>：详情弹窗按 id 直接打开（不依赖列表数据）。
+// 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。
+watch(
+  () => route.query.open,
+  (openId) => {
+    if (openId != null && /^\d+$/.test(String(openId))) {
+      openDetail({ id: Number(openId) })
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

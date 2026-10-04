@@ -16,7 +16,7 @@
     </div>
 
     <div class="tbl-wrap">
-      <table class="tbl">
+      <table v-resizable-columns class="tbl">
         <thead>
           <tr>
             <th>ID</th>

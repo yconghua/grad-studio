@@ -13,7 +13,7 @@
     </div>
 
     <!-- 公告列表（卡片式，只读） -->
-    <div v-else class="panel" style="margin-bottom: 12px" v-for="n in list" :key="n.id">
+    <div v-else class="panel notice-card" :class="{ 'notice-hit': highlightId === n.id }" :data-notice-id="n.id" style="margin-bottom: 12px" v-for="n in list" :key="n.id">
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
         <h3 style="margin: 0; font-size: 15px; color: var(--text); flex: 1; min-width: 200px">{{ n.title }}</h3>
         <span v-if="n.isTop" class="tag">置顶</span>
@@ -46,7 +46,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { listNotices, markNoticeRead } from '../../api'
 import NoticeContent from '../../components/NoticeContent.vue'
 import { dialogAlert } from '../../composables/useDialog'
@@ -58,6 +59,25 @@ const list = ref([])
 const totalPages = ref(1)
 const notInGroup = ref(false)
 const readingId = ref(null)
+const highlightId = ref(null)
+
+// 全局搜索直达：?open=<id> → 滚动定位并高亮对应公告卡片
+// （目标可能不在当前页：先翻页找到包含目标的那一页）
+const route = useRoute()
+async function locateNotice(openId) {
+  if (openId == null || !/^\d+$/.test(String(openId))) return
+  highlightId.value = Number(openId)
+  if (!list.value.some((n) => n.id === Number(openId))) {
+    for (let p = 1; p <= totalPages.value; p++) {
+      page.value = p
+      await load()
+      if (list.value.some((n) => n.id === Number(openId))) break
+    }
+  }
+  await nextTick()
+  const el = document.querySelector(`[data-notice-id="${openId}"]`)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
 
 async function load() {
   const res = await listNotices({ page: page.value })
@@ -93,11 +113,25 @@ function onUnreadChanged() {
 }
 
 onMounted(() => {
-  load()
+  load().then(() => locateNotice(route.query.open))
   window.addEventListener('grad-notice-unread-changed', onUnreadChanged)
 })
+
+// 同路由下 query 变化（已在本页再点搜索结果）也要触发定位
+watch(
+  () => route.query.open,
+  (openId) => locateNotice(openId)
+)
 
 onUnmounted(() => {
   window.removeEventListener('grad-notice-unread-changed', onUnreadChanged)
 })
 </script>
+
+<style scoped>
+/* 搜索直达定位的公告卡片：主色描边高亮 */
+.notice-hit {
+  outline: 2px solid var(--primary);
+  border-radius: var(--radius-md);
+}
+</style>

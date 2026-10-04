@@ -49,7 +49,7 @@
     <div v-for="g in groups" :key="g.groupId" class="panel group-panel">
       <h3 class="group-title">{{ g.groupName }} <span class="group-count">{{ g.tasks.length }} 个任务</span></h3>
 
-      <table class="tbl">
+      <table v-resizable-columns class="tbl">
         <thead>
           <tr>
             <th>ID</th>

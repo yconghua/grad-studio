@@ -132,6 +132,7 @@ contextBridge.exposeInMainWorld('api', {
   // 课题组公告（对应 ipc/notice.js，通道前缀 notice:*）
   notice: {
     list: createInvoke('notice:list'),
+    get: createInvoke('notice:get'),
     create: createInvoke('notice:create'),
     update: createInvoke('notice:update'),
     remove: createInvoke('notice:delete'),

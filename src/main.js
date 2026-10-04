@@ -8,6 +8,7 @@ import './styles/tokens.css'
 import './styles/themes/dark.css'
 import './styles/role-ui.css'
 import { applyInitialTheme, applyTheme } from './composables/useTheme'
+import resizableColumns from './directives/resizableColumns'
 
 // 挂载前先按本地偏好设置根节点 data-theme（index.html 内联脚本的兜底）
 applyInitialTheme()
@@ -25,4 +26,4 @@ async function applyServerDefaultTheme() {
 }
 applyServerDefaultTheme()
 
-createApp(App).use(router).mount('#app')
+createApp(App).use(router).directive('resizable-columns', resizableColumns).mount('#app')

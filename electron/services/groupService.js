@@ -146,18 +146,18 @@ function assertGroupDescription(description) {
 async function createGroup({ name, description, adminUserId, status } = {}) {
   const trimmedName = assertGroupName(name)
   const trimmedDesc = assertGroupDescription(description)
-  if (adminUserId) {
-    await assertAdminAvailable(Number(adminUserId))
-  }
+  // 新建课题组必须指定管理员（管理员绑定关系由本表维护，且一个管理员只能管理一个课题组）
+  if (!adminUserId) throw new ApiError('请选择课题组管理员', 400)
+  await assertAdminAvailable(Number(adminUserId))
   const id = await groupRepository.create({
     name: trimmedName,
     code: crypto.randomUUID(),
     description: trimmedDesc,
-    admin_user_id: adminUserId ? Number(adminUserId) : null,
+    admin_user_id: Number(adminUserId),
     status: status === undefined || status === '' ? 1 : Number(status)
   })
   // 同步管理员用户的所属课题组
-  if (adminUserId) await userRepository.updateById(Number(adminUserId), { group_id: id })
+  await userRepository.updateById(Number(adminUserId), { group_id: id })
   return getGroup(id)
 }
 
