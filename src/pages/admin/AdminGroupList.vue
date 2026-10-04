@@ -29,7 +29,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="g in list" :key="g.id" @click="goDetail(g)">
+          <tr v-for="g in list" :key="g.id" @click="openDetail(g)">
             <td>{{ g.id }}</td>
             <td class="ellipsis">{{ g.name }}</td>
             <td style="font-family: monospace; font-size: 12px" class="ellipsis">{{ g.code }}</td>
@@ -102,19 +102,20 @@
         </div>
       </div>
     </div>
+
+    <!-- 课题组详情弹窗 -->
+    <AdminGroupDetailDialog v-if="detailId" :group-id="detailId" @close="detailId = null" />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { listGroups, createGroup, getGroup, updateGroup, deleteGroup, listUsers } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { statusText, statusTagClass } from '../../utils/labels'
-
-const router = useRouter()
+import AdminGroupDetailDialog from '../../components/admin/AdminGroupDetailDialog.vue'
 
 // 超级管理员独立页面：课题组设置（列表一页固定 8 条，新增时后端生成 UUID）
 const keyword = ref('')
@@ -128,6 +129,7 @@ const isEdit = ref(false)
 const saving = ref(false)
 const editId = ref(null)
 const admins = ref([])
+const detailId = ref(null)
 const form = reactive({ name: '', description: '', adminUserId: '', status: 1, code: '', groupId: null })
 
 async function load() {
@@ -157,9 +159,9 @@ function adminName(adminUserId) {
   return a ? a.realName || a.username : `用户 #${adminUserId}`
 }
 
-// 行点击跳转课题组详情页（成员管理 / 业务概况）
-function goDetail(row) {
-  router.push({ path: '/admin/group-detail', query: { id: row.id } })
+// 行点击打开课题组详情弹窗（成员管理 / 业务概况）
+function openDetail(row) {
+  detailId.value = row.id
 }
 
 async function openCreate() {
