@@ -18,6 +18,17 @@ const passwordService = require('./passwordService')
 const chatService = require('./chatService')
 // 通知数据清理：删除用户时硬删其全部通知
 const notificationService = require('./notificationService')
+// 笔记数据清理：删除用户时物理删除其全部笔记（仅学生有笔记）
+const noteRepository = require('../db/repositories/noteRepository')
+// 任务数据清理：删除用户时级联其创建的任务（含子表）与参与/操作/提醒记录
+const taskRepository = require('../db/repositories/taskRepository')
+const taskParticipantRepository = require('../db/repositories/taskParticipantRepository')
+const taskDynamicRepository = require('../db/repositories/taskDynamicRepository')
+const taskReminderRepository = require('../db/repositories/taskReminderRepository')
+// 周报数据清理：删除用户时级联其周报（含附件）与提醒日志
+const reportRepository = require('../db/repositories/reportRepository')
+const reportAttachmentRepository = require('../db/repositories/reportAttachmentRepository')
+const reportConfigRepository = require('../db/repositories/reportConfigRepository')
 const { runTransaction } = require('../db/connection')
 const {
   ROLE_SUPER_ADMIN,
@@ -376,8 +387,13 @@ async function resetPassword(id) {
  *   - 超级管理员不可删除；
  *   - 导师：无条件清空名下所有学生的导师绑定（全平台，含跨组脏数据）后再删；
  *   - 课题组管理员仍绑定课题组时禁止删除（需先更换管理员）。
- * 删除与聊天清理在同一事务：先标记该用户的聊天成员与消息、硬删双方都删的会话，
- * 再执行原删除逻辑（清导师绑定 / 物理删用户），任一步失败整体回滚。
+ * 删除与数据清理在同一事务：
+ *   - 聊天：标记成员与消息、硬删双方都删的会话；
+ *   - 通知：硬删该用户全部通知，并按业务硬删其创建的任务/周报的关联通知；
+ *   - 笔记：物理删除该用户全部笔记（含回收站）；
+ *   - 任务：物理删除其创建的任务（含子表），清其参与/操作/提醒记录；
+ *   - 周报：物理删除其周报（含附件）与提醒日志；
+ *   - 导师：清空名下学生绑定后再物理删除用户；任一步失败整体回滚。
  * 返回 { removedStudentCount }（导师场景为解绑的学生数）。
  */
 async function deleteUser(id) {
@@ -401,6 +417,26 @@ async function deleteUser(id) {
     await chatService.markUserDeleted(idNum)
     // 通知数据清理：硬删该用户全部通知
     await notificationService.purgeByUserDelete(idNum)
+    // 笔记数据清理：物理删除该用户全部笔记（含回收站）
+    await noteRepository.deleteByUser(idNum)
+    // 任务数据清理：先删其创建的任务（子表→主表），再清其参与/操作/提醒记录
+    const createdTaskIds = await taskRepository.listIdsByCreator(idNum)
+    await taskParticipantRepository.deleteByCreator(idNum)
+    await taskDynamicRepository.deleteByCreator(idNum)
+    await taskReminderRepository.deleteByCreator(idNum)
+    await taskRepository.deleteByCreator(idNum)
+    await taskParticipantRepository.deleteByUser(idNum)
+    await taskDynamicRepository.deleteByUser(idNum)
+    await taskReminderRepository.deleteByUser(idNum)
+    // 其创建的任务被物理删除后，指向这些任务的关联通知一并硬删（其他接收人不再看到失效记录）
+    if (createdTaskIds.length) await notificationService.hardDeleteByBizIds('task', createdTaskIds)
+    // 周报数据清理：先删附件再删周报；提醒日志一并清理
+    const reportIds = await reportRepository.listIdsByUser(idNum)
+    await reportAttachmentRepository.deleteByUser(idNum)
+    await reportRepository.deleteByUser(idNum)
+    await reportConfigRepository.deleteRemindLogsByUser(idNum)
+    // 其周报被物理删除后，指向这些周报的关联通知一并硬删
+    if (reportIds.length) await notificationService.hardDeleteByBizIds('report', reportIds)
     if (row.role === ROLE_MENTOR) {
       // 删除导师：先清空名下学生绑定，再物理删除，学生变为已入组未指定导师
       removedStudentCount = await userRepository.clearMentorBindings(idNum)

@@ -66,6 +66,21 @@ class ReportAttachmentRepository extends BaseRepository {
     return result.affectedRows
   }
 
+  // 物理删除某课题组全部周报的附件（删除课题组事务内调用）
+  async deleteByGroupId(groupId) {
+    const sql =
+      'DELETE FROM `report_attachment` WHERE report_id IN (SELECT id FROM `report` WHERE group_id = ?)'
+    const [result] = await this._execute(sql, [Number(groupId)], 'deleteByGroupId')
+    return result.affectedRows
+  }
+
+  // 物理删除某用户全部周报附件（删除用户事务内调用，按上传者定位）
+  async deleteByUser(userId) {
+    const sql = 'DELETE FROM `report_attachment` WHERE user_id = ?'
+    const [result] = await this._execute(sql, [Number(userId)], 'deleteByUser')
+    return result.affectedRows
+  }
+
   // 学生累计附件字节数（1GB 配额校验）
   async sumSizeByUser(userId) {
     const sql = 'SELECT COALESCE(SUM(file_size), 0) AS total FROM `report_attachment` WHERE user_id = ?'

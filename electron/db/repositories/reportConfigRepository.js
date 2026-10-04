@@ -56,6 +56,13 @@ class ReportConfigRepository extends BaseRepository {
     return result.affectedRows
   }
 
+  // 物理删除某课题组全部组模板（删除课题组事务内调用；系统内置模板 group_id IS NULL 不受影响）
+  async deleteGroupTemplates(groupId) {
+    const sql = 'DELETE FROM `report_template` WHERE group_id = ?'
+    const [result] = await this._execute(sql, [Number(groupId)], 'deleteGroupTemplates')
+    return result.affectedRows
+  }
+
   // ===== 免交周 =====
   async listHolidays(groupId) {
     const sql = 'SELECT * FROM `report_holiday` WHERE group_id = ? ORDER BY week_key DESC'
@@ -88,6 +95,20 @@ class ReportConfigRepository extends BaseRepository {
   async removeHoliday(groupId, weekKey) {
     const sql = 'DELETE FROM `report_holiday` WHERE group_id = ? AND week_key = ?'
     const [result] = await this._execute(sql, [Number(groupId), weekKey], 'removeHoliday')
+    return result.affectedRows
+  }
+
+  // 物理删除某课题组全部免交周（删除课题组事务内调用）
+  async deleteGroupHolidays(groupId) {
+    const sql = 'DELETE FROM `report_holiday` WHERE group_id = ?'
+    const [result] = await this._execute(sql, [Number(groupId)], 'deleteGroupHolidays')
+    return result.affectedRows
+  }
+
+  // 物理删除某用户全部提醒去重日志（删除用户事务内调用）
+  async deleteRemindLogsByUser(userId) {
+    const sql = 'DELETE FROM `report_remind_log` WHERE user_id = ?'
+    const [result] = await this._execute(sql, [Number(userId)], 'deleteRemindLogsByUser')
     return result.affectedRows
   }
 

@@ -203,6 +203,15 @@ async function softDeleteByBiz(bizType, bizId) {
   return notificationRepository.softDeleteByBiz(bizType, bizId)
 }
 
+/**
+ * 删除用户：其创建的任务/周报被物理删除后，按业务硬删关联通知（userService.deleteUser 事务内调用）
+ * @param {string} bizType
+ * @param {number[]} bizIds
+ */
+async function hardDeleteByBizIds(bizType, bizIds) {
+  return notificationRepository.hardDeleteByBizIds(bizType, bizIds)
+}
+
 module.exports = {
   createForUsers,
   createForGroup,
@@ -215,5 +224,6 @@ module.exports = {
   listTypes,
   purgeByUserDelete,
   hardDeleteByGroup,
-  softDeleteByBiz
+  softDeleteByBiz,
+  hardDeleteByBizIds
 }

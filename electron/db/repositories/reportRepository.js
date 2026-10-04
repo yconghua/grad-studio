@@ -397,6 +397,27 @@ class ReportRepository extends BaseRepository {
     const [result] = await this._execute(sql, [Number(id)], 'purge')
     return result.affectedRows
   }
+
+  // 物理删除某课题组全部周报（删除课题组事务内调用，附件先按组删）
+  async deleteByGroupId(groupId) {
+    const sql = 'DELETE FROM `report` WHERE group_id = ?'
+    const [result] = await this._execute(sql, [Number(groupId)], 'deleteByGroupId')
+    return result.affectedRows
+  }
+
+  // 某用户全部周报 id（删除用户事务内调用，用于级联清理其周报与关联通知）
+  async listIdsByUser(userId) {
+    const sql = 'SELECT id FROM `report` WHERE user_id = ?'
+    const [rows] = await this._execute(sql, [Number(userId)], 'listIdsByUser')
+    return rows.map((r) => Number(r.id))
+  }
+
+  // 物理删除某用户全部周报（删除用户事务内调用，附件先按用户删）
+  async deleteByUser(userId) {
+    const sql = 'DELETE FROM `report` WHERE user_id = ?'
+    const [result] = await this._execute(sql, [Number(userId)], 'deleteByUser')
+    return result.affectedRows
+  }
 }
 
 module.exports = new ReportRepository()

@@ -151,6 +151,16 @@ class NoteRepository extends BaseRepository {
     const [result] = await this._execute(sql, [Number(id), Number(userId)], 'purge')
     return result.affectedRows
   }
+
+  /**
+   * 物理删除某用户全部笔记（删除用户事务内调用，含回收站；用户已删除，软删无意义）
+   * @param {number} userId
+   */
+  async deleteByUser(userId) {
+    const sql = 'DELETE FROM `note` WHERE user_id = ?'
+    const [result] = await this._execute(sql, [Number(userId)], 'deleteByUser')
+    return result.affectedRows
+  }
 }
 
 // 导出单例

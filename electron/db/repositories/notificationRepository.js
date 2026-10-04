@@ -179,6 +179,21 @@ class NotificationRepository extends BaseRepository {
   }
 
   /**
+   * 按业务硬删一批关联通知（删除用户事务内调用：其创建的任务/周报被物理删除后，
+   * 其他接收人通知中心里指向这些业务的记录一并清掉，避免点击后跳转失效）
+   * @param {string} bizType
+   * @param {number[]} bizIds
+   */
+  async hardDeleteByBizIds(bizType, bizIds) {
+    const ids = (Array.isArray(bizIds) ? bizIds : []).map(Number).filter((n) => Number.isFinite(n) && n > 0)
+    if (ids.length === 0) return 0
+    const marks = ids.map(() => '?').join(', ')
+    const sql = `DELETE FROM \`notification\` WHERE biz_type = ? AND biz_id IN (${marks})`
+    const [result] = await this._execute(sql, [bizType, ...ids], 'hardDeleteByBizIds')
+    return result.affectedRows
+  }
+
+  /**
    * 硬删某用户的全部通知（删除用户事务内调用）
    * @param {number} userId
    */
@@ -189,13 +204,12 @@ class NotificationRepository extends BaseRepository {
   }
 
   /**
-   * 硬删某课题组的公告/组会通知（删除课题组事务内调用；聊天通知不存在，不涉及）
+   * 硬删某课题组的全部通知（删除课题组事务内调用；覆盖公告/组会/任务/周报等所有业务）
    * @param {number} groupId
    */
   async hardDeleteByGroup(groupId) {
-    const sql =
-      'DELETE FROM `notification` WHERE group_id = ? AND biz_type IN (?, ?)'
-    const [result] = await this._execute(sql, [Number(groupId), 'notice', 'meeting'], 'hardDeleteByGroup')
+    const sql = 'DELETE FROM `notification` WHERE group_id = ?'
+    const [result] = await this._execute(sql, [Number(groupId)], 'hardDeleteByGroup')
     return result.affectedRows
   }
 

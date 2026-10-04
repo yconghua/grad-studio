@@ -15,6 +15,13 @@ const groupNoticeRepository = require('../db/repositories/groupNoticeRepository'
 const groupNoticeReadRepository = require('../db/repositories/groupNoticeReadRepository')
 const groupMeetingRepository = require('../db/repositories/groupMeetingRepository')
 const groupMeetingParticipantRepository = require('../db/repositories/groupMeetingParticipantRepository')
+const taskRepository = require('../db/repositories/taskRepository')
+const taskParticipantRepository = require('../db/repositories/taskParticipantRepository')
+const taskDynamicRepository = require('../db/repositories/taskDynamicRepository')
+const taskReminderRepository = require('../db/repositories/taskReminderRepository')
+const reportRepository = require('../db/repositories/reportRepository')
+const reportAttachmentRepository = require('../db/repositories/reportAttachmentRepository')
+const reportConfigRepository = require('../db/repositories/reportConfigRepository')
 const authService = require('./authService')
 const userService = require('./userService')
 const notificationService = require('./notificationService')
@@ -219,7 +226,10 @@ async function updateGroup(id, { name, description, adminUserId, status } = {}) 
 /**
  * 删除课题组（物理删除）：课题组下仍有启用状态的导师/学生成员时禁止删除。
  * 级联顺序（同一事务）：清空该组全部用户的组归属与导师绑定（含停用成员、组管）
- * → 删组会参与人 → 删组会 → 删公告已读 → 删公告 → 删课题组；任一步失败整体回滚。
+ * → 删组会参与人 → 删组会 → 删公告已读 → 删公告
+ * → 删任务参与人 → 删任务动态 → 删任务提醒 → 删任务
+ * → 删周报附件 → 删周报 → 删组模板 → 删免交周
+ * → 删通知中心（该组全部业务通知） → 删课题组；任一步失败整体回滚。
  */
 async function deleteGroup(id) {
   const idNum = Number(id)
@@ -236,7 +246,17 @@ async function deleteGroup(id) {
     // 公告级联：先清已读，再删公告
     await groupNoticeReadRepository.deleteByGroupId(idNum)
     await groupNoticeRepository.deleteByGroupId(idNum)
-    // 通知中心级联：硬删该组公告/组会通知（聊天通知不存在，不涉及）
+    // 任务级联：先删子表（参与人/动态/提醒），再删任务主表
+    await taskParticipantRepository.deleteByGroupId(idNum)
+    await taskDynamicRepository.deleteByGroupId(idNum)
+    await taskReminderRepository.deleteByGroupId(idNum)
+    await taskRepository.deleteByGroupId(idNum)
+    // 周报级联：先删附件，再删周报；组模板与免交周一并清理
+    await reportAttachmentRepository.deleteByGroupId(idNum)
+    await reportRepository.deleteByGroupId(idNum)
+    await reportConfigRepository.deleteGroupTemplates(idNum)
+    await reportConfigRepository.deleteGroupHolidays(idNum)
+    // 通知中心级联：硬删该组全部业务通知（公告/组会/任务/周报）
     await notificationService.hardDeleteByGroup(idNum)
     await groupRepository.deleteById(idNum)
   })

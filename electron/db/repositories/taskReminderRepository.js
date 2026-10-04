@@ -46,6 +46,29 @@ class TaskReminderRepository {
     const [result] = await this._execute(sql, [Number(taskId), Number(userId), remindType, remindDate], 'markSent')
     return result.affectedRows
   }
+
+  /** 物理删除某课题组全部任务的提醒记录（删除课题组事务内调用） */
+  async deleteByGroupId(groupId) {
+    const sql =
+      'DELETE FROM `task_reminder` WHERE task_id IN (SELECT id FROM `task` WHERE group_id = ?)'
+    const [result] = await this._execute(sql, [Number(groupId)], 'deleteByGroupId')
+    return result.affectedRows
+  }
+
+  /** 物理删除某用户创建的全部任务的提醒记录（删除用户事务内调用） */
+  async deleteByCreator(creatorId) {
+    const sql =
+      'DELETE FROM `task_reminder` WHERE task_id IN (SELECT id FROM `task` WHERE creator_id = ?)'
+    const [result] = await this._execute(sql, [Number(creatorId)], 'deleteByCreator')
+    return result.affectedRows
+  }
+
+  /** 物理删除某用户全部提醒记录（删除用户事务内调用，仅清其收到的提醒、不删任务本身） */
+  async deleteByUser(userId) {
+    const sql = 'DELETE FROM `task_reminder` WHERE user_id = ?'
+    const [result] = await this._execute(sql, [Number(userId)], 'deleteByUser')
+    return result.affectedRows
+  }
 }
 
 module.exports = new TaskReminderRepository()

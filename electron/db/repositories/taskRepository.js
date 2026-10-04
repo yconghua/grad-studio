@@ -220,6 +220,36 @@ class TaskRepository extends BaseRepository {
   }
 
   /**
+   * 物理删除某课题组全部任务（删除课题组事务内调用；子表先按组删）
+   * @param {number} groupId
+   */
+  async deleteByGroupId(groupId) {
+    const sql = 'DELETE FROM `task` WHERE group_id = ?'
+    const [result] = await this._execute(sql, [Number(groupId)], 'deleteByGroupId')
+    return result.affectedRows
+  }
+
+  /**
+   * 某用户创建的全部任务 id（删除用户事务内调用，用于级联清理其创建的任务与关联通知）
+   * @param {number} creatorId
+   */
+  async listIdsByCreator(creatorId) {
+    const sql = 'SELECT id FROM `task` WHERE creator_id = ?'
+    const [rows] = await this._execute(sql, [Number(creatorId)], 'listIdsByCreator')
+    return rows.map((r) => Number(r.id))
+  }
+
+  /**
+   * 物理删除某用户创建的全部任务（删除用户事务内调用；子表先按创建者删）
+   * @param {number} creatorId
+   */
+  async deleteByCreator(creatorId) {
+    const sql = 'DELETE FROM `task` WHERE creator_id = ?'
+    const [result] = await this._execute(sql, [Number(creatorId)], 'deleteByCreator')
+    return result.affectedRows
+  }
+
+  /**
    * 扫描：即将到期任务（截止时间在 [now, now+hours]，待办/进行中）
    * @param {number} hours
    */
