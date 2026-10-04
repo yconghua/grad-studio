@@ -11,8 +11,8 @@ function ok(data) {
   return { success: true, code: 0, message: 'success', data: data === undefined ? null : data }
 }
 
-function fail(message, code = 400) {
-  return { success: false, code, message, data: null }
+function fail(message, code = 400, data = null) {
+  return { success: false, code, message, data }
 }
 
 module.exports = { ok, fail }

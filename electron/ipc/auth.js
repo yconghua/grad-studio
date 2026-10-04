@@ -6,11 +6,15 @@
  */
 const authService = require('../services/authService')
 const ticketService = require('../services/ticketService')
+const captchaService = require('../services/captchaService')
 const ApiError = require('../services/apiError')
 const { handler } = require('./helper')
 
 function register(ipcMain) {
-  // 登录校验（用户名/密码区分大小写）
+  // 获取图形验证码：返回 { captchaId, svg }，答案仅存主进程内存
+  ipcMain.handle('auth:captcha', handler(() => captchaService.create()))
+
+  // 登录校验（用户名/密码区分大小写；连续失败后需带验证码）
   ipcMain.handle('auth:login', handler((_evt, payload) => authService.login(payload || {})))
 
   // 退出登录（清除登录态；不吊销免密票据）

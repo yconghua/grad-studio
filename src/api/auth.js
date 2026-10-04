@@ -1,6 +1,10 @@
-// 认证相关接口：登录、退出、当前用户、修改密码、切换账号
-export function login(username, password) {
-  return window.api.auth.login({ username, password })
+// 认证相关接口：登录、验证码、退出、当前用户、修改密码、切换账号
+export function login(payload = {}) {
+  return window.api.auth.login(payload)
+}
+// 获取图形验证码：返回 { captchaId, svg }，渲染层以 data URL 展示
+export function getCaptcha() {
+  return window.api.auth.getCaptcha()
 }
 export function logout() {
   return window.api.auth.logout()

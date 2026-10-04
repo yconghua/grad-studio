@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('api', {
   // 认证相关（对应 ipc/auth.js，通道前缀 auth:*）
   auth: {
     login: createInvoke('auth:login'),
+    getCaptcha: createInvoke('auth:captcha'),
     logout: createInvoke('auth:logout'),
     getCurrentUser: createInvoke('auth:get-current-user'),
     changePassword: createInvoke('auth:change-password'),

@@ -65,11 +65,43 @@
               @keyup.enter="onSubmit"
             />
 
+            <template v-if="needCaptcha">
+              <label class="field-label" for="captcha">验证码</label>
+              <div class="captcha-row">
+                <input
+                  id="captcha"
+                  v-model="captchaCode"
+                  class="field-input captcha-input"
+                  type="text"
+                  maxlength="4"
+                  placeholder="请输入验证码"
+                  autocomplete="off"
+                  @keyup.enter="onSubmit"
+                />
+                <button
+                  type="button"
+                  class="captcha-img"
+                  title="看不清？点击刷新"
+                  @click="loadCaptcha"
+                >
+                  <img v-if="captchaSvg" :src="captchaSvg" alt="验证码，点击刷新" />
+                  <span v-else>点击获取</span>
+                </button>
+              </div>
+            </template>
+
             <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
             <button class="submit-btn" type="submit" :disabled="loading">
               {{ loading ? '登录中…' : '登 录' }}
             </button>
+
+            <label class="agree-row">
+              <input v-model="agreed" type="checkbox" class="agree-check" />
+              <span class="agree-text">
+                我已阅读并同意<a href="#" @click.prevent="openAgreement('user')">《用户协议》</a>和<a href="#" @click.prevent="openAgreement('privacy')">《隐私政策》</a>
+              </span>
+            </label>
           </form>
 
           <div class="card-foot">
@@ -99,6 +131,20 @@
         </div>
         <div class="privacy-body">
           <p>管理员联系方式：1509054114@qq.com</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 协议弹窗（用户协议 / 隐私政策共用一套结构） -->
+    <div v-if="agreementType" class="privacy-overlay">
+      <div class="privacy-backdrop" @click="agreementType = ''"></div>
+      <div class="privacy-dialog" role="dialog" aria-modal="true">
+        <div class="privacy-head">
+          <h3>{{ agreementType === 'user' ? '用户协议' : '隐私政策' }}</h3>
+          <button type="button" class="privacy-close" @click="agreementType = ''" aria-label="关闭">×</button>
+        </div>
+        <div class="privacy-body agreement-body">
+          {{ agreementType === 'user' ? USER_AGREEMENT : PRIVACY_POLICY }}
         </div>
       </div>
     </div>
@@ -133,11 +179,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { login, deleteDb, getDbInfo, getPublicInfo } from '../../api'
+import { login, getCaptcha, deleteDb, getDbInfo, getPublicInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
 import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
 import { ROLE_HOME } from '../../router'
+import { USER_AGREEMENT, PRIVACY_POLICY } from './agreements'
 import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/dialogs'
 import ParticleBackground from '../../components/particles/ParticleBackground.vue'
 import AppTitleBar from '../../components/layout/AppTitleBar.vue'
@@ -154,17 +201,58 @@ const password = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
 
+// 图形验证码（连续登录失败后强制显示）：captchaId + SVG 由主进程下发，答案不落前端
+const needCaptcha = ref(false)
+const captchaId = ref('')
+const captchaCode = ref('')
+const captchaSvg = ref('')
+// 协议确认：默认不勾选，未勾选时拦截登录
+const agreed = ref(false)
+const agreementType = ref('')
+
+// 获取/刷新验证码：主进程返回 captchaId + SVG，以 data URL 展示
+async function loadCaptcha() {
+  try {
+    const res = await getCaptcha()
+    if (res && res.success && res.data) {
+      captchaId.value = res.data.captchaId
+      captchaSvg.value = 'data:image/svg+xml;utf8,' + encodeURIComponent(res.data.svg)
+      captchaCode.value = ''
+    }
+  } catch (e) {
+    // 获取失败不阻塞登录（验证码为增强防线，非必选通道）
+  }
+}
+
+// 打开协议弹窗（'user' 用户协议 / 'privacy' 隐私政策）
+function openAgreement(type) {
+  agreementType.value = type
+}
+
 // 登录：成功后按角色跳转对应工作台；首次登录（mustChangePassword）先强制改密
 async function onSubmit() {
   if (loading.value) return
   errorMsg.value = ''
+  if (!agreed.value) {
+    errorMsg.value = '请先阅读并同意用户协议与隐私政策'
+    return
+  }
   if (!username.value || !password.value) {
     errorMsg.value = '请输入账号和密码'
     return
   }
+  if (needCaptcha.value && !captchaCode.value) {
+    errorMsg.value = '请输入验证码'
+    return
+  }
   loading.value = true
   try {
-    const res = await login(username.value, password.value)
+    const res = await login({
+      username: username.value,
+      password: password.value,
+      captchaId: captchaId.value,
+      captchaCode: captchaCode.value
+    })
     if (res && res.success) {
       const user = res.data && res.data.user
       if (!user) {
@@ -181,6 +269,11 @@ async function onSubmit() {
       }
       // 登录成功：保持 loading，防止页面跳转完成前重复提交
       return
+    }
+    // 失败：主进程要求验证码时显示区域并自动刷新
+    if (res && res.data && res.data.needCaptcha) {
+      needCaptcha.value = true
+      await loadCaptcha()
     }
     errorMsg.value = (res && res.message) || '登录失败，请重试'
   } catch (e) {
@@ -552,6 +645,97 @@ async function onDeleteConfirmed(id) {
 .submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+/* ===== 验证码区域（连续失败后显示） ===== */
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.captcha-input {
+  flex: 1;
+  min-width: 0;
+}
+.captcha-img {
+  flex: none;
+  width: 112px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--gray-soft);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--muted);
+  transition: border-color 0.2s;
+}
+.captcha-img img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.captcha-img:hover {
+  border-color: var(--primary);
+}
+/* ===== 协议确认行（默认不勾选，未勾选拦截登录） ===== */
+.agree-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+}
+.agree-check {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  position: relative;
+}
+.agree-check:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.agree-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.agree-text {
+  min-width: 0;
+}
+.agree-text a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.agree-text a:hover {
+  opacity: 0.85;
+}
+/* 协议全文按换行分段展示 */
+.agreement-body {
+  white-space: pre-line;
 }
 /* 卡片底部：忘记密码入口 */
 .card-foot {

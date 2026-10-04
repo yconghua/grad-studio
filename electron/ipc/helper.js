@@ -14,7 +14,7 @@ function handler(fn) {
       return ok(await fn(event, payload))
     } catch (err) {
       if (err instanceof ApiError) {
-        return fail(err.message, err.code)
+        return fail(err.message, err.code, err.data)
       }
       console.error('[IPC] 未预期异常:', err)
       return fail('服务器内部错误，请稍后重试', 500)

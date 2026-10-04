@@ -17,6 +17,8 @@ const notificationPoller = require('./notificationPoller')
 const { ROLE_SUPER_ADMIN, ACCOUNT_STATUS_ENABLED } = require('../../shared/constants')
 // 免密票据：登录成功后签发/刷新；切换账号时凭票据免密登录（仅登录后切换路径使用）
 const ticketService = require('./ticketService')
+// 图形验证码：连续失败达到阈值后强制校验（自适应防爆破）
+const captchaService = require('./captchaService')
 
 // 主进程内存中的当前登录用户（单用户桌面应用，同一时刻只允许一人登录）
 let currentUser = null
@@ -43,18 +45,33 @@ function toSafeUser(row) {
 /**
  * 登录校验：用户名 / 密码均区分大小写（users.username 列排序规则 utf8mb4_bin），
  * 密码用 bcrypt 哈希比对；失败统一返回「账号或密码错误」，不暴露具体原因。
+ * 验证码：连续失败 ≥3 次强制要求；只要前端传了验证码也一并校验。
+ * 失败响应 data.needCaptcha=true 告知前端显示并刷新验证码。
  */
-async function login({ username, password } = {}) {
+async function login({ username, password, captchaId, captchaCode } = {}) {
   if (!username || !password) {
     throw new ApiError('请输入账号和密码', 400)
   }
+  const captchaRequired = captchaService.shouldRequireCaptcha()
+  if (captchaRequired && (!captchaId || !captchaCode)) {
+    throw new ApiError('请输入验证码', 400, { needCaptcha: true })
+  }
+  if (captchaRequired || captchaCode) {
+    if (!captchaService.verify(captchaId, captchaCode)) {
+      captchaService.recordFailure()
+      throw new ApiError('验证码错误或已过期', 400, { needCaptcha: true })
+    }
+  }
   const user = await userRepository.findByUsername(username)
   if (!user || user.status !== ACCOUNT_STATUS_ENABLED) {
-    throw new ApiError('账号或密码错误', 400)
+    captchaService.recordFailure()
+    throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha() })
   }
   if (!passwordService.verifyPassword(password, user.password_hash)) {
-    throw new ApiError('账号或密码错误', 400)
+    captchaService.recordFailure()
+    throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha() })
   }
+  captchaService.resetFailures()
   const safe = toSafeUser(user)
   currentUser = safe
   // 登录成功后签发 / 刷新免密票据（仅用于登录后切换账号）
