@@ -114,29 +114,6 @@
             </div>
           </div>
 
-          <!-- 提交进展表单（参与人，待办/进行中） -->
-          <div v-if="progressVisible" class="panel progress-panel">
-            <div class="panel-head">
-              <h3 class="panel-title">提交进展</h3>
-              <button class="btn btn-sm" type="button" @click="progressVisible = false">收起</button>
-            </div>
-            <div class="prog-form">
-              <div class="prog-row">
-                <span class="meta-label">进度记录</span>
-                <textarea
-                  v-model="progressNote"
-                  class="textarea"
-                  rows="3"
-                  maxlength="500"
-                  placeholder="请填写本次进展记录（必填）"
-                ></textarea>
-              </div>
-              <div class="prog-actions">
-                <button class="btn btn-primary" type="button" @click="submitProgress">提交</button>
-              </div>
-            </div>
-          </div>
-
           <!-- 动态 -->
           <div class="panel">
             <div class="panel-head">
@@ -159,10 +136,19 @@
       </div>
     </div>
   </div>
+
+  <!-- 提交进展弹窗（参与人，待办/进行中） -->
+  <TaskProgressDialog
+    v-if="progressVisible"
+    :task-id="taskId"
+    @close="progressVisible = false"
+    @saved="onProgressSaved"
+  />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import TaskProgressDialog from './TaskProgressDialog.vue'
 import {
   getTaskDetail,
   listTaskDynamics,
@@ -171,7 +157,6 @@ import {
   cancelTask,
   reopenTask,
   completeTask,
-  submitTaskProgress,
   addTaskParticipants,
   removeTaskParticipant,
   getTaskParticipantOptions
@@ -340,30 +325,16 @@ async function doDelete() {
   }
 }
 
-// ===== 参与人操作 =====
+// ===== 提交进展（独立弹窗） =====
 const progressVisible = ref(false)
-const progressNote = ref('')
 
 function openProgress() {
-  progressNote.value = ''
   progressVisible.value = true
 }
 
-async function submitProgress() {
-  const note = progressNote.value.trim()
-  if (!note) {
-    dialogAlert('请填写进度记录')
-    return
-  }
-  const res = await submitTaskProgress(props.taskId, note)
-  if (res && res.success) {
-    await refreshAfterWrite('进展已提交')
-    progressVisible.value = false
-    emit('changed')
-    load()
-  } else {
-    dialogAlert((res && res.message) || '提交失败')
-  }
+function onProgressSaved() {
+  emit('changed')
+  load()
 }
 
 async function doComplete() {
@@ -528,42 +499,5 @@ onMounted(load)
   color: var(--text-disabled);
   font-size: 12px;
   flex-shrink: 0;
-}
-.progress-panel {
-  border: 1px solid var(--border);
-}
-.prog-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.prog-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-.prog-row .meta-label {
-  line-height: 34px;
-}
-.prog-row .textarea {
-  flex: 1;
-  min-width: 0;
-  min-height: 72px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-family: inherit;
-  color: var(--text);
-  resize: vertical;
-  outline: none;
-  box-sizing: border-box;
-}
-.prog-row .textarea:focus {
-  border-color: var(--primary);
-}
-.prog-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 </style>

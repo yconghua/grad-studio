@@ -163,6 +163,7 @@ async function onDownload(a) {
 }
 .modal-body {
   flex: 1 1 auto;
+  min-height: 0; /* 允许 flex 子项收缩，长内容时滚动而非撑爆弹窗 */
   overflow-y: auto;
   padding: 14px 16px;
   display: flex;
@@ -184,6 +185,8 @@ async function onDownload(a) {
   border-radius: var(--radius-md);
   padding: 10px 12px;
   min-height: 100px;
+  max-height: 45vh; /* 内容过长时自身滚动，避免盖住下方附件与评语 */
+  overflow: auto;
 }
 .view-review {
   border: 1px solid var(--border);

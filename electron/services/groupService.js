@@ -119,10 +119,10 @@ async function assertGroupWritable(groupId) {
 // ===== 超级管理员：课题组管理 =====
 
 /**
- * 课题组分页列表：关键字（名称/标识号）过滤
+ * 课题组分页列表：关键字（名称/标识号）过滤 + 后端排序
  */
-async function listGroups({ page, pageSize, keyword } = {}) {
-  const result = await groupRepository.pagedList({ page, pageSize, keyword })
+async function listGroups({ page, pageSize, keyword, sortField, sortOrder } = {}) {
+  const result = await groupRepository.pagedList({ page, pageSize, keyword, sortField, sortOrder })
   return pageResult(result, toGroupDto)
 }
 

@@ -42,6 +42,11 @@
               {{ loadingMembers ? '加载中…' : '暂无可选成员（请先在成员管理中维护）' }}
             </div>
             <div v-else class="chk-grid">
+              <label class="chk chk-select-all">
+                <input :checked="allChecked" :indeterminate="someChecked" type="checkbox" @change="toggleAll" />
+                <span>全选</span>
+                <span class="chk-role">{{ form.participantIds.length }} 已选</span>
+              </label>
               <label v-for="m in memberOptions" :key="m.id" class="chk">
                 <input v-model="form.participantIds" type="checkbox" :value="m.id" />
                 <span>{{ m.realName || m.username }}</span>
@@ -61,7 +66,7 @@
 
 <script setup>
 // 新建任务弹窗：任务列表与组管工作台的创建入口统一走此弹窗，不再跳转独立页面
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { createTask, getTaskParticipantOptions } from '../../api/task'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useSession } from '../../composables/useSession'
@@ -86,6 +91,29 @@ const form = reactive({
 const memberOptions = ref([])
 const loadingMembers = ref(false)
 const submitting = ref(false)
+
+// 全选状态：候选全被勾选 / 部分勾选（半选三态）
+const allChecked = computed(() => {
+  const ids = memberOptions.value.map((m) => Number(m.id))
+  return ids.length > 0 && ids.every((id) => form.participantIds.some((x) => Number(x) === id))
+})
+const someChecked = computed(() => {
+  const ids = memberOptions.value.map((m) => Number(m.id))
+  const n = ids.filter((id) => form.participantIds.some((x) => Number(x) === id)).length
+  return n > 0 && n < ids.length
+})
+// 全选：并入候选全部 id；取消全选：仅移除候选内的 id（保留候选外已有项）
+function toggleAll(e) {
+  const ids = memberOptions.value.map((m) => Number(m.id))
+  if (e.target.checked) {
+    const set = new Set(form.participantIds.map(Number))
+    ids.forEach((id) => set.add(id))
+    form.participantIds = [...set]
+  } else {
+    const removed = new Set(ids)
+    form.participantIds = form.participantIds.filter((id) => !removed.has(Number(id)))
+  }
+}
 
 async function loadOptions() {
   loadingMembers.value = true
@@ -205,6 +233,17 @@ onMounted(loadOptions)
   font-size: 14px;
   color: var(--text-2-strong);
   cursor: pointer;
+}
+/* 全选行：与候选列表做视觉分隔 */
+.chk-select-all {
+  flex-basis: 100%;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+.chk-select-all .chk-role {
+  font-weight: 400;
 }
 .chk-role {
   font-size: 12px;

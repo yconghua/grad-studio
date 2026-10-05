@@ -16,7 +16,7 @@
 
           <div class="form-row">
             <label class="form-label">描述</label>
-            <textarea v-model="form.description" class="textarea" rows="4" maxlength="2000"></textarea>
+            <textarea v-model="form.description" class="textarea" rows="4" style="min-height: 120px" maxlength="2000"></textarea>
           </div>
 
           <div class="form-row">

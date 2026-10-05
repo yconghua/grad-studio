@@ -70,6 +70,11 @@
           <label>参与人（本组启用状态的导师 / 学生）</label>
           <p class="hint" v-if="!memberOptions.length">加载参与人候选失败或本组暂无可用成员</p>
           <div class="member-picker" v-else>
+            <label class="member-item select-all">
+              <input type="checkbox" :checked="allChecked" :indeterminate="someChecked" @change="toggleAll" />
+              <span class="ellipsis">全选</span>
+              <span class="tag">{{ form.participantIds.length }} 已选</span>
+            </label>
             <label v-for="m in memberOptions" :key="m.id" class="member-item">
               <input type="checkbox" :value="m.id" v-model="form.participantIds" />
               <span class="ellipsis">{{ m.realName || m.username }}</span>
@@ -124,6 +129,29 @@ const form = reactive({
 const memberOptions = ref([])
 const saving = ref(false)
 const contentEl = ref(null)
+
+// 全选状态：候选全被勾选 / 部分勾选（半选三态）
+const allChecked = computed(() => {
+  const ids = memberOptions.value.map((m) => Number(m.id))
+  return ids.length > 0 && ids.every((id) => form.participantIds.some((x) => Number(x) === id))
+})
+const someChecked = computed(() => {
+  const ids = memberOptions.value.map((m) => Number(m.id))
+  const n = ids.filter((id) => form.participantIds.some((x) => Number(x) === id)).length
+  return n > 0 && n < ids.length
+})
+// 全选：并入候选全部 id；取消全选：仅移除候选内的 id（保留候选外已有项）
+function toggleAll(e) {
+  const ids = memberOptions.value.map((m) => Number(m.id))
+  if (e.target.checked) {
+    const set = new Set(form.participantIds.map(Number))
+    ids.forEach((id) => set.add(id))
+    form.participantIds = [...set]
+  } else {
+    const removed = new Set(ids)
+    form.participantIds = form.participantIds.filter((id) => !removed.has(Number(id)))
+  }
+}
 
 const title = computed(() => (props.mode === 'edit' ? '编辑会议' : '新建会议'))
 // 草稿可存草稿；编辑已发布/已归档会议时只显示「保存」
@@ -300,6 +328,17 @@ function insertMd(before, after, placeholder) {
   gap: 6px;
   font-size: 13px;
   min-width: 0;
+}
+/* 全选行：与候选列表做视觉分隔 */
+.member-item.select-all {
+  grid-column: 1 / -1;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  font-weight: 600;
+}
+.member-item.select-all .tag {
+  margin-left: auto;
+  font-weight: 400;
 }
 @media (max-width: 900px) {
   .md-editor {
