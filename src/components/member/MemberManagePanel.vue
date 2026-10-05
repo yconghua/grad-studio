@@ -143,6 +143,7 @@ import {
 } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { roleText, statusText } from '../../utils/labels'
 
@@ -381,6 +382,11 @@ watch(() => props.groupId, () => {
 })
 
 onMounted(() => {
+  loadMembers()
+  loadMentors()
+})
+// 数据变动（本页写操作或外部改动）后后台静默重拉成员与导师列表
+useAutoRefresh(() => {
   loadMembers()
   loadMentors()
 })

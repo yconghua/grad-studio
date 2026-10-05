@@ -1,0 +1,101 @@
+/**
+ * 全局数据版本轮询（DataVersionService）
+ *
+ * 职责：每 15 秒轻量查询业务表「行数 + 最大时间列」指纹，指纹变化即广播
+ * db:changed，渲染层所有在线页面收到后后台静默重拉，实现
+ * "数据库有变动即刷新、前端无感知"（配合写后立即重拉，见 useGlobalRefresh）。
+ *
+ * 监控范围：页面常驻数据涉及的 12 张业务表；聊天 / 通知已有独立轮询
+ * （chatPoller / notificationPoller），不纳入本服务，避免同一数据双路刷新。
+ * 时间列按表实际命名：updated_at / update_time / created_at（追加型表）。
+ *
+ * 生命周期：main.js 窗口创建后 start()，应用退出前 stop()（不依赖登录态）。
+ */
+const { BrowserWindow } = require('electron')
+const { acquireConn } = require('../db/connection')
+
+// 轮询间隔（毫秒）
+const POLL_INTERVAL_MS = 15000
+
+// 监控表清单：表名 → 时间列（指纹 = 行数 + 该列最大值）
+const MONITOR_TABLES = [
+  ['users', 'updated_at'],
+  ['groups', 'updated_at'],
+  ['system_configs', 'updated_at'],
+  ['task', 'updated_at'],
+  ['task_participant', 'updated_at'],
+  ['task_dynamic', 'created_at'],
+  ['group_notice', 'update_time'],
+  ['group_meeting', 'update_time'],
+  ['group_meeting_participant', 'create_time'],
+  ['report', 'updated_at'],
+  ['report_attachment', 'created_at'],
+  ['note', 'updated_at']
+]
+
+let timer = null
+let lastFingerprint = null
+
+// 一次查询全部表的指纹（单条 UNION ALL，一次往返）
+async function readFingerprint() {
+  const parts = MONITOR_TABLES.map(
+    ([table, timeCol]) =>
+      `SELECT '${table}' AS t, COUNT(*) AS c, MAX(\`${timeCol}\`) AS m FROM \`${table}\``
+  )
+  const sql = parts.join(' UNION ALL ')
+  const { conn, release } = await acquireConn()
+  try {
+    const [rows] = await conn.execute(sql)
+    return rows
+      .map((r) => `${r.t}:${Number(r.c)}:${r.m || ''}`)
+      .sort()
+      .join('|')
+  } finally {
+    release()
+  }
+}
+
+// 广播给所有打开的窗口（遍历全部窗口，防未来多窗口场景）
+function broadcast() {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('db:changed')
+  }
+}
+
+// 单轮检测：指纹变化则更新基线并广播
+async function tick() {
+  try {
+    const fp = await readFingerprint()
+    if (lastFingerprint === null) {
+      // 首次仅建基线，不广播（避免启动即触发全页刷新）
+      lastFingerprint = fp
+      return
+    }
+    if (fp !== lastFingerprint) {
+      lastFingerprint = fp
+      console.log('[dataVersion] 业务数据版本变化，广播 db:changed')
+      broadcast()
+    }
+  } catch (err) {
+    // 查询失败静默跳过本轮，等待下一轮重试
+    console.error('[dataVersion] 指纹查询失败:', err && err.message)
+  }
+}
+
+// 应用就绪后启动轮询
+function start() {
+  stop()
+  lastFingerprint = null
+  timer = setInterval(tick, POLL_INTERVAL_MS)
+}
+
+// 应用退出前停止轮询
+function stop() {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+  lastFingerprint = null
+}
+
+module.exports = { start, stop }

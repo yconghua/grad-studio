@@ -17,17 +17,23 @@
 import { ref, onMounted } from 'vue'
 import MemberManagePanel from '../../components/member/MemberManagePanel.vue'
 import { getOwnGroup } from '../../api'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 const groupId = ref(null)
 const groupStopped = ref(false)
 
-onMounted(async () => {
+// 加载本组信息（挂载时与数据变动时共用）
+async function loadGroup() {
   const res = await getOwnGroup()
   if (res && res.success) {
     groupId.value = res.data.id
     groupStopped.value = res.data.status === 0
   }
-})
+}
+
+onMounted(loadGroup)
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持组状态最新
+useAutoRefresh(loadGroup)
 </script>
 
 <style scoped>

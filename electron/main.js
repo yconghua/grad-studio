@@ -26,6 +26,8 @@ const ticketService = require('./services/ticketService')
 // 任务定时扫描：到期/逾期/待验收超时提醒（应用 ready 后启动）
 const taskScheduler = require('./services/taskScheduler')
 const reportScheduler = require('./services/reportScheduler')
+// 全局数据版本轮询：业务表指纹变化时广播 db:changed（页面后台静默重拉）
+const dataVersionService = require('./services/dataVersionService')
 // scan-server 独立进程管理器：扫码登录时按需拉起，应用退出时停止
 const scanServerManager = require('./services/scanServerManager')
 // 路由聚合：一行注册全部 auth:* / sys:* 等 IPC 接口
@@ -203,6 +205,8 @@ if (!gotTheLock) {
     taskScheduler.start()
     // 启动周报定时提醒（未交 / 批阅超时 / 打回未改）
     reportScheduler.start()
+    // 启动全局数据版本轮询（业务表指纹变化 → 广播 db:changed，页面无感刷新）
+    dataVersionService.start()
     // 创建窗口，并挂载系统托盘
     const mainWin = createWindow()
     createTray(mainWin)
@@ -212,6 +216,7 @@ if (!gotTheLock) {
   app.on('will-quit', () => {
     taskScheduler.stop()
     reportScheduler.stop()
+    dataVersionService.stop()
     scanServerManager.stop()
   })
 

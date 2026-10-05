@@ -21,18 +21,24 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getIntroduction } from '../../api'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 课题组管理员独立页面：系统简介
 const info = ref(null)
 const loading = ref(true)
-onMounted(async () => {
+// 加载系统简介（挂载时与数据变动时共用）
+async function refreshAll() {
   try {
     const res = await getIntroduction()
     if (res && res.success) info.value = res.data
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(refreshAll)
+// 数据变动（本页写操作或外部改动）后后台静默重拉
+useAutoRefresh(refreshAll)
 </script>
 
 <style scoped>

@@ -77,6 +77,7 @@ import { useRoute } from 'vue-router'
 import { listGroups, listUsers, deleteGroup } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 import { statusText, statusTagClass } from '../../utils/labels'
 import AdminGroupDetailDialog from '../../components/admin/AdminGroupDetailDialog.vue'
@@ -168,6 +169,8 @@ onMounted(async () => {
   admins.value = await fetchAll(listUsers, { role: 'group_admin' })
   load()
 })
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新
+useAutoRefresh(load)
 
 // 全局搜索直达：?open=<id> → 自动打开课题组详情。
 // 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。

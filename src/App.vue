@@ -2,10 +2,13 @@
   <router-view />
   <!-- 全局代码内弹窗（替代 window.alert / confirm / prompt 系统弹窗） -->
   <AppDialog />
+  <!-- 全局轻量提示（非阻塞，3 秒自动消失） -->
+  <AppToast />
 </template>
 
 <script setup>
 import { AppDialog } from './components/dialogs'
+import AppToast from './components/common/AppToast.vue'
 // 根组件：承载路由出口 + 全局弹窗；具体布局由各角色布局（layouts/*Layout.vue）提供。
 </script>
 

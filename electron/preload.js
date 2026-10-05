@@ -303,7 +303,13 @@ contextBridge.exposeInMainWorld('api', {
     openDevConsole: createInvoke('sys:open-dev-console'),
     openAppFolder: createInvoke('sys:open-app-folder'),
     openDataFolder: createInvoke('sys:open-data-folder'),
-    clearCache: createInvoke('sys:clear-cache')
+    clearCache: createInvoke('sys:clear-cache'),
+    // 业务数据版本变化订阅（dataVersionService 轮询发现库变动时触发）；返回取消订阅函数
+    onDbChanged: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('db:changed', listener)
+      return () => ipcRenderer.removeListener('db:changed', listener)
+    }
   },
   // 窗口控制（对应 ipc/win.js，通道前缀 win:*）：无边框窗口标题栏按钮用
   window: {

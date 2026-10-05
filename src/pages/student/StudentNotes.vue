@@ -113,6 +113,7 @@ import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { listNotes, getNote, createNote, updateNote, deleteNote, restoreNote, purgeNote, exportNote } from '../../api'
 import { NOTE_CATEGORIES } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
 // ===== 列表 =====
@@ -376,6 +377,8 @@ onBeforeUnmount(() => {
 })
 
 load()
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持笔记列表最新
+useAutoRefresh(load)
 </script>
 
 <style scoped>

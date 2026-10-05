@@ -91,6 +91,7 @@ import { useRouter } from 'vue-router'
 import { getCurrentUser, updateOwnProfile, changePassword, pickAttachment } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { useSession } from '../../composables/useSession'
 import { roleText } from '../../utils/labels'
 import { avatarUrl } from '../../utils/avatar'
@@ -201,4 +202,6 @@ async function changePwd() {
 }
 
 onMounted(load)
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持资料最新
+useAutoRefresh(load)
 </script>

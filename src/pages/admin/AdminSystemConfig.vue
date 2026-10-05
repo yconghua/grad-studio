@@ -144,6 +144,7 @@ import AdminConfigFormDialog from '../../components/admin/AdminConfigFormDialog.
 import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, deleteParam, exportDb, openDevConsole, openAppFolder, openDataFolder, clearCache } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 超级管理员独立页面：系统配置（系统信息 / 数据库信息 / 系统参数 三块）
 const info = ref({})
@@ -338,5 +339,11 @@ onMounted(() => {
   loadDb()
   loadParams()
   loadDefaultTheme()
+})
+// 数据变动（本页写操作或外部改动）后后台静默重拉参数列表与系统信息
+useAutoRefresh(() => {
+  loadParams()
+  loadInfo()
+  loadDb()
 })
 </script>

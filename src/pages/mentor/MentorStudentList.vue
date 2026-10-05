@@ -59,6 +59,7 @@ import { ref, onMounted } from 'vue'
 import RowDetailDialog from '../../components/common/RowDetailDialog.vue'
 import { listMyStudents } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { statusText, statusTagClass } from '../../utils/labels'
 
 // 导师独立页面：我的学生（只读列表，一页固定 8 条）
@@ -117,4 +118,6 @@ function reset() {
 }
 
 onMounted(load)
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新
+useAutoRefresh(load)
 </script>

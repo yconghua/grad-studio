@@ -215,6 +215,7 @@ import NotificationRecentCard from '../../components/notification/NotificationRe
 import RecentMeetingPanel from '../../components/dashboard/RecentMeetingPanel.vue'
 import WelcomeInfoPanel from '../../components/dashboard/WelcomeInfoPanel.vue'
 import { reportStatusText, weekShortLabel } from '../../utils/labels'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 学生独立工作台（与其他角色工作台为独立文件）
 const { getSessionUser } = useSession()
@@ -254,7 +255,8 @@ function mentorText(u) {
 }
 
 // 回库刷新，保证课题组 / 导师信息最新
-onMounted(async () => {
+// 加载工作台全部数据（挂载时与数据变动时共用）
+async function refreshAll() {
   const [u, w, m, t, n, nu, cu, ns] = await Promise.allSettled([
     getCurrentUser(),
     reportMyWeek(),
@@ -278,7 +280,11 @@ onMounted(async () => {
   }
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
-})
+}
+
+onMounted(refreshAll)
+// 数据变动（本页写操作或外部改动）后后台静默重拉
+useAutoRefresh(refreshAll)
 </script>
 
 <style scoped>

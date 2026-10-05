@@ -152,6 +152,7 @@ import {
 } from '../../api'
 import { REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import ReportDetailDialog from '../../components/report/ReportDetailDialog.vue'
 
 const tab = ref('list')
@@ -357,6 +358,11 @@ async function onSaveTemplate() {
 }
 
 onMounted(() => {
+  loadStats()
+  loadList()
+})
+// 数据变动（本页写操作或外部改动）后后台静默重拉统计与列表
+useAutoRefresh(() => {
   loadStats()
   loadList()
 })

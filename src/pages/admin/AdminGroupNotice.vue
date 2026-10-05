@@ -101,6 +101,7 @@ import { listNotices, getNotice, deleteNotice, toggleNoticeTop, getNoticeReadSta
 import { listGroups } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 
 // 超级管理员独立页面：课题组公告管理（可发布/编辑/删除/置顶任意课题组公告，查看全部已读统计）
@@ -264,6 +265,8 @@ onMounted(async () => {
   groups.value = await fetchAll(listGroups)
   load()
 })
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新
+useAutoRefresh(load)
 </script>
 
 <style scoped>

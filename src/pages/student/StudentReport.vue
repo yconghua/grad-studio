@@ -149,6 +149,7 @@ import {
 } from '../../api'
 import { REPORT_BACKFILL_WEEKS, REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
 const BACKFILL = REPORT_BACKFILL_WEEKS
@@ -516,6 +517,8 @@ onMounted(() => {
   load()
   onStartThisWeek()
 })
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持周报列表最新
+useAutoRefresh(load)
 
 onBeforeUnmount(() => {
   if (saveTimer) clearTimeout(saveTimer)

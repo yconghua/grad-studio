@@ -171,6 +171,7 @@ import {
 } from '../../api'
 import { REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { useSession } from '../../composables/useSession'
 import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
@@ -391,6 +392,11 @@ async function onDownload(a) {
 onMounted(() => {
   const user = useSession().getSessionUser()
   meId.value = user ? Number(user.id) : null
+  loadStats()
+  load()
+})
+// 数据变动（本页写操作或外部改动）后后台静默重拉统计与列表
+useAutoRefresh(() => {
   loadStats()
   load()
 })

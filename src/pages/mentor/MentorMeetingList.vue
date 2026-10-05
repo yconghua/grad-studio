@@ -76,6 +76,7 @@ import { useRoute } from 'vue-router'
 import MeetingDetailDialog from '../../components/meeting/MeetingDetailDialog.vue'
 import { listMeetings } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 导师独立页面：自己参与的会议记录（只读；默认只显示已发布，可切换已归档）
 const keyword = ref('')
@@ -133,6 +134,8 @@ function openDetail(m) {
 onMounted(() => {
   load()
 })
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新
+useAutoRefresh(load)
 
 // 全局搜索直达：?open=<id>&group=<gid> → 自动打开会议详情。
 // 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。

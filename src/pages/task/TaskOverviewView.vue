@@ -88,6 +88,7 @@ import { ref, computed, onMounted } from 'vue'
 import TaskOverviewDialog from '../../components/task/TaskOverviewDialog.vue'
 import { getTaskOverviewList, getTaskOverviewStats } from '../../api/task'
 import { dialogAlert } from '../../composables/useDialog'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { exportCsv } from '../../utils/csvExport'
 import {
   taskStatusText,
@@ -203,6 +204,11 @@ function doExport() {
 }
 
 onMounted(() => {
+  loadStats()
+  load()
+})
+// 数据变动（本页写操作或外部改动）后后台静默重拉统计与列表
+useAutoRefresh(() => {
   loadStats()
   load()
 })

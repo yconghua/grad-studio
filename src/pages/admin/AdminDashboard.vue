@@ -129,6 +129,7 @@ import { useSession } from '../../composables/useSession'
 import RecentMeetingPanel from '../../components/dashboard/RecentMeetingPanel.vue'
 import WelcomeInfoPanel from '../../components/dashboard/WelcomeInfoPanel.vue'
 import { weekShortLabel } from '../../utils/labels'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 超级管理员独立工作台（与课题组管理员 / 导师 / 学生的工作台为独立文件）
 const { getSessionUser } = useSession()
@@ -179,7 +180,8 @@ const dbStatus = computed(() => {
 })
 const runtimeInfo = computed(() => '生产环境')
 
-onMounted(async () => {
+// 加载工作台全部数据（挂载时与数据变动时共用）
+async function refreshAll() {
   const [u, g, p, t, s, d] = await Promise.allSettled([
     listUsers({ page: 1 }),
     listGroups({ page: 1 }),
@@ -196,7 +198,11 @@ onMounted(async () => {
   if (d.status === 'fulfilled' && d.value && d.value.success) dbInfo.value = d.value
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
-})
+}
+
+onMounted(refreshAll)
+// 数据变动（本页写操作或外部改动）后后台静默重拉
+useAutoRefresh(refreshAll)
 </script>
 
 <style scoped>

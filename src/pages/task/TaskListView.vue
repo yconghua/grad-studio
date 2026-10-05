@@ -179,6 +179,7 @@ import {
 } from '../../api/task'
 import { useSession } from '../../composables/useSession'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import {
   ROLE_GROUP_ADMIN,
   ROLE_MENTOR,
@@ -417,6 +418,8 @@ onMounted(async () => {
   if (qStatus) status.value = Number(qStatus)
   await load()
 })
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新
+useAutoRefresh(load)
 
 // 全局搜索/通知跳转带 open=<taskId>：详情弹窗按 id 直接打开（不依赖列表数据）。
 // 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。

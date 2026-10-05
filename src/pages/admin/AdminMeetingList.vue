@@ -127,6 +127,7 @@ import { listMeetings, listMyDrafts, listGroupDrafts, getMeetingDetail, deleteMe
 import { listGroups } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { fetchAll } from '../../utils/fetchAll'
 
 // 超级管理员独立页面：会议记录管理（可管理任意课题组会议，含我的草稿/本组草稿视图）
@@ -310,6 +311,8 @@ onMounted(async () => {
   groups.value = await fetchAll(listGroups)
   load()
 })
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新
+useAutoRefresh(load)
 
 // 全局搜索直达：?open=<id>&group=<gid> → 自动打开会议详情。
 // 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。

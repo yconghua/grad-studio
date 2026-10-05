@@ -40,6 +40,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { getOwnGroup, updateOwnGroup } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { useSession } from '../../composables/useSession'
 
 // 课题组管理员独立页面：本课题组设置（UUID 与管理员绑定不可修改）
@@ -76,4 +77,6 @@ async function save() {
 }
 
 onMounted(load)
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持组设置最新
+useAutoRefresh(load)
 </script>

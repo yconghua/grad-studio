@@ -124,6 +124,7 @@ import { listMeetings, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleM
 import { getOwnGroup } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 课题组管理员独立页面：本组会议记录管理（课题组固定本组不可切换，
 // 含本组草稿视图；统计仅本组）
@@ -289,6 +290,8 @@ onMounted(async () => {
   }
   load()
 })
+// 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新
+useAutoRefresh(load)
 
 // 全局搜索直达：?open=<id>&group=<gid> → 自动打开会议详情。
 // 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。

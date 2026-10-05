@@ -151,6 +151,7 @@ import { useSession } from '../../composables/useSession'
 import RecentMeetingPanel from '../../components/dashboard/RecentMeetingPanel.vue'
 import WelcomeInfoPanel from '../../components/dashboard/WelcomeInfoPanel.vue'
 import { weekShortLabel } from '../../utils/labels'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 导师独立工作台（与其他角色工作台为独立文件）
 const { getSessionUser } = useSession()
@@ -174,7 +175,8 @@ const welcomeFields = computed(() => [
   { label: '快捷入口', value: '左侧菜单可查看自己名下的学生与任务' }
 ])
 
-onMounted(async () => {
+// 加载工作台全部数据（挂载时与数据变动时共用）
+async function refreshAll() {
   const [stu, tr, st, t, n, nu, cu] = await Promise.allSettled([
     listMyStudents({ page: 1 }),
     reportListToReview(1),
@@ -199,7 +201,11 @@ onMounted(async () => {
   if (cu.status === 'fulfilled' && cu.value && cu.value.success) chatUnread.value = (cu.value.data && cu.value.data.unreadCount) || 0
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
-})
+}
+
+onMounted(refreshAll)
+// 数据变动（本页写操作或外部改动）后后台静默重拉
+useAutoRefresh(refreshAll)
 </script>
 
 <style scoped>

@@ -140,6 +140,7 @@ import RecentMeetingPanel from '../../components/dashboard/RecentMeetingPanel.vu
 import WelcomeInfoPanel from '../../components/dashboard/WelcomeInfoPanel.vue'
 import TaskCreateDialog from '../../components/task/TaskCreateDialog.vue'
 import { weekShortLabel } from '../../utils/labels'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 课题组管理员独立工作台（与其他角色工作台为独立文件）
 const { getSessionUser } = useSession()
@@ -200,7 +201,8 @@ async function loadStats() {
   }
 }
 
-onMounted(async () => {
+// 加载工作台全部数据（挂载时与数据变动时共用）
+async function refreshAll() {
   const [g, m, s, t, ms, n] = await Promise.allSettled([
     getOwnGroup(),
     listMembers({ page: 1, role: 'mentor' }),
@@ -218,5 +220,9 @@ onMounted(async () => {
   await loadStats()
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
-})
+}
+
+onMounted(refreshAll)
+// 数据变动（本页写操作或外部改动）后后台静默重拉
+useAutoRefresh(refreshAll)
 </script>
