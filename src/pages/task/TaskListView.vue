@@ -125,7 +125,7 @@
               </td>
             </tr>
             <tr v-if="list.length === 0">
-              <td colspan="8"><div class="empty">暂无任务数据</div></td>
+              <td colspan="7"><div class="empty">暂无任务数据</div></td>
             </tr>
           </tbody>
         </table>

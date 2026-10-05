@@ -490,7 +490,8 @@ watch(
   margin-bottom: 10px;
 }
 .preview-table {
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -500,6 +501,8 @@ watch(
   text-align: left;
   border-bottom: 1px solid var(--border-light);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .preview-table th {
   position: sticky;

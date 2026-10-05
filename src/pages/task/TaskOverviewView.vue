@@ -49,7 +49,7 @@
     <div v-for="g in groups" :key="g.groupId" class="panel group-panel">
       <h3 class="group-title">{{ g.groupName }} <span class="group-count">{{ g.tasks.length }} 个任务</span></h3>
 
-      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
+      <table v-resizable-columns="{ shareKey: 'task-overview' }" v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
         <thead>
           <tr>
             <th data-sort="id">ID</th>
@@ -64,7 +64,7 @@
         <tbody>
           <tr v-for="t in g.tasks" :key="t.id" @click="openDetail(t)">
             <td>{{ t.id }}</td>
-            <td class="ellipsis" style="max-width: 100px">{{ t.title }}</td>
+            <td class="ellipsis" style="max-width: 200px">{{ t.title }}</td>
             <td class="ellipsis" style="max-width: 90px">{{ t.creatorName }}</td>
             <td><span :class="creatorTagClass(t.creatorRole)">{{ creatorRoleText(t.creatorRole) }}</span></td>
             <td><span :class="taskStatusTagClass(t.status)">{{ taskStatusText(t.status) }}</span></td>

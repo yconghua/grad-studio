@@ -68,10 +68,11 @@
 
 /* ===== 表格 ===== */
 .tbl-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow-x: auto; }
-table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+/* 表格宽度 = 列宽总和（拖拽精确不缩放），上限为容器宽度；列宽超容器时由 fixed 布局按比例压缩各列 */
+table.tbl { width: fit-content; max-width: 100%; border-collapse: collapse; font-size: 13px; }
 .tbl th { background: var(--bg-muted); text-align: left; padding: 10px 12px; font-weight: 600; color: var(--text-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
-/* 单元格统一不换行，保证行恒为单行；长文本列由 .ellipsis 省略，完整内容点击行查看详情 */
-.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); color: var(--text); vertical-align: middle; white-space: nowrap; }
+/* 单元格统一不换行，保证行恒为单行；超出列宽的内容省略号截断（随列宽显示），完整内容点击行查看详情 */
+.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); color: var(--text); vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tbody tr:hover td { background: var(--bg-hover-soft); }
 .tbl tbody tr { cursor: pointer; }

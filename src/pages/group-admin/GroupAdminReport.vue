@@ -461,8 +461,8 @@ useAutoRefresh(() => {
 .panel-title { font-weight: 600; color: var(--text); font-size: 14px; }
 .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .table-wrap { overflow-x: auto; flex: 1 1 auto; }
-.table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table th, .table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+.table { width: fit-content; max-width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th, .table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .table th { color: var(--muted); font-weight: 500; background: var(--bg-hover); white-space: nowrap; }
 .center { text-align: center; color: var(--muted); }
 .ellipsis {
