@@ -106,6 +106,14 @@
         </button>
       </div>
     </div>
+
+    <!-- 导入执行期间全屏遮罩：禁止操作窗口，防止导入中途误触其他功能 -->
+    <div v-if="importing" class="import-mask">
+      <div class="import-mask-box">
+        <div class="import-spinner"></div>
+        <div>正在批量导入，请稍候…</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -122,6 +130,8 @@ const emit = defineEmits(['update:visible', 'saved'])
 
 const batchTab = ref('upload')
 const batchLoading = ref(false)
+// 导入执行中的全屏禁操作标记（区别于 batchLoading：仅提交导入后置位）
+const importing = ref(false)
 const pasteText = ref('')
 const previewRows = ref([])
 const checkedIdx = ref([])
@@ -219,6 +229,7 @@ async function submitBatch() {
   const ok = await dialogConfirm(`确认导入选中的 ${rows.length} 个用户？新用户初始密码为该角色默认密码。`)
   if (!ok) return
   batchLoading.value = true
+  importing.value = true
   try {
     const res = await batchCreateUsers([...rows])
     if (res && res.success) {
@@ -237,6 +248,46 @@ async function submitBatch() {
     }
   } finally {
     batchLoading.value = false
+    importing.value = false
   }
 }
 </script>
+
+<style scoped>
+/* 导入执行中的全屏遮罩：盖住整个窗口，禁止任何交互 */
+.import-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: wait;
+}
+.import-mask-box {
+  background: #fff;
+  border-radius: 10px;
+  padding: 22px 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #333;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+}
+.import-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid rgba(64, 128, 255, 0.25);
+  border-top-color: #4080ff;
+  border-radius: 50%;
+  animation: import-rotate 0.8s linear infinite;
+}
+@keyframes import-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

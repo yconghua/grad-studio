@@ -11,7 +11,7 @@ const { buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('
 // 列表安全返回列（不含 content 全文）
 const LIST_COLUMNS = [
   'id', 'group_id', 'title', 'meeting_time', 'location', 'host_id',
-  'agenda', 'status', 'notice_id', 'create_time', 'update_time'
+  'agenda', 'status', 'notice_id', 'create_time', 'change_ts'
 ]
 
 // 会议列表排序白名单：语义字段名 → 可信 SQL 片段（联表带 m. / g. / h. / p. 前缀）

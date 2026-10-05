@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `report` (
   `template_id`    BIGINT       DEFAULT NULL COMMENT '新建时使用的模板ID',
   `version`        INT          NOT NULL DEFAULT 0 COMMENT '乐观锁版本号（写操作必须带版本条件）',
   `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `change_ts`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_week` (`user_id`, `week_key`),
   KEY `idx_user` (`user_id`),
@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS `report_attachment` (
   `file_ext`   VARCHAR(20)  NOT NULL COMMENT '扩展名（小写，不带点）',
   `file_data`  LONGBLOB     NOT NULL COMMENT '文件二进制内容',
   `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
+  `change_ts`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   KEY `idx_report` (`report_id`),
   KEY `idx_user` (`user_id`)
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS `report_template` (
   `is_default` TINYINT      NOT NULL DEFAULT 0 COMMENT '是否为默认模板（同范围仅一条为1）',
   `created_by` BIGINT       DEFAULT NULL COMMENT '创建人（组管）用户ID',
   `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `change_ts`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   KEY `idx_group` (`group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='周报模板';
@@ -92,6 +94,7 @@ CREATE TABLE IF NOT EXISTS `report_holiday` (
   `reason`     VARCHAR(100) NOT NULL DEFAULT '' COMMENT '免交原因（如寒假）',
   `created_by` BIGINT       DEFAULT NULL COMMENT '设置人（组管）用户ID',
   `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '设置时间',
+  `change_ts`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_group_week` (`group_id`, `week_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='周报免交周';
@@ -104,6 +107,7 @@ CREATE TABLE IF NOT EXISTS `report_remind_log` (
   `remind_type` VARCHAR(20) NOT NULL COMMENT '类型：missed未交/review_48h批阅超时/review_72h组管介入/returned打回未改',
   `remind_date` VARCHAR(10) NOT NULL COMMENT '提醒日期 YYYY-MM-DD（当天不重复）',
   `created_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录时间',
+  `change_ts`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_remind` (`week_key`, `user_id`, `remind_type`, `remind_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='周报提醒去重日志';

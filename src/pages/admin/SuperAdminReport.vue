@@ -142,6 +142,7 @@ import { reportStats, reportListMeta, reportPurge, listGroups } from '../../api'
 import { REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 
 const statsData = ref({})
 const ranking = ref([])
@@ -254,7 +255,7 @@ async function onPurge(n) {
   if (reason === null) return
   const res = await reportPurge(n.id, reason)
   if (res && res.success) {
-    dialogAlert('已强制删除并通知学生')
+    await refreshAfterWrite('已强制删除并通知学生')
     searchAudit()
   } else {
     dialogAlert((res && res.message) || '删除失败，请重试')

@@ -9,7 +9,7 @@ const BaseRepository = require('./BaseRepository')
 const { buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
 
 // 列表安全返回列（不含 content 大字段，列表页不需要；详情单独取全列）
-const LIST_COLUMNS = ['id', 'title', 'category', 'version', 'created_at', 'updated_at', 'deleted_at']
+const LIST_COLUMNS = ['id', 'title', 'category', 'version', 'created_at', 'change_ts', 'deleted_at']
 
 // 列名拼接（反引号包裹，防与关键字冲突）
 function cols(columns) {
@@ -70,7 +70,7 @@ class NoteRepository extends BaseRepository {
     // summary：截取 content 前 120 字供列表摘要，避免大字段（LONGTEXT）整列回传。
     const sql =
       `SELECT ${cols(LIST_COLUMNS)}, SUBSTRING(\`content\`, 1, 120) AS summary FROM \`note\` ${where}${categoryClause}
-       ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`
+       ORDER BY change_ts DESC LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

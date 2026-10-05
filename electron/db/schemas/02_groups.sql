@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `groups` (
   `admin_user_id` BIGINT       DEFAULT NULL COMMENT '课题组管理员用户ID（唯一）',
   `status`        TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1启用，0禁用',
   `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `change_ts`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_code` (`code`),
   UNIQUE KEY `uk_admin_user_id` (`admin_user_id`),

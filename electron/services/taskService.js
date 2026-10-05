@@ -218,7 +218,7 @@ function toTaskDto(row) {
     version: Number(row.version) || 0,
     participantCount: row.participant_count == null ? null : Number(row.participant_count),
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    changeTs: row.change_ts
   }
 }
 

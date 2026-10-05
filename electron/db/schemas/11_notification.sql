@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `notification` (
   `is_deleted`   TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已删除（软删）：0正常，1已删除',
   `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `read_at`      DATETIME     DEFAULT NULL COMMENT '已读时间',
+  `change_ts`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   KEY `idx_recipient` (`recipient_id`, `id`),
   KEY `idx_biz` (`biz_type`, `biz_id`),

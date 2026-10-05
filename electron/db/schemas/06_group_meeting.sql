@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS `group_meeting` (
   `status`       TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1草稿，2已发布，3已归档',
   `notice_id`    BIGINT       NULL COMMENT '已发布为公告时记录公告ID（仅追溯用，公告独立存在）',
   `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `change_ts`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   KEY `idx_group_id` (`group_id`),
   KEY `idx_meeting_time` (`meeting_time`),

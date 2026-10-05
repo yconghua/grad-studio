@@ -165,12 +165,20 @@ async function doDelete(g) {
   }
 }
 
-onMounted(async () => {
+async function loadAdmins() {
   admins.value = await fetchAll(listUsers, { role: 'group_admin' })
+}
+
+onMounted(() => {
+  loadAdmins()
   load()
 })
-// 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新
-useAutoRefresh(load)
+// 数据变动（本页写操作或外部改动）后后台静默重拉列表与管理员候选，
+// 保证删除课题组后组管解绑能即时反映到「新增课题组」表单的候选下拉
+useAutoRefresh(() => {
+  loadAdmins()
+  load()
+})
 
 // 全局搜索直达：?open=<id> → 自动打开课题组详情。
 // 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。

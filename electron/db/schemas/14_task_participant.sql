@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS `task_participant` (
   `status`      TINYINT  NOT NULL DEFAULT 1 COMMENT '参与状态：1参与中，2已完成',
   `finish_time` DATETIME DEFAULT NULL COMMENT '完成时间（验收通过时写入）',
   `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `change_ts`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_task_user` (`task_id`, `user_id`),
   KEY `idx_user_status` (`user_id`, `status`)

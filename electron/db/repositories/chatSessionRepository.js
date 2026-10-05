@@ -14,7 +14,7 @@ function cols(columns) {
 }
 
 // 会话安全返回列
-const SAFE_COLUMNS = ['id', 'user_low', 'user_high', 'last_message_id', 'last_message_time', 'created_at', 'updated_at']
+const SAFE_COLUMNS = ['id', 'user_low', 'user_high', 'last_message_id', 'last_message_time', 'created_at', 'change_ts']
 
 class ChatSessionRepository extends BaseRepository {
   constructor() {

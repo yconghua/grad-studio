@@ -18,7 +18,7 @@
  *        value：比较值（IN 时为数组；IS NULL / IS NOT NULL 时忽略 value）。
  * @returns {{ clause: string, values: any[] }} clause 形如 "WHERE `a` = ? AND `b` LIKE ?"，无条件下为空串
  */
-function buildWhereClause(conditions = []) {
+function buildWhereClause(conditions = [], tablePrefix) {
   const clauses = []
   const values = []
   for (const c of conditions) {
@@ -26,17 +26,19 @@ function buildWhereClause(conditions = []) {
     // undefined 的值视为「不参与过滤」，直接跳过
     if (value === undefined) continue
 
+    // 联表场景可传表别名前缀（如 'u'），列名渲染为 `u`.`field`
+    const col = tablePrefix ? `\`${tablePrefix}\`.\`${field}\`` : `\`${field}\``
     if (op === 'IN') {
       // IN 集合必须非空数组，否则跳过该条件
       if (!Array.isArray(value) || value.length === 0) continue
       const placeholders = value.map(() => '?').join(', ')
-      clauses.push(`\`${field}\` IN (${placeholders})`)
+      clauses.push(`${col} IN (${placeholders})`)
       values.push(...value)
     } else if (op === 'IS NULL' || op === 'IS NOT NULL') {
       // 空值判断不需要值
-      clauses.push(`\`${field}\` ${op}`)
+      clauses.push(`${col} ${op}`)
     } else {
-      clauses.push(`\`${field}\` ${op} ?`)
+      clauses.push(`${col} ${op} ?`)
       values.push(value)
     }
   }

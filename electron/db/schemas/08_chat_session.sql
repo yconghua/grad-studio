@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS `chat_session` (
   `last_message_id`   BIGINT   DEFAULT NULL COMMENT '最后一条消息ID',
   `last_message_time` DATETIME DEFAULT NULL COMMENT '最后一条消息时间（会话列表排序）',
   `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `change_ts`         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_pair` (`user_low`, `user_high`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊会话表';

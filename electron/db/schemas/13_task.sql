@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS `task` (
   `is_deleted`    TINYINT      NOT NULL DEFAULT 0 COMMENT '软删除标记：0正常，1已删除',
   `deleted_at`    DATETIME     DEFAULT NULL COMMENT '删除时间（软删写入，恢复清零）',
   `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `change_ts`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   KEY `idx_group_status_due` (`group_id`, `status`, `due_time`),
   KEY `idx_creator_status` (`creator_id`, `status`, `is_deleted`),

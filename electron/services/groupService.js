@@ -45,7 +45,7 @@ function toGroupDto(row) {
     adminUserId: row.admin_user_id == null ? null : Number(row.admin_user_id),
     status: row.status,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    changeTs: row.change_ts
   }
 }
 
@@ -145,6 +145,8 @@ function assertGroupDescription(description) {
  */
 async function createGroup({ name, description, adminUserId, status } = {}) {
   const trimmedName = assertGroupName(name)
+  // 名称唯一：全量校验（含停用组），避免重名课题组的歧义（批量导入按名称解析即依赖唯一性）
+  if (await groupRepository.countByName(trimmedName)) throw new ApiError('课题组名称已存在', 400)
   const trimmedDesc = assertGroupDescription(description)
   // 新建课题组必须指定管理员（管理员绑定关系由本表维护，且一个管理员只能管理一个课题组）
   if (!adminUserId) throw new ApiError('请选择课题组管理员', 400)
@@ -193,7 +195,11 @@ async function updateGroup(id, { name, description, adminUserId, status } = {}) 
   if (!row) throw new ApiError('课题组不存在', 404)
 
   const data = {}
-  if (name !== undefined) data.name = assertGroupName(name)
+  if (name !== undefined) {
+    data.name = assertGroupName(name)
+    // 改名时查重：排除自身，避免「保持原名保存」被误判重复
+    if (await groupRepository.countByName(data.name, idNum)) throw new ApiError('课题组名称已存在', 400)
+  }
   if (description !== undefined) data.description = assertGroupDescription(description)
   if (status !== undefined) {
     const st = Number(status)
@@ -280,7 +286,11 @@ async function getOwnGroup() {
 async function updateOwnGroup({ name, description } = {}) {
   const group = await ownGroup()
   const data = {}
-  if (name !== undefined) data.name = assertGroupName(name)
+  if (name !== undefined) {
+    data.name = assertGroupName(name)
+    // 改名查重：排除自身
+    if (await groupRepository.countByName(data.name, group.id)) throw new ApiError('课题组名称已存在', 400)
+  }
   if (description !== undefined) data.description = assertGroupDescription(description)
   await groupRepository.updateById(group.id, data)
   return getGroup(group.id)

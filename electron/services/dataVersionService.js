@@ -1,13 +1,14 @@
 /**
  * 全局数据版本轮询（DataVersionService）
  *
- * 职责：每 15 秒轻量查询业务表「行数 + 最大时间列」指纹，指纹变化即广播
- * db:changed，渲染层所有在线页面收到后后台静默重拉，实现
+ * 职责：每 2 秒轻量查询业务表「行数 + change_ts 最大值」指纹，指纹变化即
+ * 广播 db:changed，渲染层所有在线页面收到后后台静默重拉，实现
  * "数据库有变动即刷新、前端无感知"（配合写后立即重拉，见 useGlobalRefresh）。
  *
- * 监控范围：页面常驻数据涉及的 12 张业务表；聊天 / 通知已有独立轮询
+ * 监控范围：页面常驻数据涉及的 15 张业务表；聊天 / 通知已有独立轮询
  * （chatPoller / notificationPoller），不纳入本服务，避免同一数据双路刷新。
- * 时间列按表实际命名：updated_at / update_time / created_at（追加型表）。
+ * 指纹时间列统一为各表 change_ts（DEFAULT CURRENT_TIMESTAMP ON UPDATE
+ * CURRENT_TIMESTAMP，行被 INSERT/UPDATE 时自动刷新；删除由行数兜底检测）。
  *
  * 生命周期：main.js 窗口创建后 start()，应用退出前 stop()（不依赖登录态）。
  */
@@ -15,22 +16,25 @@ const { BrowserWindow } = require('electron')
 const { acquireConn } = require('../db/connection')
 
 // 轮询间隔（毫秒）
-const POLL_INTERVAL_MS = 15000
+const POLL_INTERVAL_MS = 2000
 
-// 监控表清单：表名 → 时间列（指纹 = 行数 + 该列最大值）
+// 监控表清单：表名 → 时间列（指纹 = 行数 + 该列最大值，全表统一 change_ts）
 const MONITOR_TABLES = [
-  ['users', 'updated_at'],
-  ['groups', 'updated_at'],
-  ['system_configs', 'updated_at'],
-  ['task', 'updated_at'],
-  ['task_participant', 'updated_at'],
-  ['task_dynamic', 'created_at'],
-  ['group_notice', 'update_time'],
-  ['group_meeting', 'update_time'],
-  ['group_meeting_participant', 'create_time'],
-  ['report', 'updated_at'],
-  ['report_attachment', 'created_at'],
-  ['note', 'updated_at']
+  ['users', 'change_ts'],
+  ['groups', 'change_ts'],
+  ['system_configs', 'change_ts'],
+  ['task', 'change_ts'],
+  ['task_participant', 'change_ts'],
+  ['task_dynamic', 'change_ts'],
+  ['group_notice', 'change_ts'],
+  ['group_notice_read', 'change_ts'],
+  ['group_meeting', 'change_ts'],
+  ['group_meeting_participant', 'change_ts'],
+  ['report', 'change_ts'],
+  ['report_attachment', 'change_ts'],
+  ['report_template', 'change_ts'],
+  ['report_holiday', 'change_ts'],
+  ['note', 'change_ts']
 ]
 
 let timer = null

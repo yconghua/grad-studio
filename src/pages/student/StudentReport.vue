@@ -34,7 +34,7 @@
               </div>
               <div class="note-card-meta">
                 <span class="st" :class="'st-' + n.status">{{ statusText(n.status) }}</span>
-                <span class="time">{{ timeText(n.submitted_at || n.updated_at) }}</span>
+                <span class="time">{{ timeText(n.submitted_at || n.change_ts) }}</span>
               </div>
               <div class="note-card-summary">{{ summaryOf(n) }}</div>
             </div>
@@ -130,7 +130,7 @@
           </div>
 
           <div class="editor-foot">
-            <span class="editor-updated">最后更新于 {{ currentNote.updated_at || '-' }}</span>
+            <span class="editor-updated">最后更新于 {{ currentNote.change_ts || '-' }}</span>
             <button v-if="saveState === 'error'" type="button" class="btn btn-sm" @click="saveNow">重试保存</button>
           </div>
         </div>
@@ -150,6 +150,7 @@ import {
 import { REPORT_BACKFILL_WEEKS, REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
 const BACKFILL = REPORT_BACKFILL_WEEKS
@@ -433,7 +434,7 @@ async function onSubmit() {
       saveState.value = 'saved'
       dirty = false
       await load()
-      dialogAlert('已提交，等待导师批阅')
+      await refreshAfterWrite('已提交，等待导师批阅')
     } else {
       dialogAlert((res && res.message) || '提交失败，请重试')
     }
@@ -454,7 +455,7 @@ async function onWithdraw() {
     saveState.value = 'saved'
     dirty = false
     await load()
-    dialogAlert('已撤回提交')
+    await refreshAfterWrite('已撤回提交')
   } else {
     dialogAlert((res && res.message) || '撤回失败，请重试')
   }

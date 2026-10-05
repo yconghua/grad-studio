@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `chat_message` (
   `created_at`          DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `recalled_at`         DATETIME      DEFAULT NULL COMMENT '撤回时间',
   `sender_deleted_mark` TINYINT       NOT NULL DEFAULT 0 COMMENT '发送人已删除标记：1已删除',
+  `change_ts`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_sender_client` (`sender_id`, `client_message_id`),
   KEY `idx_session_id` (`session_id`, `id`)

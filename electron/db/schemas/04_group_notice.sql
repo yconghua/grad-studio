@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `group_notice` (
   `status`         TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1已发布，2下架',
   `publish_time`   DATETIME     NOT NULL COMMENT '发布时间',
   `create_time`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `change_ts`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   KEY `idx_group_id` (`group_id`),
   KEY `idx_status` (`status`),

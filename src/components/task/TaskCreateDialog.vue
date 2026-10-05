@@ -63,6 +63,7 @@
 // 新建任务弹窗：任务列表与组管工作台的创建入口统一走此弹窗，不再跳转独立页面
 import { ref, reactive, onMounted } from 'vue'
 import { createTask, getTaskParticipantOptions } from '../../api/task'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useSession } from '../../composables/useSession'
 import { dialogAlert } from '../../composables/useDialog'
 import { ROLE_GROUP_ADMIN } from '../../config/constants'
@@ -123,7 +124,7 @@ async function submit() {
   })
   submitting.value = false
   if (res && res.success) {
-    dialogAlert('任务创建成功，已通知参与人')
+    await refreshAfterWrite('任务创建成功，已通知参与人')
     emit('created', res.data && res.data.id)
     close()
   } else {

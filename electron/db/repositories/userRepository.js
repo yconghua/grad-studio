@@ -18,23 +18,23 @@ const { ACCOUNT_STATUS_ENABLED } = require('../../../shared/constants')
 const SAFE_COLUMNS = [
   'id', 'username', 'real_name', 'role', 'status', 'email', 'phone',
   'gender', 'avatar', 'group_id', 'mentor_id', 'must_change_password',
-  'password_reset_at', 'created_at', 'updated_at'
+  'password_reset_at', 'created_at', 'change_ts'
 ]
 
-// 用户列表排序白名单：语义字段名 → 可信 SQL 片段（列表 SQL 无前缀场景）
+// 用户列表排序白名单：语义字段名 → 可信 SQL 片段（列表 SQL 用 u. 前缀，与联表 SELECT 对齐）
 const USER_SORT_MAP = {
-  id: 'id',
-  username: 'username',
-  realName: 'real_name',
-  role: 'role',
-  status: 'status',
-  groupId: 'group_id',
-  mentorId: 'mentor_id',
-  phone: 'phone',
-  email: 'email',
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
-  passwordResetAt: 'password_reset_at'
+  id: 'u.id',
+  username: 'u.username',
+  realName: 'u.real_name',
+  role: 'u.role',
+  status: 'u.status',
+  groupId: 'g.name',
+  mentorId: 'u.mentor_id',
+  phone: 'u.phone',
+  email: 'u.email',
+  createdAt: 'u.created_at',
+  changeTs: 'u.change_ts',
+  passwordResetAt: 'u.password_reset_at'
 }
 
 // 成员管理列表排序白名单（带 u. / m. 前缀的联表场景）
@@ -51,9 +51,9 @@ const MEMBER_SORT_MAP = {
 // 档案白名单：管理员「资料」Tab 可写字段（账号 / 密码 / 角色 / 状态由服务层显式处理）
 const PROFILE_FIELDS = ['real_name', 'email', 'phone', 'gender', 'avatar', 'group_id', 'mentor_id']
 
-// 列名拼接（反引号包裹，防与关键字冲突）
-function cols(columns) {
-  return columns.map((c) => `\`${c}\``).join(', ')
+// 列名拼接（反引号包裹，防与关键字冲突；prefix 给联表 SQL 加表别名前缀）
+function cols(columns, prefix) {
+  return columns.map((c) => (prefix ? `\`${prefix}\`.\`${c}\`` : `\`${c}\``)).join(', ')
 }
 
 // 从输入对象中提取白名单内的档案字段
@@ -80,7 +80,7 @@ class UserRepository extends BaseRepository {
    * @returns {Object|null}
    */
   async findById(id) {
-    const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`users\` WHERE id = ?`
+    const sql = `SELECT ${cols(SAFE_COLUMNS, 'u')}, g.name AS group_name FROM \`users\` u LEFT JOIN \`groups\` g ON g.id = u.\`group_id\` WHERE u.id = ?`
     const [rows] = await this._execute(sql, [id], 'findById')
     return rows[0] || null
   }
@@ -124,7 +124,8 @@ class UserRepository extends BaseRepository {
     if (filters.groupId) conditions.push({ field: 'group_id', op: '=', value: Number(filters.groupId) })
     if (filters.mentorId) conditions.push({ field: 'mentor_id', op: '=', value: Number(filters.mentorId) })
     if (filters.unassigned) conditions.push({ field: 'group_id', op: 'IS NULL', value: true })
-    const { clause, values } = buildWhereClause(conditions)
+    // 联表场景统一加 u. 前缀：groups 表存在 id/status/created_at 等同名列，避免歧义
+    const { clause, values } = buildWhereClause(conditions, 'u')
 
     // 关键字（账号/真实姓名模糊）需与前缀条件 OR 连接：
     // 无前缀条件时以 WHERE 开头，有前缀条件时以 AND 衔接
@@ -132,11 +133,11 @@ class UserRepository extends BaseRepository {
     let keywordValues = []
     if (filters.keyword && String(filters.keyword).trim()) {
       const kw = `%${String(filters.keyword).trim()}%`
-      keywordClause = (clause ? ' AND ' : 'WHERE ') + '(username LIKE ? OR real_name LIKE ?)'
+      keywordClause = (clause ? ' AND ' : 'WHERE ') + '(u.username LIKE ? OR u.real_name LIKE ?)'
       keywordValues = [kw, kw]
     }
 
-    const countSql = `SELECT COUNT(*) AS total FROM \`users\` ${clause} ${keywordClause}`
+    const countSql = `SELECT COUNT(*) AS total FROM \`users\` u ${clause} ${keywordClause}`
     const [countRows] = await this._execute(countSql, [...values, ...keywordValues], 'pagedList.count')
     const total = Number(countRows[0] && countRows[0].total) || 0
 
@@ -145,7 +146,7 @@ class UserRepository extends BaseRepository {
     // 部分 MySQL 版本对 prepared statement 的 LIMIT ? 占位符报
     // 「Incorrect arguments to mysqld_stmt_execute」，改用文本协议参数更稳妥。
     const sql =
-      `SELECT ${cols(SAFE_COLUMNS)} FROM \`users\` ${clause} ${keywordClause} ${buildOrderBy(filters, USER_SORT_MAP, 'id ASC')} LIMIT ${limit} OFFSET ${offset}`
+      `SELECT ${cols(SAFE_COLUMNS, 'u')}, g.name AS group_name FROM \`users\` u LEFT JOIN \`groups\` g ON g.id = u.\`group_id\` ${clause} ${keywordClause} ${buildOrderBy(filters, USER_SORT_MAP, 'u.id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, [...values, ...keywordValues], 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

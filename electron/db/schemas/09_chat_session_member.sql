@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS `chat_session_member` (
   `member_status`        TINYINT  NOT NULL DEFAULT 1 COMMENT '成员状态：1正常',
   `is_user_deleted`      TINYINT  NOT NULL DEFAULT 0 COMMENT '用户已删除标记：1已删除',
   `joined_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
+  `change_ts`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_session_user` (`session_id`, `user_id`),
   KEY `idx_user_id` (`user_id`)

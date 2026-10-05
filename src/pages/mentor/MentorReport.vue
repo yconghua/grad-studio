@@ -172,6 +172,7 @@ import {
 import { REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useSession } from '../../composables/useSession'
 import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
@@ -347,7 +348,7 @@ async function onReview(act) {
       score.value = null
       await load()
       await loadStats()
-      dialogAlert(act === 'approve' ? '已通过' : '已打回')
+      await refreshAfterWrite(act === 'approve' ? '已通过' : '已打回')
     } else {
       dialogAlert((res && res.message) || '操作失败，请重试')
     }
@@ -370,7 +371,7 @@ async function onUnreview() {
     currentNote.value = res.data
     await load()
     await loadStats()
-    dialogAlert('已撤回批阅')
+    await refreshAfterWrite('已撤回批阅')
   } else {
     dialogAlert((res && res.message) || '撤回失败，请重试')
   }

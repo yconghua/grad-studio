@@ -8,7 +8,7 @@ const BaseRepository = require('./BaseRepository')
 const { buildWhereClause, buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('./queryHelpers')
 
 // 课题组表安全返回列
-const SAFE_COLUMNS = ['id', 'name', 'code', 'description', 'admin_user_id', 'status', 'created_at', 'updated_at']
+const SAFE_COLUMNS = ['id', 'name', 'code', 'description', 'admin_user_id', 'status', 'created_at', 'change_ts']
 
 // 课题组列表排序白名单：语义字段名 → 可信 SQL 片段（管理员列按 admin_user_id 排，姓名由前端反查）
 const GROUP_SORT_MAP = {
@@ -61,6 +61,23 @@ class GroupRepository extends BaseRepository {
     const sql = `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\` WHERE admin_user_id = ?`
     const [rows] = await this._execute(sql, [Number(adminUserId)], 'findByAdminUserId')
     return rows[0] || null
+  }
+
+  /**
+   * 按名称统计课题组数量（名称唯一性校验用，含停用组；excludeId 排除自身）
+   * @param {string} name
+   * @param {number} [excludeId]
+   * @returns {number}
+   */
+  async countByName(name, excludeId) {
+    let sql = 'SELECT COUNT(*) AS total FROM `groups` WHERE name = ?'
+    const params = [name]
+    if (excludeId) {
+      sql += ' AND id <> ?'
+      params.push(Number(excludeId))
+    }
+    const [rows] = await this._execute(sql, params, 'countByName')
+    return Number(rows[0] && rows[0].total) || 0
   }
 
   /**

@@ -40,7 +40,7 @@
               <div class="note-card-title">{{ n.title || '无标题笔记' }}</div>
               <div class="note-card-meta">
                 <span class="cat">{{ categoryLabel(n.category) }}</span>
-                <span class="time">{{ timeText(n.updated_at) }}</span>
+                <span class="time">{{ timeText(n.change_ts) }}</span>
               </div>
               <div class="note-card-summary">{{ summaryOf(n) }}</div>
               <div v-if="tab === 'deleted'" class="note-card-actions">
@@ -98,7 +98,7 @@
             </div>
           </div>
           <div class="editor-foot">
-            <span class="editor-updated">最后更新于 {{ currentNote.updated_at || '-' }}</span>
+            <span class="editor-updated">最后更新于 {{ currentNote.change_ts || '-' }}</span>
             <button v-if="saveState === 'error'" type="button" class="btn btn-sm" @click="saveNow">重试保存</button>
           </div>
         </div>
@@ -114,6 +114,7 @@ import { listNotes, getNote, createNote, updateNote, deleteNote, restoreNote, pu
 import { NOTE_CATEGORIES } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 
 // ===== 列表 =====
@@ -256,6 +257,7 @@ async function onCreate() {
   page.value = 1
   await load()
   openNoteById(res.data.id)
+  await refreshAfterWrite('笔记已创建')
 }
 
 // ===== 自动保存 =====
@@ -293,10 +295,10 @@ async function saveNow() {
       saveState.value = 'saved'
       saveErrorMsg.value = ''
       dirty = false
-      // 更新列表里的该项（updated_at 已变化，局部刷新）
+      // 更新列表里的该项（change_ts 已变化，局部刷新）
       const idx = list.value.findIndex((x) => x.id === currentNote.value.id)
       if (idx >= 0) {
-        list.value[idx] = { ...list.value[idx], updated_at: res.data.updated_at }
+        list.value[idx] = { ...list.value[idx], change_ts: res.data.change_ts }
       }
     } else {
       saveState.value = 'error'
@@ -331,6 +333,7 @@ async function onDelete() {
   }
   if (currentId.value === id) currentNote.value = null
   load()
+  await refreshAfterWrite('已移入回收站')
 }
 
 async function onRestore(n) {
@@ -340,6 +343,7 @@ async function onRestore(n) {
     return
   }
   load()
+  await refreshAfterWrite('已恢复')
 }
 
 async function onPurge(n) {
@@ -352,6 +356,7 @@ async function onPurge(n) {
   }
   if (currentId.value === n.id) currentNote.value = null
   load()
+  await refreshAfterWrite('已彻底删除')
 }
 
 async function onExport() {

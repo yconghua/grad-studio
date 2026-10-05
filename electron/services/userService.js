@@ -54,6 +54,7 @@ function toUserDto(row) {
     role: row.role,
     status: row.status,
     groupId: row.group_id == null ? null : Number(row.group_id),
+    groupName: row.group_name || '',
     mentorId: row.mentor_id == null ? null : Number(row.mentor_id),
     mustChangePassword: row.must_change_password === 1,
     passwordResetAt: row.password_reset_at || null,
@@ -62,7 +63,7 @@ function toUserDto(row) {
     email: row.email || '',
     avatar: row.avatar || '',
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    changeTs: row.change_ts
   }
 }
 

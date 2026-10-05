@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `task_dynamic` (
   `detail`      VARCHAR(500) DEFAULT NULL COMMENT '动态详情',
   `is_deleted`  TINYINT      NOT NULL DEFAULT 0 COMMENT '软删标记：0正常，1已删除（随任务级联）',
   `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `change_ts`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   KEY `idx_task` (`task_id`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务动态表';

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS `group_meeting_participant` (
   `user_id`         BIGINT       NOT NULL COMMENT '参与人用户ID（仅本组启用导师/学生）',
   `role_in_meeting` VARCHAR(20)  NULL COMMENT '会中角色：主持/汇报/参与（首版留空）',
   `create_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `change_ts`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_meeting_user` (`meeting_id`, `user_id`),
   KEY `idx_meeting_id` (`meeting_id`),

@@ -15,7 +15,7 @@ const { normalizePage, buildPageMeta, buildUpdateSet, buildOrderBy } = require('
 const LIST_COLUMNS = [
   'id', 'user_id', 'group_id', 'week_key', 'title', 'status', 'is_late',
   'review_action', 'review_score', 'reviewed_by', 'reviewed_at',
-  'submitted_at', 'version', 'created_at', 'updated_at'
+  'submitted_at', 'version', 'created_at', 'change_ts'
 ]
 
 // 周报明细排序白名单：语义字段名 → 可信 SQL 片段（联表带 r. / u. 前缀）
@@ -403,7 +403,7 @@ class ReportRepository extends BaseRepository {
     const total = Number(countRows[0] && countRows[0].total) || 0
     const sql =
       `SELECT r.id, r.user_id, r.week_key, r.title, r.status, r.is_late, r.submitted_at,
-              r.reviewed_at, r.created_at, r.updated_at, u.real_name AS student_name, u.username AS student_username
+              r.reviewed_at, r.created_at, r.change_ts, u.real_name AS student_name, u.username AS student_username
        FROM \`report\` r JOIN \`users\` u ON u.id = r.user_id
        WHERE ${whereSql} ${buildOrderBy(filters, REPORT_SORT_MAP, 'r.week_key DESC, r.user_id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'listMeta')

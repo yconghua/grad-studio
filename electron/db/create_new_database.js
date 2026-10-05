@@ -224,6 +224,40 @@ async function syncTableColumns(conn, tableInfo, file) {
   }
 }
 
+/**
+ * 清理遗留的通用更新时间列（updated_at / update_time），统一收敛到 change_ts。
+ * 仅当列仍存在于库中且新 schema 未声明时才 DROP；已清理的表下次跳过，天然幂等。
+ * 说明：旧列若被复合索引引用（如 note 的 idx_user_deleted_updated），MySQL 在
+ * DROP COLUMN 时会自动从索引中剔除该列，不影响查询前缀使用。
+ */
+async function dropLegacyColumns(conn, tableInfo, file) {
+  const { table, columns } = tableInfo
+  const declared = new Set(columns.map((c) => c.name.toLowerCase()))
+  const LEGACY = ['updated_at', 'update_time']
+
+  const [rows] = await conn.query(
+    `SELECT COLUMN_NAME AS name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?`,
+    [table]
+  )
+  const existing = new Set()
+  for (const r of rows || []) {
+    const n = r && (r.name || r.COLUMN_NAME || r.column_name)
+    if (n) existing.add(String(n).toLowerCase())
+  }
+
+  const safeTable = '`' + table.replace(/`/g, '``') + '`'
+  for (const legacy of LEGACY) {
+    if (existing.has(legacy) && !declared.has(legacy)) {
+      try {
+        await conn.query(`ALTER TABLE ${safeTable} DROP COLUMN \`${legacy}\``)
+      } catch (err) {
+        const msg = err && err.message ? err.message : String(err)
+        throw new Error(`清理表 \`${table}\` 旧列 \`${legacy}\` 失败（文件：${file}）：${msg}`)
+      }
+    }
+  }
+}
+
 // 初始化目标库：库不存在则自动创建，随后按文件名顺序执行 schemas/ 下所有 .sql
 // （建表 + 种子数据），并对每个文件做列同步（已存在的表缺列时自动 ADD COLUMN 补齐）。
 async function initDatabase({ host, port, user, password, database }) {
@@ -259,6 +293,11 @@ async function initDatabase({ host, port, user, password, database }) {
       //    已存在的表缺列时才补列——这就是「版本升级加列生效」的关键一步。
       for (const tableInfo of parseCreateTables(sql)) {
         await syncTableColumns(conn, tableInfo, file)
+      }
+
+      // 3) 旧列清理：统一收敛到 change_ts，库中残留的 updated_at / update_time 删除。
+      for (const tableInfo of parseCreateTables(sql)) {
+        await dropLegacyColumns(conn, tableInfo, file)
       }
     }
   } finally {

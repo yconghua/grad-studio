@@ -71,7 +71,7 @@ function toParamDto(row) {
     configType: row.config_type || 'string',
     description: row.description || '',
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    changeTs: row.change_ts
   }
 }
 

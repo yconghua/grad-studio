@@ -48,6 +48,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getTaskDetail, updateTask } from '../../api/task'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useSession } from '../../composables/useSession'
 import { dialogAlert } from '../../composables/useDialog'
 import { TASK_PRIORITY_TEXT } from '../../utils/labels'
@@ -108,7 +109,7 @@ async function submit() {
   })
   submitting.value = false
   if (res && res.success) {
-    dialogAlert('已保存')
+    await refreshAfterWrite('已保存')
     emit('saved')
     close()
   } else {

@@ -265,7 +265,6 @@ function mounted(el, binding) {
   }
 
   function attachResizers() {
-    const { widths, key } = applied
     ths.forEach((th, i) => {
       // 防止重复注入手柄（重算后 th 不变，但防御性清理）
       if (th.querySelector('.rc-resizer')) return
@@ -273,6 +272,9 @@ function mounted(el, binding) {
       rz.className = 'rc-resizer'
       th.appendChild(rz)
       rz.addEventListener('mousedown', (e) => {
+        // 每次取最新 applied：applied 在行渲染后会被 applyWidths 重建（更宽的内容值），
+        // 若在挂载时把 widths/key 固化进闭包，拖拽会把其他列覆盖回首轮的表头估算窄值
+        const { widths, key } = applied
         e.preventDefault()
         const startX = e.clientX
         const startW = widths[i].base

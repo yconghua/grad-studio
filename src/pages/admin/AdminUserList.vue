@@ -65,7 +65,7 @@
             <td class="ellipsis">{{ u.realName || '-' }}</td>
             <td><span class="tag tag-blue">{{ roleText(u.role) }}</span></td>
             <td><span :class="statusTagClass(u.status)">{{ statusText(u.status) }}</span></td>
-            <td class="ellipsis">{{ u.groupId ? '#' + u.groupId : '-' }}</td>
+            <td class="ellipsis">{{ u.groupName || '-' }}</td>
             <td class="ellipsis">{{ fmtDate(u.createdAt) }}</td>
             <td class="ellipsis">{{ fmtDate(u.passwordResetAt) }}</td>
             <td style="min-width: 184px">
@@ -259,14 +259,14 @@ const detailVisible = ref(false)
 const detailRow = ref(null)
 const detailFields = ref([])
 const detailTitle = ref('')
-// 用户详情字段：不含密码等敏感字段；所属课题组显示编号
+// 用户详情字段：不含密码等敏感字段；所属课题组显示名称
 const userDetailFields = [
   { key: 'id', label: 'ID' },
   { key: 'username', label: '用户名' },
   { key: 'realName', label: '真实姓名' },
   { key: 'role', label: '角色', render: roleText },
   { key: 'status', label: '状态', render: statusText },
-  { key: 'groupId', label: '所属课题组', render: (v) => (v ? `课题组 #${v}` : '-') },
+  { key: 'groupName', label: '所属课题组', render: (v) => v || '-' },
   { key: 'phone', label: '手机号' },
   { key: 'email', label: '邮箱' },
   { key: 'gender', label: '性别', render: (v) => (Number(v) === 1 ? '男' : Number(v) === 2 ? '女' : '未知') },

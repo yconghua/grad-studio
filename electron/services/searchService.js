@@ -211,15 +211,15 @@ function buildQueries(me, kw) {
     specs.push({
       type: 'note',
       label: '笔记',
-      query: `SELECT id, title, content, category, updated_at FROM \`note\`
+      query: `SELECT id, title, content, category, change_ts FROM \`note\`
         WHERE user_id = ? AND is_deleted = 0 AND (title LIKE ? OR content LIKE ?)
-        ORDER BY updated_at DESC LIMIT ${SEARCH_LIMIT}`,
+        ORDER BY change_ts DESC LIMIT ${SEARCH_LIMIT}`,
       params: [me.id, like, like],
       map: (r) => ({
         id: r.id,
         title: r.title || '无标题笔记',
         snippet: snippetOf(r.content, kw) || `类别：${r.category}`,
-        extra: { category: r.category, updatedAt: r.updated_at }
+        extra: { category: r.category, changeTs: r.change_ts }
       })
     })
   }

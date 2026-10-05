@@ -11,7 +11,7 @@ const { buildWhereClause, buildUpdateSet, buildOrderBy, normalizePage, buildPage
 // 公告表安全返回列（不含任何敏感字段）
 const SAFE_COLUMNS = [
   'id', 'group_id', 'publisher_id', 'publisher_role', 'title', 'content',
-  'is_top', 'status', 'publish_time', 'create_time', 'update_time'
+  'is_top', 'status', 'publish_time', 'create_time', 'change_ts'
 ]
 
 // 公告列表排序白名单：语义字段名 → 可信 SQL 片段（联表带 n. / g. / pu. 前缀）

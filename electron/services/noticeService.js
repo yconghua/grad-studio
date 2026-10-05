@@ -105,7 +105,7 @@ function toNoticeDto(row) {
     status: row.status,
     publishTime: row.publish_time,
     createTime: row.create_time,
-    updateTime: row.update_time
+    changeTs: row.change_ts
   }
 }
 

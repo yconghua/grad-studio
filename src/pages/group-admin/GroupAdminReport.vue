@@ -153,6 +153,7 @@ import {
 import { REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { refreshAfterWrite, emitDataChanged } from '../../composables/useGlobalRefresh'
 import ReportDetailDialog from '../../components/report/ReportDetailDialog.vue'
 
 const tab = ref('list')
@@ -312,7 +313,7 @@ async function onAddHoliday() {
     holidays.value = res.data || []
     holidayWeek.value = ''
     holidayReason.value = ''
-    dialogAlert('已设置免交周')
+    await refreshAfterWrite('已设置免交周')
   } else {
     dialogAlert((res && res.message) || '设置失败，请重试')
   }
@@ -324,6 +325,7 @@ async function onRemoveHoliday(h) {
   const res = await reportRemoveHoliday(h.week_key)
   if (res && res.success) {
     holidays.value = res.data || []
+    await refreshAfterWrite('已移除免交周')
   } else {
     dialogAlert((res && res.message) || '移除失败，请重试')
   }
@@ -347,6 +349,7 @@ async function onSaveTemplate() {
       templates.value = res.data || []
       templateTip.value = '已保存'
       setTimeout(() => (templateTip.value = ''), 2000)
+      emitDataChanged()
     } else {
       dialogAlert((res && res.message) || '保存失败，请重试')
     }

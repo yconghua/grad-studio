@@ -124,7 +124,7 @@ function toMeetingDto(row) {
     noticeId: row.notice_id == null ? null : Number(row.notice_id),
     participantCount: Number(row.participant_count) || 0,
     createTime: row.create_time,
-    updateTime: row.update_time
+    changeTs: row.change_ts
   }
 }
 

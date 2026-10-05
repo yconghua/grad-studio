@@ -178,6 +178,7 @@ import {
 } from '../../api/task'
 import { useSession } from '../../composables/useSession'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
+import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import {
   TASK_STATUS_DONE,
   TASK_STATUS_CANCELED,
@@ -287,7 +288,7 @@ async function doCancel() {
   if (!ok) return
   const res = await cancelTask(props.taskId)
   if (res && res.success) {
-    dialogAlert('任务已取消')
+    await refreshAfterWrite('任务已取消')
     emit('changed')
     load()
   } else {
@@ -300,7 +301,7 @@ async function doReopen() {
   if (!ok) return
   const res = await reopenTask(props.taskId)
   if (res && res.success) {
-    dialogAlert('任务已重新打开为进行中')
+    await refreshAfterWrite('任务已重新打开为进行中')
     emit('changed')
     load()
   } else {
@@ -318,7 +319,7 @@ async function doVerify(pass) {
   }
   const res = await verifyTask(props.taskId, pass, note)
   if (res && res.success) {
-    dialogAlert(pass ? '验收通过，任务已完成' : '已驳回，任务回到进行中')
+    await refreshAfterWrite(pass ? '验收通过，任务已完成' : '已驳回，任务回到进行中')
     emit('changed')
     load()
   } else {
@@ -331,7 +332,7 @@ async function doDelete() {
   if (!ok) return
   const res = await deleteTask(props.taskId)
   if (res && res.success) {
-    dialogAlert('任务已删除')
+    await refreshAfterWrite('任务已删除')
     emit('changed')
     close()
   } else {
@@ -356,7 +357,7 @@ async function submitProgress() {
   }
   const res = await submitTaskProgress(props.taskId, note)
   if (res && res.success) {
-    dialogAlert('进展已提交')
+    await refreshAfterWrite('进展已提交')
     progressVisible.value = false
     emit('changed')
     load()
@@ -370,7 +371,7 @@ async function doComplete() {
   if (!ok) return
   const res = await completeTask(props.taskId)
   if (res && res.success) {
-    dialogAlert('已提交完成，等待验收')
+    await refreshAfterWrite('已提交完成，等待验收')
     emit('changed')
     load()
   } else {
@@ -384,7 +385,7 @@ async function doAddParticipant() {
   const res = await addTaskParticipants(props.taskId, [addUserId.value])
   if (res && res.success) {
     addUserId.value = ''
-    dialogAlert('已添加参与人')
+    await refreshAfterWrite('已添加参与人')
     emit('changed')
     load()
   } else {
@@ -397,7 +398,7 @@ async function doRemoveParticipant(p) {
   if (!ok) return
   const res = await removeTaskParticipant(props.taskId, p.userId)
   if (res && res.success) {
-    dialogAlert('已移除')
+    await refreshAfterWrite('已移除')
     emit('changed')
     load()
   } else {

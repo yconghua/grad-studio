@@ -18,7 +18,7 @@ const CONFIG_SORT_MAP = {
 }
 
 // 系统参数表安全返回列
-const SAFE_COLUMNS = ['id', 'config_key', 'config_value', 'config_type', 'description', 'created_at', 'updated_at']
+const SAFE_COLUMNS = ['id', 'config_key', 'config_value', 'config_type', 'description', 'created_at', 'change_ts']
 
 function cols(columns) {
   return columns.map((c) => `\`${c}\``).join(', ')

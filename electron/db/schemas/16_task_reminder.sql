@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS `task_reminder` (
   `remind_date` DATE        NOT NULL COMMENT '提醒日期（按天去重）',
   `sent_at`     DATETIME    DEFAULT NULL COMMENT '通知写入时间',
   `created_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `change_ts`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_task_user_type_date` (`task_id`, `user_id`, `remind_type`, `remind_date`),
   KEY `idx_sent` (`sent_at`)

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `notification_type` (
   `enabled`             TINYINT     NOT NULL DEFAULT 1 COMMENT '是否启用：1启用，0禁用（禁用后不产生新通知，历史保留）',
   `sort_order`          INT         NOT NULL DEFAULT 0 COMMENT '排序（小在前）',
   `created_at`          DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `change_ts`           DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_type_key` (`type_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知类型注册表';

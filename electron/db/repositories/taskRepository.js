@@ -29,7 +29,7 @@ const TASK_SORT_MAP = {
 const LIST_COLUMNS = [
   'id', 'group_id', 'title', 'creator_id', 'creator_role',
   'status', 'priority', 'start_time', 'due_time', 'finish_time',
-  'progress', 'sort_order', 'version', 'created_at', 'updated_at'
+  'progress', 'sort_order', 'version', 'created_at', 'change_ts'
 ]
 
 function cols(columns, prefix = 't') {

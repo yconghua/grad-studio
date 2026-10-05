@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS `group_notice_read` (
   `notice_id` BIGINT   NOT NULL COMMENT '公告ID（公告删除时级联删除）',
   `user_id`   BIGINT   NOT NULL COMMENT '已读用户ID',
   `read_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '已读时间',
+  `change_ts` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_notice_user` (`notice_id`, `user_id`),
   KEY `idx_user_id` (`user_id`)

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS `system_configs` (
   `config_type`  VARCHAR(20)  NOT NULL DEFAULT 'string' COMMENT '参数类型：string/number/boolean/json',
   `description`  VARCHAR(255) DEFAULT NULL COMMENT '参数描述',
   `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `change_ts`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行变更时间戳（全局刷新指纹检测用）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_config_key` (`config_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统参数表';
