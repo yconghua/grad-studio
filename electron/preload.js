@@ -311,6 +311,8 @@ contextBridge.exposeInMainWorld('api', {
     openAppFolder: createInvoke('sys:open-app-folder'),
     openDataFolder: createInvoke('sys:open-data-folder'),
     clearCache: createInvoke('sys:clear-cache'),
+    uninstallAvailable: createInvoke('sys:uninstall-available'),
+    uninstallApp: createInvoke('sys:uninstall-app'),
     // 业务数据版本变化订阅（dataVersionService 轮询发现库变动时触发）；返回取消订阅函数
     onDbChanged: (cb) => {
       const listener = () => cb()

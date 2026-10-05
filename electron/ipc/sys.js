@@ -11,6 +11,7 @@
  */
 const path = require('node:path')
 const fs = require('node:fs')
+const { spawn } = require('node:child_process')
 const { app, shell, dialog, BrowserWindow } = require('electron')
 const connectionService = require('../services/connectionService')
 const dbStatusService = require('../services/dbStatusService')
@@ -314,6 +315,52 @@ function register(ipcMain) {
     } catch (err) {
       console.error('[sys:open-attachment] 未预期异常:', err)
       return { success: false, code: 500, message: '打开失败，请重试' }
+    }
+  })
+
+  // 定位 NSIS 卸载器：打包安装版在安装根目录生成 "Uninstall <产品名>.exe"；
+  // 开发模式（app.isPackaged=false）或无卸载器时返回空串，调用方不做任何删除
+  function findUninstaller() {
+    if (!app.isPackaged) return ''
+    const dir = path.dirname(app.getPath('exe'))
+    try {
+      const hit = fs.readdirSync(dir).find((f) => /^Uninstall.*\.exe$/i.test(f))
+      return hit ? path.join(dir, hit) : ''
+    } catch (err) {
+      return ''
+    }
+  }
+
+  // 卸载能力探测（只读）：供设置页决定按钮是否可用
+  ipcMain.handle('sys:uninstall-available', async () => {
+    const user = await authService.getCurrentUser()
+    if (!user) {
+      return { success: false, code: 401, message: '未登录，请重新登录' }
+    }
+    return { success: true, code: 0, available: !!findUninstaller() }
+  })
+
+  // 卸载程序：启动 NSIS 卸载向导（非静默，用户可确认），随后退出应用。
+  // 卸载只删安装目录文件；用户数据（记住我/缓存/业务数据）由 NSIS 默认保留。
+  // 开发模式或无卸载器时直接拒绝，不提供"删文件退出"的伪卸载，避免误删开发目录。
+  ipcMain.handle('sys:uninstall-app', async () => {
+    const user = await authService.getCurrentUser()
+    if (!user) {
+      return { success: false, code: 401, message: '未登录，请重新登录' }
+    }
+    const uninstaller = findUninstaller()
+    if (!uninstaller) {
+      return { success: false, code: 400, message: app.isPackaged ? '未找到卸载程序' : '当前为开发模式，无卸载入口' }
+    }
+    try {
+      // detached 脱离本进程：应用退出后卸载向导继续运行；stdio 忽略避免窗口句柄依赖
+      const child = spawn(uninstaller, [], { detached: true, stdio: 'ignore' })
+      child.unref()
+      setTimeout(() => app.quit(), 500)
+      return { success: true, code: 0, message: '正在启动卸载程序…' }
+    } catch (err) {
+      console.error('[sys:uninstall-app] 启动卸载器失败:', err)
+      return { success: false, code: 500, message: '启动卸载程序失败，请重试' }
     }
   })
 
