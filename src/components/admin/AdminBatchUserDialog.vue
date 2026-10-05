@@ -36,7 +36,7 @@
             v-model="pasteText"
             class="input"
             rows="6"
-            style="width: 640px; max-width: 100%; height: 220px; resize: vertical; font-family: monospace; font-size: 12px"
+            style="width: 640px; max-width: 100%; min-height: 220px; resize: vertical; font-family: monospace; font-size: 12px"
             placeholder="用户名,真实姓名,角色,手机号,邮箱,性别,所属课题组,导师,启用状态"
           ></textarea>
           <div style="margin-top: 8px">
