@@ -290,6 +290,7 @@ contextBridge.exposeInMainWorld('api', {
     info: createInvoke('sys:info'),
     getPublicInfo: createInvoke('sys:get-public-info'),
     dbInfo: createInvoke('sys:db-info'),
+    dbStatus: createInvoke('sys:db-status'),
     tablesInfo: createInvoke('sys:tables-info'),
     dbConnections: createInvoke('sys:db-connections'),
     switchDb: createInvoke('sys:switch-db'),
@@ -309,6 +310,12 @@ contextBridge.exposeInMainWorld('api', {
       const listener = () => cb()
       ipcRenderer.on('db:changed', listener)
       return () => ipcRenderer.removeListener('db:changed', listener)
+    },
+    // 数据库连接状态变化订阅（dbStatusService 探测发现连通/断开时触发）；返回取消订阅函数
+    onDbStatusChanged: (cb) => {
+      const listener = (_evt, data) => cb(data)
+      ipcRenderer.on('db:status-changed', listener)
+      return () => ipcRenderer.removeListener('db:status-changed', listener)
     }
   },
   // 窗口控制（对应 ipc/win.js，通道前缀 win:*）：无边框窗口标题栏按钮用

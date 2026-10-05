@@ -28,6 +28,8 @@ const taskScheduler = require('./services/taskScheduler')
 const reportScheduler = require('./services/reportScheduler')
 // 全局数据版本轮询：业务表指纹变化时广播 db:changed（页面后台静默重拉）
 const dataVersionService = require('./services/dataVersionService')
+// 数据库连接状态：持续 SELECT 1 探测，未连接时登录页禁用登录表单（连接恢复自动解锁）
+const dbStatusService = require('./services/dbStatusService')
 // scan-server 独立进程管理器：扫码登录时按需拉起，应用退出时停止
 const scanServerManager = require('./services/scanServerManager')
 // 路由聚合：一行注册全部 auth:* / sys:* 等 IPC 接口
@@ -207,6 +209,8 @@ if (!gotTheLock) {
     reportScheduler.start()
     // 启动全局数据版本轮询（业务表指纹变化 → 广播 db:changed，页面无感刷新）
     dataVersionService.start()
+    // 启动数据库连接探测（先于窗口创建，登录页挂载即可读到真实连接状态）
+    dbStatusService.start()
     // 创建窗口，并挂载系统托盘
     const mainWin = createWindow()
     createTray(mainWin)
@@ -217,6 +221,7 @@ if (!gotTheLock) {
     taskScheduler.stop()
     reportScheduler.stop()
     dataVersionService.stop()
+    dbStatusService.stop()
     scanServerManager.stop()
   })
 

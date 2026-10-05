@@ -5,6 +5,14 @@ export function getPublicInfo() {
 export function getDbInfo() {
   return window.api.sys.dbInfo()
 }
+// 数据库连接状态（dbStatusService 持续探测维护的实时快照）
+export function getDbStatus() {
+  return window.api.sys.dbStatus()
+}
+// 数据库连接状态变化订阅（未连接 → 禁用登录表单，恢复 → 原地解锁）；返回取消订阅函数
+export function onDbStatusChanged(cb) {
+  return window.api.sys.onDbStatusChanged(cb)
+}
 export function getDbConnections() {
   return window.api.sys.dbConnections()
 }

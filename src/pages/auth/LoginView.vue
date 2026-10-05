@@ -55,6 +55,11 @@
           </div>
           <p class="card-sub">{{ loginMode === 'account' ? '请输入账号密码以进入系统' : '请使用手机扫描二维码登录' }}</p>
 
+          <!-- 数据库未连接横幅：禁用下方全部登录入口，主进程探测恢复后自动解锁 -->
+          <p v-if="!dbConnected" class="db-banner">
+            数据库连接失败，正在自动重试…<span v-if="dbBannerMsg" class="db-banner-msg">{{ dbBannerMsg }}</span>
+          </p>
+
           <form v-if="loginMode === 'account'" @submit.prevent="onSubmit">
             <label class="field-label" for="username">账号</label>
             <input
@@ -64,6 +69,7 @@
               type="text"
               placeholder="请输入账号（区分大小写）"
               autocomplete="username"
+              :disabled="!dbConnected"
               @keyup.enter="onSubmit"
             />
 
@@ -76,6 +82,7 @@
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="请输入密码"
                 autocomplete="current-password"
+                :disabled="!dbConnected"
                 @keyup.enter="onSubmit"
               />
               <button
@@ -83,6 +90,7 @@
                 class="pwd-toggle"
                 :title="showPassword ? '隐藏密码' : '显示密码'"
                 aria-label="显示或隐藏密码"
+                :disabled="!dbConnected"
                 @mousedown.prevent="showPassword = !showPassword"
               >
                 <EyeOutlined v-if="!showPassword" />
@@ -101,12 +109,14 @@
                   maxlength="4"
                   placeholder="请输入验证码"
                   autocomplete="off"
+                  :disabled="!dbConnected"
                   @keyup.enter="onSubmit"
                 />
                 <button
                   type="button"
                   class="captcha-img"
                   title="看不清？点击刷新"
+                  :disabled="!dbConnected"
                   @click="loadCaptcha"
                 >
                   <img v-if="captchaSvg" :src="captchaSvg" alt="验证码，点击刷新" />
@@ -117,7 +127,7 @@
 
             <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
-            <button class="submit-btn" type="submit" :disabled="loading">
+            <button class="submit-btn" type="submit" :disabled="loading || !dbConnected">
               {{ loading ? '登录中…' : '登 录' }}
             </button>
 
@@ -135,6 +145,7 @@
               <img v-if="scanQrDataUrl" :src="scanQrDataUrl" class="scan-qr" alt="扫码登录二维码" />
               <span v-else class="scan-qr-loading">{{ scanQrPlaceholder }}</span>
               <div v-if="!agreed" class="scan-qr-mask">请先阅读并同意<br />用户协议与隐私政策</div>
+              <div v-if="!dbConnected" class="scan-qr-mask">数据库未连接，无法扫码登录</div>
             </div>
             <p class="scan-status" :class="scanStatusClass">{{ scanStatusText }}</p>
             <!-- 多网卡（含手机热点/电脑热点）时显示地址切换：手机连不上时切换为当前所在网络的地址 -->
@@ -146,11 +157,11 @@
                 type="button"
                 class="scan-addr-btn"
                 :class="{ active: scanBaseUrl === c.baseUrl }"
-                :disabled="scanLoading"
+                :disabled="scanLoading || !dbConnected"
                 @click="switchScanAddr(c.baseUrl)"
               >{{ c.name }}<em>{{ c.ip }}</em></button>
             </div>
-            <button type="button" class="scan-refresh" :disabled="scanLoading" @click="startScanLogin">
+            <button type="button" class="scan-refresh" :disabled="scanLoading || !dbConnected" @click="startScanLogin">
               {{ scanLoading ? '加载中…' : '刷新二维码' }}
             </button>
             <label class="agree-row">
@@ -254,7 +265,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import QRCode from 'qrcode'
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
-import { login, getCaptcha, getScanQr, scanStatus, scanCancel, deleteDb, getDbInfo, getPublicInfo } from '../../api'
+import { login, getCaptcha, getScanQr, scanStatus, scanCancel, deleteDb, getDbInfo, getDbStatus, onDbStatusChanged, getPublicInfo } from '../../api'
 import { useSession } from '../../composables/useSession'
 import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
@@ -293,6 +304,11 @@ const username = ref('')
 const password = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
+// 数据库连接状态：未连接时禁用登录表单（横幅提示 + 输入/按钮灰置），主进程探测恢复后自动解锁
+const dbConnected = ref(true)
+const dbBannerMsg = ref('')
+// 数据库状态变化订阅句柄（onUnmounted 退订）
+let unsubscribeDbStatus = null
 // 密码显示/隐藏（眼睛图标切换，不改变输入内容）
 const showPassword = ref(false)
 // 账号锁定倒计时（毫秒）：>0 时锁定登录按钮并每秒刷新剩余时间
@@ -366,12 +382,18 @@ function switchMode(mode) {
   if (mode === 'scan') startScanLogin()
 }
 
-// 获取二维码并启动轮询（进入扫码 Tab / 点击刷新时调用）
 // 获取二维码并启动轮询（进入扫码 Tab / 点击刷新时调用）；
 // reprobe=true 表示网络变化自动重取：不携带旧地址，由后端每次实时探测当前局域网 IP
 async function startScanLogin(reprobe = false) {
   stopScanPolling()
   scanFailCount = 0
+  // 数据库未连接时不取码（扫码登录最终仍需查库校验身份）
+  if (!dbConnected.value) {
+    scanQrDataUrl.value = ''
+    scanStatusText.value = '数据库未连接，无法扫码登录'
+    scanStatusClass.value = 'is-error'
+    return
+  }
   // 未勾选协议时不生成二维码，真正阻止扫码（非仅视觉遮挡）
   if (!agreed.value) {
     scanQrDataUrl.value = ''
@@ -528,6 +550,7 @@ function onNetworkOnline() {
 onUnmounted(() => {
   stopScanPolling()
   stopLockCountdown()
+  if (unsubscribeDbStatus) unsubscribeDbStatus()
   window.removeEventListener('online', onNetworkOnline)
   window.removeEventListener('offline', onNetworkOffline)
   if (scanTicket.value && !scanSucceeded) {
@@ -702,9 +725,30 @@ async function refreshDbStatus() {
     dbState.value = 'disconnected'
   }
 }
+// 数据库连接状态（dbStatusService 持续探测的快照）：驱动登录表单禁用/解锁
+async function refreshDbConnected() {
+  if (!window.api || !window.api.sys || !window.api.sys.dbStatus) return
+  try {
+    const res = await getDbStatus()
+    if (res && res.success) {
+      dbConnected.value = !!res.connected
+      dbBannerMsg.value = res.connected ? '' : (res.message || '')
+    }
+  } catch (e) {
+    // 接口异常按未连接处理（保守禁用登录入口）
+    dbConnected.value = false
+  }
+}
+
 onMounted(() => {
   loadVersion()
   refreshDbStatus()
+  refreshDbConnected()
+  // 数据库连接状态变化订阅：恢复后表单原地解锁，无需刷新
+  unsubscribeDbStatus = onDbStatusChanged(({ connected, message }) => {
+    dbConnected.value = !!connected
+    dbBannerMsg.value = connected ? '' : (message || '')
+  })
   // 网络切换感知：离线提示，恢复后自动刷新二维码
   window.addEventListener('online', onNetworkOnline)
   window.addEventListener('offline', onNetworkOffline)
@@ -744,11 +788,13 @@ function openSwitchDb() {
 function onDbChanged() {
   settingsRefreshKey.value++
   refreshDbStatus()
+  refreshDbConnected()
 }
 
 function onDbAdded() {
   switchRefreshKey.value++
   refreshDbStatus()
+  refreshDbConnected()
 }
 
 function onRequestDelete(id) {
@@ -775,6 +821,7 @@ async function onDeleteConfirmed(id) {
   }
   switchRefreshKey.value++
   refreshDbStatus()
+  refreshDbConnected()
 }
 </script>
 
@@ -991,6 +1038,22 @@ async function onDeleteConfirmed(id) {
   font-size: 13px;
   color: var(--muted);
 }
+/* 数据库未连接横幅：登录卡内醒目提示，禁用期间常驻 */
+.db-banner {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  word-break: break-all;
+}
+.db-banner-msg {
+  opacity: 0.85;
+  margin-left: 6px;
+}
 .field-label {
   display: block;
   font-size: 13px;
@@ -1010,6 +1073,12 @@ async function onDeleteConfirmed(id) {
 }
 .field-input:focus {
   border-color: var(--primary);
+}
+/* 数据库未连接时输入框灰置 */
+.field-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--gray-soft);
 }
 /* 密码输入框容器与显示/隐藏眼睛按钮 */
 .field-input-wrap {
@@ -1111,6 +1180,10 @@ async function onDeleteConfirmed(id) {
 }
 .captcha-img:hover {
   border-color: var(--primary);
+}
+.captcha-img:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 /* ===== 协议确认行（默认不勾选，未勾选拦截登录） ===== */
 .agree-row {

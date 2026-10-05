@@ -13,6 +13,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const { app, shell, dialog, BrowserWindow } = require('electron')
 const connectionService = require('../services/connectionService')
+const dbStatusService = require('../services/dbStatusService')
 const authService = require('../services/authService')
 const systemService = require('../services/systemService')
 
@@ -90,6 +91,13 @@ function register(ipcMain) {
       return { success: true, code: 0, ...meta, status: 'connected' }
     }
     return { success: true, code: 0, ...meta, status: 'disconnected', error: test.message }
+  })
+
+  // 数据库连接状态（dbStatusService 持续探测维护的实时快照）；不要求登录，
+  // 供登录页在"未连接"时禁用登录表单，状态变化由主进程推送 db:status-changed
+  ipcMain.handle('sys:db-status', async () => {
+    const { connected, message } = dbStatusService.getStatus()
+    return { success: true, code: 0, connected, message }
   })
 
   // 查看数据表：当前库所有表 + 每张表字段与行数。仅登录页（未登录）配置数据库时可用。
