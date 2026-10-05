@@ -3,19 +3,33 @@
     <!-- 无边框窗口自绘标题栏（拖拽 + 最小化/关闭） -->
     <AppTitleBar />
 
-    <!-- 顶栏：左侧 logo + 系统名（固定字号完整显示），右侧头像下拉 -->
+    <!-- 顶栏：左侧 logo + 系统名 + 汉堡按钮，右侧头像下拉 -->
     <header class="topbar">
       <div class="brand">
         <img :src="logoUrl" class="brand-logo" alt="平台标识" />
         <span class="brand-name">{{ appName }}</span>
+        <!-- 导航栏收起/展开开关（状态记忆 localStorage） -->
+        <button
+          class="side-toggle"
+          type="button"
+          :title="sideCollapsed ? '展开导航栏' : '收起导航栏'"
+          @click="toggleSide"
+        >
+          <MenuFoldOutlined v-if="!sideCollapsed" />
+          <MenuUnfoldOutlined v-else />
+        </button>
       </div>
       <GlobalSearch />
       <UserAvatarMenu :profile-path="profilePath" :introduction-path="introductionPath" :settings-path="settingsPath" />
     </header>
 
-    <!-- 主体：左侧导航（固定 220px）+ 右侧内容区（标签栏 + 页面内容） -->
+    <!-- 主体：左侧导航（可拖动调宽，可整体收起）+ 右侧内容区（标签栏 + 页面内容） -->
     <div class="body">
-      <aside class="side" :style="{ width: sideWidth + 'px' }">
+      <aside
+        class="side"
+        :class="{ collapsed: sideCollapsed }"
+        :style="{ width: (sideCollapsed ? SIDE_COLLAPSED_WIDTH : sideWidth) + 'px' }"
+      >
         <nav class="nav">
           <router-link
             v-for="item in navItems"
@@ -24,6 +38,7 @@
             class="nav-item"
             active-class="active"
           >
+            <component :is="navIcons[item.icon]" class="nav-icon" v-if="navIcons[item.icon]" />
             <span class="nav-label">{{ item.title }}</span>
             <span
               v-if="showBadge && item.key === unreadBadgeKey && unreadCount > 0"
@@ -42,8 +57,8 @@
         <div class="side-foot">
           <ThemeSwitcher />
         </div>
-        <!-- 右侧拖拽条：左右拖动调整导航栏宽度 -->
-        <div class="side-resizer" title="拖动调整导航栏宽度" @mousedown="onResizeStart"></div>
+        <!-- 右侧拖拽条：左右拖动调整导航栏宽度（收起时隐藏） -->
+        <div v-if="!sideCollapsed" class="side-resizer" title="拖动调整导航栏宽度" @mousedown="onResizeStart"></div>
       </aside>
 
       <!-- 右侧列：标签栏 + 页面内容，标签栏只占内容区宽度、不占用左侧导航栏 -->
@@ -66,10 +81,62 @@ import ThemeSwitcher from '../components/layout/ThemeSwitcher.vue'
 import AppTitleBar from '../components/layout/AppTitleBar.vue'
 import TabBar from '../components/layout/TabBar.vue'
 import GlobalSearch from '../components/layout/GlobalSearch.vue'
+// 导航图标按配置里的 icon 名映射（配置保持纯数据，图标集中在此注册）
+import {
+  DashboardOutlined,
+  BellOutlined,
+  TeamOutlined,
+  UserOutlined,
+  ApartmentOutlined,
+  NotificationOutlined,
+  CalendarOutlined,
+  CheckSquareOutlined,
+  FileTextOutlined,
+  SettingOutlined,
+  MessageOutlined,
+  EditOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined
+} from '@ant-design/icons-vue'
 import { useAppName } from '../composables/useAppName'
 import { useSession } from '../composables/useSession'
 import { pathForBiz } from '../config/notificationRoutes'
 import logoUrl from '../assets/logo.ico'
+
+// 导航项 icon 名字符串 → 图标组件（缺失时该项不渲染图标，不影响布局）
+const navIcons = {
+  DashboardOutlined,
+  BellOutlined,
+  TeamOutlined,
+  UserOutlined,
+  ApartmentOutlined,
+  NotificationOutlined,
+  CalendarOutlined,
+  CheckSquareOutlined,
+  FileTextOutlined,
+  SettingOutlined,
+  MessageOutlined,
+  EditOutlined
+}
+
+// 汉堡按钮：收起/展开导航栏（状态记忆 localStorage，启动时恢复）
+const SIDE_COLLAPSED_KEY = 'gra_studio_side_collapsed'
+let savedCollapsed = false
+try {
+  savedCollapsed = localStorage.getItem(SIDE_COLLAPSED_KEY) === '1'
+} catch (e) {
+  // 读取失败默认展开
+}
+const sideCollapsed = ref(savedCollapsed)
+
+function toggleSide() {
+  sideCollapsed.value = !sideCollapsed.value
+  try {
+    localStorage.setItem(SIDE_COLLAPSED_KEY, sideCollapsed.value ? '1' : '0')
+  } catch (e) {
+    // 存储失败静默，状态仅本次会话生效
+  }
+}
 
 // 布局外壳（角色布局共用的框架组件）：
 // 导航菜单、工作台/个人资料/设置入口由各角色布局以 props 传入，保证四角色页面相互独立。
@@ -99,6 +166,8 @@ const { appName } = useAppName()
 // ===== 左侧导航栏宽度（可拖动调整，localStorage 记忆） =====
 const SIDE_MIN = 160
 const SIDE_MAX = 360
+// 收起态宽度：只保留一条图标栏（文字隐藏、角标保留）
+const SIDE_COLLAPSED_WIDTH = 56
 const SIDE_STORAGE_KEY = 'gra_studio_side_width'
 let savedSideWidth = 0
 try {
@@ -319,6 +388,25 @@ onUnmounted(() => {
   color: var(--text);
   white-space: nowrap;
 }
+.side-toggle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.side-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 .body {
   flex: 1;
   display: flex;
@@ -338,6 +426,38 @@ onUnmounted(() => {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  transition: width 0.2s ease;
+}
+.side.collapsed {
+  overflow: hidden;
+  border-right: none;
+}
+/* 收起态：图标条模式——导航项只留图标居中，文字隐藏，角标贴图标右上角 */
+.side.collapsed .nav {
+  padding: 12px 8px;
+}
+.side.collapsed .nav-item {
+  position: relative;
+  justify-content: center;
+  padding: 10px 0;
+}
+.side.collapsed .nav-label {
+  display: none;
+}
+.side.collapsed .nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 16px;
+  box-sizing: border-box;
+}
+.side.collapsed .side-foot {
+  display: none;
 }
 .side-resizer {
   position: absolute;
@@ -371,8 +491,18 @@ onUnmounted(() => {
   text-decoration: none;
   transition: background 0.15s;
 }
+.nav-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--text-3);
+}
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  color: inherit;
+}
 .nav-label {
   min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

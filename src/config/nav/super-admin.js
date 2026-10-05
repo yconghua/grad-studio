@@ -3,16 +3,16 @@
  * key 仅作标识，path 即路由地址，title 为菜单显示名。
  */
 export const SUPER_ADMIN_NAV = [
-  { key: 'admin-dashboard', path: '/admin/dashboard', title: '工作台' },
-  { key: 'admin-notifications', path: '/admin/notifications', title: '通知中心' },
-  { key: 'admin-users', path: '/admin/users', title: '用户管理' },
-  { key: 'admin-groups', path: '/admin/groups', title: '课题组设置' },
-  { key: 'admin-notices', path: '/admin/notices', title: '课题组公告管理' },
-  { key: 'admin-meetings', path: '/admin/meetings', title: '会议记录管理' },
-  { key: 'admin-task-overview', path: '/admin/task-overview', title: '任务总览' },
-  { key: 'admin-report', path: '/admin/report', title: '周报统计' },
-  { key: 'admin-system', path: '/admin/system', title: '系统配置' },
-  { key: 'admin-chat', path: '/admin/chat', title: '聊天' }
+  { key: 'admin-dashboard', path: '/admin/dashboard', title: '工作台', icon: 'DashboardOutlined' },
+  { key: 'admin-notifications', path: '/admin/notifications', title: '通知中心', icon: 'BellOutlined' },
+  { key: 'admin-users', path: '/admin/users', title: '用户管理', icon: 'TeamOutlined' },
+  { key: 'admin-groups', path: '/admin/groups', title: '课题组设置', icon: 'ApartmentOutlined' },
+  { key: 'admin-notices', path: '/admin/notices', title: '课题组公告管理', icon: 'NotificationOutlined' },
+  { key: 'admin-meetings', path: '/admin/meetings', title: '会议记录管理', icon: 'CalendarOutlined' },
+  { key: 'admin-task-overview', path: '/admin/task-overview', title: '任务总览', icon: 'CheckSquareOutlined' },
+  { key: 'admin-report', path: '/admin/report', title: '周报统计', icon: 'FileTextOutlined' },
+  { key: 'admin-system', path: '/admin/system', title: '系统配置', icon: 'SettingOutlined' },
+  { key: 'admin-chat', path: '/admin/chat', title: '聊天', icon: 'MessageOutlined' }
 ]
 
 // 登录后跳转的工作台

@@ -15,7 +15,7 @@
  * 渲染层（Vue3）仍通过 preload 暴露的 window.api 与本进程通信，
  * 页面脚本拿不到 Node 能力（nodeIntegration:false + contextIsolation:true）。
  */
-const { app, BrowserWindow, Menu, ipcMain, shell, nativeImage, protocol, net, Tray } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, shell, nativeImage, protocol, net, Tray, screen } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
@@ -55,16 +55,18 @@ function resolveIcon() {
   return fs.existsSync(iconPath) ? iconPath : undefined
 }
 
-/** 创建主窗口：固定 1100×750，不可缩放、不可最大化、居中 */
+/** 创建主窗口：默认 1100×750，可缩放/最大化（最小尺寸兜底，页面不会比现状更挤） */
 // 退出确认标志：托盘「退出」置位后放行 close；窗口销毁后重置，保证新窗口仍可正常关闭
 let isQuitting = false
 function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
     height: 750,
-    frame: false, // 无边框窗口：标题栏由渲染层 AppTitleBar 自绘（拖拽 + 最小化/关闭）
-    resizable: false, // 禁止拖拽缩放边框
-    maximizable: false, // 禁止最大化
+    minWidth: 1100,
+    minHeight: 750,
+    frame: false, // 无边框窗口：标题栏由渲染层 AppTitleBar 自绘（拖拽 + 最小化/最大化/关闭）
+    resizable: true, // 允许缩放（含最大化），配合最小尺寸兜底
+    maximizable: true,
     center: true, // 启动时居中
     show: false,
     icon: resolveIcon(),
@@ -76,6 +78,17 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: false
     }
+  })
+
+  // 无边框窗口最大化默认铺满整屏（含任务栏）：收进主显示器工作区避免遮挡任务栏，
+  // 并推送状态给渲染层（标题栏按钮切换还原图标）；还原时推送 false
+  win.on('maximize', () => {
+    const { workArea } = screen.getPrimaryDisplay()
+    win.setBounds(workArea)
+    win.webContents.send('win:maximized-changed', true)
+  })
+  win.on('unmaximize', () => {
+    win.webContents.send('win:maximized-changed', false)
   })
 
   // 拦截标题栏 × / Alt+F4：登录页无会话直接关闭退出；登录后隐藏到系统托盘，应用后台驻留

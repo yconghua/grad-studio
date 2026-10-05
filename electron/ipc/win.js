@@ -15,6 +15,21 @@ function register(ipc) {
     return { success: true }
   })
 
+  // 最大化 / 还原切换（标题栏中间按钮）
+  ipc.handle('win:maximize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return { success: false, message: '窗口不存在' }
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
+    return { success: true }
+  })
+
+  // 当前是否最大化（标题栏挂载时初始化按钮状态）
+  ipc.handle('win:is-maximized', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    return { success: true, maximized: win ? win.isMaximized() : false }
+  })
+
   // 关闭窗口（实际行为由 main.js 的 close 事件决定：登录页退出 / 登录后隐藏到托盘）
   ipc.handle('win:close', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)

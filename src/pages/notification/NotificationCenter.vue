@@ -191,10 +191,9 @@ onUnmounted(() => {
 
 <style scoped>
 .notification-center {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
   box-sizing: border-box;
+  padding: 20px;
 }
 .nc-head {
   display: flex;

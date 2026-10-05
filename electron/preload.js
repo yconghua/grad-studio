@@ -327,6 +327,14 @@ contextBridge.exposeInMainWorld('api', {
   // 窗口控制（对应 ipc/win.js，通道前缀 win:*）：无边框窗口标题栏按钮用
   window: {
     minimize: createInvoke('win:minimize'),
-    close: createInvoke('win:close')
+    maximize: createInvoke('win:maximize'),
+    isMaximized: createInvoke('win:is-maximized'),
+    close: createInvoke('win:close'),
+    // 最大化状态变化订阅（主进程 maximize/unmaximize 时触发）；返回取消订阅函数
+    onMaximizedChanged: (cb) => {
+      const listener = (_evt, data) => cb(data)
+      ipcRenderer.on('win:maximized-changed', listener)
+      return () => ipcRenderer.removeListener('win:maximized-changed', listener)
+    }
   }
 })
