@@ -131,6 +131,11 @@
               {{ loading ? '登录中…' : '登 录' }}
             </button>
 
+            <label class="agree-row remember-row">
+              <input v-model="rememberMe" type="checkbox" class="agree-check" />
+              <span class="agree-text">记住我</span>
+            </label>
+
             <label class="agree-row">
               <input v-model="agreed" type="checkbox" class="agree-check" />
               <span class="agree-text">
@@ -265,7 +270,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import QRCode from 'qrcode'
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
-import { login, getCaptcha, getScanQr, scanStatus, scanCancel, deleteDb, getDbInfo, getDbStatus, onDbStatusChanged, getPublicInfo } from '../../api'
+import { login, getCaptcha, getScanQr, scanStatus, scanCancel, deleteDb, getDbInfo, getDbStatus, onDbStatusChanged, getPublicInfo, remember, getRemembered, forgetRemembered } from '../../api'
 import { useSession } from '../../composables/useSession'
 import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
@@ -325,6 +330,8 @@ const captchaSvg = ref('')
 // 协议确认：默认不勾选，未勾选时拦截登录（账号 / 扫码两个 Tab 共用）
 const agreed = ref(false)
 const agreementType = ref('')
+// 记住我：登录成功勾选则加密保存账号密码（7 天有效），登录页挂载时自动回填免输入
+const rememberMe = ref(true)
 
 // 登录方式：account 账号登录 / scan 扫码登录
 const loginMode = ref('account')
@@ -639,6 +646,12 @@ async function onSubmit() {
         loading.value = false
         return
       }
+      // 记住我：勾选则加密保存（重写 7 天有效期），未勾选则清除旧记录
+      if (rememberMe.value) {
+        remember({ username: username.value, password: password.value }).catch(() => {})
+      } else {
+        forgetRemembered().catch(() => {})
+      }
       setSession(user)
       recordLogin(user)
       if (user.mustChangePassword) {
@@ -753,6 +766,7 @@ onMounted(() => {
   window.addEventListener('online', onNetworkOnline)
   window.addEventListener('offline', onNetworkOffline)
   // 从「切换账号」跳转而来：?pre=账号名 → 预填该账号输密码；?new=1 → 清空账号框输新账号
+  // 这两种场景均为明确换号意图，不自动回填记住的账号
   const q = route.query
   if (q.pre && typeof q.pre === 'string' && q.pre) {
     username.value = q.pre
@@ -762,8 +776,24 @@ onMounted(() => {
     username.value = ''
     errorMsg.value = '请输入新账号和密码'
     router.replace({ path: '/login', query: {} })
+  } else {
+    fillRemembered()
   }
 })
+
+// 记住我回填：读取本地记住记录，自动填入账号与密码（无提示，仍需用户点击登录）
+async function fillRemembered() {
+  try {
+    const res = await getRemembered()
+    const d = res && res.success ? res.data : null
+    if (d && d.username && d.password) {
+      username.value = d.username
+      password.value = d.password
+    }
+  } catch (e) {
+    // 读取失败按无记录处理（不影响手动登录）
+  }
+}
 
 const copyrightYear = new Date().getFullYear()
 const showAdminContact = ref(false)
@@ -1144,6 +1174,10 @@ async function onDeleteConfirmed(id) {
 .submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+/* 记住我：勾选行（复用协议勾选样式） */
+.remember-row {
+  margin-top: 10px;
 }
 /* ===== 验证码区域（连续失败后显示） ===== */
 .captcha-row {

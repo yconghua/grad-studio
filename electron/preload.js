@@ -52,14 +52,16 @@ function toPlain(value) {
 
 // 工厂：把「某个 IPC 通道」固化成一个函数，调用时把唯一 payload 透传给主进程。
 // logPayload=false 的通道只打印调用摘要，不打印 payload 全文（如批量导入的行数据）。
-const createInvoke = (channel, { logPayload = true } = {}) => async (payload) => {
+// logResult=false 的通道不打印返回结果（如含解密密码的记住我回读）。
+const createInvoke = (channel, { logPayload = true, logResult = true } = {}) => async (payload) => {
   const t0 = Date.now()
   if (logPayload) console.log(`[API→] ${channel}`, sanitize(payload))
   else console.log(`[API→] ${channel} (payload 不打印)`)
   try {
     const res = await ipcRenderer.invoke(channel, toPlain(payload))
     const status = res && res.success === false ? 'FAIL' : 'OK'
-    console.log(`[API←] ${channel} ${status} ${Date.now() - t0}ms`, res)
+    if (logResult) console.log(`[API←] ${channel} ${status} ${Date.now() - t0}ms`, res)
+    else console.log(`[API←] ${channel} ${status} ${Date.now() - t0}ms`)
     return res
   } catch (err) {
     console.error(`[API✗] ${channel} 调用异常 (${Date.now() - t0}ms)`, err)
@@ -76,6 +78,10 @@ contextBridge.exposeInMainWorld('api', {
     scanStatus: createInvoke('auth:scan-status'),
     scanCancel: createInvoke('auth:scan-cancel'),
     logout: createInvoke('auth:logout'),
+    // 记住我：remember 会经 sanitize 对密码脱敏；remembered 返回含解密密码，不打印结果
+    remember: createInvoke('auth:remember'),
+    remembered: createInvoke('auth:remembered', { logResult: false }),
+    forget: createInvoke('auth:forget'),
     getCurrentUser: createInvoke('auth:get-current-user'),
     changePassword: createInvoke('auth:change-password'),
     switchAccount: createInvoke('auth:switch-account'),

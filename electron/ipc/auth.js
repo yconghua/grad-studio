@@ -8,6 +8,7 @@ const authService = require('../services/authService')
 const ticketService = require('../services/ticketService')
 const captchaService = require('../services/captchaService')
 const scanLoginService = require('../services/scanLoginService')
+const rememberService = require('../services/rememberService')
 const ApiError = require('../services/apiError')
 const { handler } = require('./helper')
 
@@ -28,6 +29,21 @@ function register(ipcMain) {
 
   // 登录校验（用户名/密码区分大小写；连续失败后需带验证码）
   ipcMain.handle('auth:login', handler((_evt, payload) => authService.login(payload || {})))
+
+  // 记住我：登录成功且勾选时，加密保存账号密码（7 天有效，登录页自动回填免输入）
+  ipcMain.handle('auth:remember', handler((_evt, payload) => {
+    const { username, password } = payload || {}
+    return rememberService.save(username, password)
+  }))
+
+  // 记住我：读取已记住账号（登录页挂载时自动回填）；无记录 / 过期返回 null
+  ipcMain.handle('auth:remembered', handler(() => rememberService.read()))
+
+  // 记住我：清除本地记住记录（退出登录 / 登录成功未勾选）
+  ipcMain.handle('auth:forget', handler(() => {
+    rememberService.clear()
+    return true
+  }))
 
   // 退出登录（清除登录态；不吊销免密票据）
   ipcMain.handle('auth:logout', handler(() => authService.logout()))
