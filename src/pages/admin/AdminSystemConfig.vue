@@ -145,8 +145,10 @@ import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, d
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { useAppName } from '../../composables/useAppName'
 
 // 超级管理员独立页面：系统配置（系统信息 / 数据库信息 / 系统参数 三块）
+const { refreshAppName } = useAppName()
 const info = ref({})
 const db = ref({})
 const dbExporting = ref(false)
@@ -282,9 +284,10 @@ function openEdit(p) {
   showModal.value = true
 }
 
-// 保存成功：刷新参数列表并提示
+// 保存成功：刷新参数列表并提示；顺带重读品牌信息（修改系统名称后顶栏/登录页即时生效）
 async function onParamSaved() {
   await refreshAfterWrite(isEdit.value ? '保存成功' : '新增成功')
+  refreshAppName()
   loadParams()
 }
 
