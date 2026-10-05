@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import RowDetailDialog from '../../components/common/RowDetailDialog.vue'
 import NoticeFormDialog from '../../components/notice/NoticeFormDialog.vue'

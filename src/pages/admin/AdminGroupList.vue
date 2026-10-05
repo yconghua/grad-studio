@@ -74,7 +74,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { listGroups, listUsers } from '../../api'
+import { listGroups, listUsers, deleteGroup } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { fetchAll } from '../../utils/fetchAll'

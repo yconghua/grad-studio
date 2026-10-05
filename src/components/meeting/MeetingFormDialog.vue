@@ -177,6 +177,14 @@ async function loadMemberOptions(groupId) {
   const res = await getMeetingMemberOptions(groupId)
   if (res && res.success) {
     memberOptions.value = (res.data && res.data) || []
+    // 编辑模式：剔除已失效的原参与人（停用/改组/删除），避免提交被后端「参与人必须是本组启用成员」校验拒绝
+    if (props.mode === 'edit') {
+      const validIds = new Set(memberOptions.value.map((m) => Number(m.id)))
+      const before = form.participantIds.length
+      form.participantIds = form.participantIds.filter((id) => validIds.has(Number(id)))
+      const removed = before - form.participantIds.length
+      if (removed > 0) dialogAlert(`${removed} 位原参与人已失效（停用/改组/删除），已自动从参与人中移除`)
+    }
   } else {
     memberOptions.value = []
     dialogAlert((res && res.message) || '加载参与人列表失败')
