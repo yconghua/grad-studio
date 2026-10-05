@@ -6,13 +6,23 @@
  * 发布人被删除时姓名回退为「用户 #id」。
  */
 const BaseRepository = require('./BaseRepository')
-const { buildWhereClause, buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
+const { buildWhereClause, buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('./queryHelpers')
 
 // 公告表安全返回列（不含任何敏感字段）
 const SAFE_COLUMNS = [
   'id', 'group_id', 'publisher_id', 'publisher_role', 'title', 'content',
   'is_top', 'status', 'publish_time', 'create_time', 'update_time'
 ]
+
+// 公告列表排序白名单：语义字段名 → 可信 SQL 片段（联表带 n. / g. / pu. 前缀）
+const NOTICE_SORT_MAP = {
+  id: 'n.id',
+  groupName: 'g.name',
+  title: 'n.title',
+  publisherName: 'pu.real_name',
+  status: 'n.status',
+  publishTime: 'n.publish_time'
+}
 
 // 列名拼接：JOIN groups/users 后须带 n. 前缀，避免 id/status 等列名歧义
 function cols(columns) {
@@ -74,7 +84,7 @@ class GroupNoticeRepository extends BaseRepository {
     // LIMIT/OFFSET 直接内联整数值（normalizePage 已做 parseInt 归一化），规避
     // prepared statement 对 LIMIT ? 占位符的支持问题（同 userRepository.pagedList）。
     const sql =
-      `${BASE_SELECT} ${clause} ORDER BY n.is_top DESC, n.publish_time DESC, n.id DESC LIMIT ${limit} OFFSET ${offset}`
+      `${BASE_SELECT} ${clause} ${buildOrderBy(filters, NOTICE_SORT_MAP, 'n.is_top DESC, n.publish_time DESC, n.id DESC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

@@ -8,7 +8,22 @@
  * 由服务层转成「任务已被他人更新，请刷新」。
  */
 const BaseRepository = require('./BaseRepository')
-const { buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
+const { buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('./queryHelpers')
+
+// 任务列表排序白名单：语义字段名 → 可信 SQL 片段（联表带 t. / g. / u. 前缀）
+const TASK_SORT_MAP = {
+  id: 't.id',
+  groupName: 'g.name',
+  title: 't.title',
+  creatorName: 'u.real_name',
+  creatorRole: 't.creator_role',
+  status: 't.status',
+  priority: 't.priority',
+  startTime: 't.start_time',
+  dueTime: 't.due_time',
+  progress: 't.progress',
+  createdAt: 't.created_at'
+}
 
 // 任务表安全返回列（不含 description 等大字段，详情单独取全列）
 const LIST_COLUMNS = [
@@ -127,7 +142,7 @@ class TaskRepository extends BaseRepository {
       FROM \`task\` t
       LEFT JOIN \`groups\` g ON g.id = t.group_id
       LEFT JOIN \`users\` u ON u.id = t.creator_id
-      WHERE ${where} ORDER BY ${ORDER_BY} LIMIT ${limit} OFFSET ${offset}`
+      WHERE ${where} ${buildOrderBy(filters, TASK_SORT_MAP, ORDER_BY)} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }
@@ -307,7 +322,7 @@ class TaskRepository extends BaseRepository {
       FROM \`task\` t
       LEFT JOIN \`groups\` g ON g.id = t.group_id
       LEFT JOIN \`users\` u ON u.id = t.creator_id
-      WHERE ${where} ORDER BY ${ORDER_BY}`
+      WHERE ${where} ${buildOrderBy(filters, TASK_SORT_MAP, ORDER_BY)}`
     const [rows] = await this._execute(sql, values, 'listAll')
     return rows
   }

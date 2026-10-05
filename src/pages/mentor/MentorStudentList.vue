@@ -16,15 +16,15 @@
     </div>
 
     <div class="tbl-wrap">
-      <table v-resizable-columns class="tbl">
+      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>用户名</th>
-            <th>真实姓名</th>
-            <th>手机号</th>
-            <th>邮箱</th>
-            <th>状态</th>
+            <th data-sort="id">ID</th>
+            <th data-sort="username">用户名</th>
+            <th data-sort="realName">真实姓名</th>
+            <th data-sort="phone">手机号</th>
+            <th data-sort="email">邮箱</th>
+            <th data-sort="status">状态</th>
           </tr>
         </thead>
         <tbody>
@@ -67,6 +67,8 @@ const page = ref(1)
 const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
+const sortField = ref('')
+const sortOrder = ref('')
 
 // ===== 行详情 =====
 const detailVisible = ref(false)
@@ -89,7 +91,7 @@ function openDetail(row, fields, title) {
 }
 
 async function load() {
-  const res = await listMyStudents({ page: page.value, keyword: keyword.value })
+  const res = await listMyStudents({ page: page.value, keyword: keyword.value, sortField: sortField.value, sortOrder: sortOrder.value })
   if (res && res.success) {
     list.value = (res.data && res.data.list) || []
     total.value = (res.data && res.data.total) || 0
@@ -99,6 +101,12 @@ async function load() {
   }
 }
 function search() {
+  page.value = 1
+  load()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   load()
 }

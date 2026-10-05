@@ -42,13 +42,13 @@
           <span class="panel-title">各组成绩排名（本周）</span>
         </div>
         <div class="table-wrap">
-          <table v-resizable-columns class="table">
+          <table v-resizable-columns v-sortable-columns="{ field: rankSortField, order: rankSortOrder, onSort: onRankSort }" class="table">
             <thead>
               <tr>
                 <th>#</th>
-                <th>课题组</th>
-                <th>已提交</th>
-                <th>按时</th>
+                <th data-sort="groupName">课题组</th>
+                <th data-sort="submitted">已提交</th>
+                <th data-sort="onTime">按时</th>
               </tr>
             </thead>
             <tbody>
@@ -98,14 +98,14 @@
         </div>
       </div>
       <div class="table-wrap">
-        <table v-resizable-columns class="table">
+        <table v-resizable-columns v-sortable-columns="{ field: auditSortField, order: auditSortOrder, onSort: onAuditSort }" class="table">
           <thead>
             <tr>
-              <th>学生</th>
-              <th>周次</th>
-              <th>主题</th>
-              <th>状态</th>
-              <th>提交时间</th>
+              <th data-sort="studentName">学生</th>
+              <th data-sort="weekKey">周次</th>
+              <th data-sort="title">主题</th>
+              <th data-sort="status">状态</th>
+              <th data-sort="submittedAt">提交时间</th>
               <th>附件</th>
               <th>操作</th>
             </tr>
@@ -152,6 +152,10 @@ const auditPage = ref(1)
 const auditPages = ref(1)
 const auditList = ref([])
 const auditLoading = ref(false)
+const rankSortField = ref('')
+const rankSortOrder = ref('')
+const auditSortField = ref('')
+const auditSortOrder = ref('')
 
 const STATUS_TEXT = {
   [REPORT_STATUS_DRAFT]: '草稿',
@@ -173,7 +177,7 @@ function barHeight(submitted) {
 
 async function loadStats() {
   try {
-    const res = await reportStats({})
+    const res = await reportStats({ sortField: rankSortField.value, sortOrder: rankSortOrder.value })
     if (res && res.success) {
       statsData.value = res.data || {}
       ranking.value = (res.data && res.data.ranking) || []
@@ -182,6 +186,11 @@ async function loadStats() {
   } catch (e) {
     statsData.value = {}
   }
+}
+function onRankSort(field, order) {
+  rankSortField.value = field
+  rankSortOrder.value = order
+  loadStats()
 }
 
 async function loadGroups() {
@@ -196,7 +205,7 @@ async function loadGroups() {
 async function searchAudit() {
   auditLoading.value = true
   try {
-    const params = { page: auditPage.value }
+    const params = { page: auditPage.value, sortField: auditSortField.value, sortOrder: auditSortOrder.value }
     if (audit.value.groupId) params.groupId = Number(audit.value.groupId)
     if (audit.value.weekKey) params.weekKey = audit.value.weekKey.trim()
     if (audit.value.status) params.status = audit.value.status
@@ -225,6 +234,12 @@ function onAuditPrev() {
 function onAuditNext() {
   if (auditPage.value >= auditPages.value) return
   auditPage.value++
+  searchAudit()
+}
+function onAuditSort(field, order) {
+  auditSortField.value = field
+  auditSortOrder.value = order
+  auditPage.value = 1
   searchAudit()
 }
 

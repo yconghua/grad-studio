@@ -49,16 +49,16 @@
     <div v-for="g in groups" :key="g.groupId" class="panel group-panel">
       <h3 class="group-title">{{ g.groupName }} <span class="group-count">{{ g.tasks.length }} 个任务</span></h3>
 
-      <table v-resizable-columns class="tbl">
+      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>任务标题</th>
-            <th>创建人</th>
-            <th>创建人角色</th>
-            <th>状态</th>
-            <th>优先级</th>
-            <th>截止时间</th>
+            <th data-sort="id">ID</th>
+            <th data-sort="title">任务标题</th>
+            <th data-sort="creatorName">创建人</th>
+            <th data-sort="creatorRole">创建人角色</th>
+            <th data-sort="status">状态</th>
+            <th data-sort="priority">优先级</th>
+            <th data-sort="dueTime">截止时间</th>
           </tr>
         </thead>
         <tbody>
@@ -102,6 +102,8 @@ const stats = ref({ total: 0, completionRate: 0, overdue: 0, pendingReview: 0 })
 const loading = ref(false)
 const filterGroupId = ref('')
 const filterStatus = ref('')
+const sortField = ref('')
+const sortOrder = ref('')
 
 const groupOptions = computed(() => groups.value.map((g) => ({ groupId: g.groupId, groupName: g.groupName })))
 
@@ -156,7 +158,9 @@ async function load() {
   loading.value = true
   const res = await getTaskOverviewList({
     groupId: filterGroupId.value === '' ? undefined : filterGroupId.value,
-    status: filterStatus.value === '' ? undefined : filterStatus.value
+    status: filterStatus.value === '' ? undefined : filterStatus.value,
+    sortField: sortField.value,
+    sortOrder: sortOrder.value
   })
   loading.value = false
   if (res && res.success) {
@@ -167,6 +171,11 @@ async function load() {
 }
 
 function search() {
+  load()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   load()
 }
 function reset() {

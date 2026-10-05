@@ -305,9 +305,9 @@ async function createTask(data = {}) {
  * @param {{ scope?: 'mine-created'|'mine-participated'|'my-students'|'group',
  *           page?:number, status?:number, priority?:number, keyword?:string, memberId?:number }} param
  */
-async function listTasks({ scope = 'mine-created', page, status, priority, keyword, memberId } = {}) {
+async function listTasks({ scope = 'mine-created', page, status, priority, keyword, memberId, sortField, sortOrder } = {}) {
   const me = await currentUser()
-  const filters = { page, status, priority, keyword }
+  const filters = { page, status, priority, keyword, sortField, sortOrder }
   // 按成员（参与人）筛选：仅组管「组内成员任务」/ 导师「自己学生的任务」两处使用，
   // 服务端不再额外校验该成员身份（范围本身已限定在本组/名下学生内）
   if (memberId) filters.participantUserId = Number(memberId)

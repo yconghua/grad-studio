@@ -9,7 +9,7 @@
  * 冲突返回 0，由服务层转换为「已被其他设备更新」提示。
  */
 const BaseRepository = require('./BaseRepository')
-const { normalizePage, buildPageMeta, buildUpdateSet } = require('./queryHelpers')
+const { normalizePage, buildPageMeta, buildUpdateSet, buildOrderBy } = require('./queryHelpers')
 
 // 列表列（不含 content 大字段；摘要用 SUBSTRING 截取前 120 字）
 const LIST_COLUMNS = [
@@ -17,6 +17,25 @@ const LIST_COLUMNS = [
   'review_action', 'review_score', 'reviewed_by', 'reviewed_at',
   'submitted_at', 'version', 'created_at', 'updated_at'
 ]
+
+// 周报明细排序白名单：语义字段名 → 可信 SQL 片段（联表带 r. / u. 前缀）
+const REPORT_SORT_MAP = {
+  studentName: 'u.real_name',
+  studentUsername: 'u.username',
+  weekKey: 'r.week_key',
+  title: 'r.title',
+  status: 'r.status',
+  isLate: 'r.is_late',
+  submittedAt: 'r.submitted_at',
+  reviewedAt: 'r.reviewed_at'
+}
+
+// 各组排名排序白名单（GROUP BY 聚合结果：别名列）
+const RANKING_SORT_MAP = {
+  groupName: 'g.name',
+  submitted: 'submitted',
+  onTime: 'on_time'
+}
 
 // 列清单拼接；alias 非空时为每列加表前缀（JOIN 场景避免列名歧义）
 function cols(columns, alias) {
@@ -170,7 +189,7 @@ class ReportRepository extends BaseRepository {
       `SELECT ${cols(LIST_COLUMNS, 'r')}, SUBSTRING(r.\`content\`, 1, 120) AS summary,
               u.real_name AS student_name, u.username AS student_username
        FROM \`report\` r JOIN \`users\` u ON u.id = r.user_id
-       WHERE ${whereSql} ORDER BY r.week_key DESC, r.user_id ASC LIMIT ${limit} OFFSET ${offset}`
+       WHERE ${whereSql} ${buildOrderBy(filters, REPORT_SORT_MAP, 'r.week_key DESC, r.user_id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'listGroup')
     return { list: rows, ...buildPageMeta(total, p, pageSize) }
   }
@@ -240,14 +259,14 @@ class ReportRepository extends BaseRepository {
   }
 
   // 各组某周提交排行（超管：按组排名）
-  async groupRanking(weekKey) {
+  async groupRanking(weekKey, filters = {}) {
     const sql =
       `SELECT r.group_id, g.name AS group_name,
          COUNT(DISTINCT r.user_id) AS submitted,
          COUNT(DISTINCT CASE WHEN r.is_late = 0 THEN r.user_id END) AS on_time
        FROM \`report\` r LEFT JOIN \`groups\` g ON g.id = r.group_id
        WHERE r.week_key = ? AND r.status IN ('submitted', 'returned', 'reviewed')
-       GROUP BY r.group_id, g.name ORDER BY submitted DESC, on_time DESC`
+       GROUP BY r.group_id, g.name ${buildOrderBy(filters, RANKING_SORT_MAP, 'submitted DESC, on_time DESC')}`
     const [rows] = await this._execute(sql, [weekKey], 'groupRanking')
     return rows.map((r) => ({
       groupId: Number(r.group_id),
@@ -386,7 +405,7 @@ class ReportRepository extends BaseRepository {
       `SELECT r.id, r.user_id, r.week_key, r.title, r.status, r.is_late, r.submitted_at,
               r.reviewed_at, r.created_at, r.updated_at, u.real_name AS student_name, u.username AS student_username
        FROM \`report\` r JOIN \`users\` u ON u.id = r.user_id
-       WHERE ${whereSql} ORDER BY r.week_key DESC, r.user_id ASC LIMIT ${limit} OFFSET ${offset}`
+       WHERE ${whereSql} ${buildOrderBy(filters, REPORT_SORT_MAP, 'r.week_key DESC, r.user_id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'listMeta')
     return { list: rows, ...buildPageMeta(total, p, pageSize) }
   }

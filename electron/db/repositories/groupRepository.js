@@ -5,10 +5,21 @@
  * 本表为物理删除，findById / update / delete 自行实现（不带 is_deleted 条件）。
  */
 const BaseRepository = require('./BaseRepository')
-const { buildWhereClause, buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
+const { buildWhereClause, buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('./queryHelpers')
 
 // 课题组表安全返回列
 const SAFE_COLUMNS = ['id', 'name', 'code', 'description', 'admin_user_id', 'status', 'created_at', 'updated_at']
+
+// 课题组列表排序白名单：语义字段名 → 可信 SQL 片段（管理员列按 admin_user_id 排，姓名由前端反查）
+const GROUP_SORT_MAP = {
+  id: 'id',
+  name: 'name',
+  code: 'code',
+  description: 'description',
+  adminUserId: 'admin_user_id',
+  status: 'status',
+  createdAt: 'created_at'
+}
 
 function cols(columns) {
   return columns.map((c) => `\`${c}\``).join(', ')
@@ -95,7 +106,7 @@ class GroupRepository extends BaseRepository {
     // prepared statement 对 LIMIT ? 占位符的支持问题（部分 MySQL 版本报
     // 「Incorrect arguments to mysqld_stmt_execute」）。
     const sql =
-      `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\`${clause} ORDER BY id ASC LIMIT ${limit} OFFSET ${offset}`
+      `SELECT ${cols(SAFE_COLUMNS)} FROM \`groups\`${clause} ${buildOrderBy(filters, GROUP_SORT_MAP, 'id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

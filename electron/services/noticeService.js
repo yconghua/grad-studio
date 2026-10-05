@@ -146,9 +146,9 @@ async function assertManageable(me, id) {
 /**
  * 公告分页列表（四角色共用入口，可见范围按角色在服务端强制收敛）
  */
-async function listNotices({ page, keyword, groupId, status } = {}) {
+async function listNotices({ page, keyword, groupId, status, sortField, sortOrder } = {}) {
   const me = await currentUser()
-  const filters = { page, keyword }
+  const filters = { page, keyword, sortField, sortOrder }
   let effectiveGroupId = null
 
   if (me.role === ROLE_SUPER_ADMIN) {

@@ -95,4 +95,22 @@ function buildPageMeta(total, page, pageSize) {
   }
 }
 
-module.exports = { buildWhereClause, buildUpdateSet, PAGE_SIZE, normalizePage, buildPageMeta }
+/**
+ * 组装 ORDER BY 片段（列表后端排序统一收口）。
+ * @param {Object} [filters] 查询参数（可含 sortField / sortOrder）
+ * @param {Object} [sortMap] 语义字段名 → 可信 SQL 片段映射（开发者写死，不接受前端列名）
+ * @param {string} [defaultOrderBy] 无排序参数时的默认排序片段（如 'n.is_top DESC, n.publish_time DESC'）
+ * @returns {string} 'ORDER BY ...'；filters 无有效排序且未给默认时返回空串
+ */
+function buildOrderBy(filters = {}, sortMap = {}, defaultOrderBy = '') {
+  const field = filters && filters.sortField
+  const order = filters && filters.sortOrder
+  if (field && Object.prototype.hasOwnProperty.call(sortMap, field)) {
+    // 排序方向白名单：非 desc 一律按升序；sortField 不在映射内时忽略
+    const dir = order === 'desc' ? 'DESC' : 'ASC'
+    return `ORDER BY ${sortMap[field]} ${dir}`
+  }
+  return defaultOrderBy ? `ORDER BY ${defaultOrderBy}` : ''
+}
+
+module.exports = { buildWhereClause, buildUpdateSet, buildOrderBy, PAGE_SIZE, normalizePage, buildPageMeta }

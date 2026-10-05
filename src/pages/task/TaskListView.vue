@@ -49,15 +49,15 @@
 
       <!-- 任务表格 -->
       <div class="tbl-wrap">
-        <table v-resizable-columns class="tbl">
+        <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>任务标题</th>
-              <th>创建人</th>
-              <th>状态</th>
-              <th>优先级</th>
-              <th>截止时间</th>
+              <th data-sort="id">ID</th>
+              <th data-sort="title">任务标题</th>
+              <th data-sort="creatorName">创建人</th>
+              <th data-sort="status">状态</th>
+              <th data-sort="priority">优先级</th>
+              <th data-sort="dueTime">截止时间</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -242,6 +242,8 @@ const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
 const notInGroup = ref(false)
+const sortField = ref('')
+const sortOrder = ref('')
 // 刚删除的任务（仅本页会话内展示「已删除/恢复」），刷新后由服务端过滤不再出现
 const deletedMap = reactive({})
 
@@ -264,7 +266,9 @@ async function load() {
     status: status.value === '' ? undefined : status.value,
     priority: priority.value === '' ? undefined : priority.value,
     keyword: keyword.value || undefined,
-    memberId: memberId.value === '' ? undefined : memberId.value
+    memberId: memberId.value === '' ? undefined : memberId.value,
+    sortField: sortField.value,
+    sortOrder: sortOrder.value
   })
   if (res && res.success) {
     const data = res.data || {}
@@ -278,6 +282,12 @@ async function load() {
 }
 
 function search() {
+  page.value = 1
+  load()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   load()
 }

@@ -35,15 +35,15 @@
 
     <!-- 会议表格 -->
     <div class="tbl-wrap">
-      <table v-resizable-columns class="tbl">
+      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>课题组</th>
-            <th>主题</th>
-            <th>会议时间</th>
-            <th>发起人</th>
-                        <th>状态</th>
+            <th data-sort="id">ID</th>
+            <th data-sort="groupName">课题组</th>
+            <th data-sort="title">主题</th>
+            <th data-sort="meetingTime">会议时间</th>
+            <th data-sort="hostName">发起人</th>
+                        <th data-sort="status">状态</th>
             <th>公告状态</th>
             <th style="width: 400px">操作</th>
           </tr>
@@ -139,6 +139,8 @@ const page = ref(1)
 const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
+const sortField = ref('')
+const sortOrder = ref('')
 const groups = ref([])
 const route = useRoute()
 
@@ -171,9 +173,9 @@ const stats = ref({ groupId: '', groupName: '', total: 0, monthTotal: 0, latestT
 async function load() {
   let res
   if (viewMode.value === 'myDrafts') {
-    res = await listMyDrafts({ page: page.value })
+    res = await listMyDrafts({ page: page.value, sortField: sortField.value, sortOrder: sortOrder.value })
   } else if (viewMode.value === 'groupDrafts') {
-    res = await listGroupDrafts({ page: page.value, groupId: groupId.value })
+    res = await listGroupDrafts({ page: page.value, groupId: groupId.value, sortField: sortField.value, sortOrder: sortOrder.value })
   } else {
     res = await listMeetings({
       page: page.value,
@@ -181,7 +183,9 @@ async function load() {
       status: status.value,
       groupId: groupId.value,
       startTime: startDate.value || '',
-      endTime: endDate.value ? `${endDate.value} 23:59:59` : ''
+      endTime: endDate.value ? `${endDate.value} 23:59:59` : '',
+      sortField: sortField.value,
+      sortOrder: sortOrder.value
     })
   }
   if (res && res.success) {
@@ -193,6 +197,12 @@ async function load() {
   }
 }
 function search() {
+  page.value = 1
+  load()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   load()
 }

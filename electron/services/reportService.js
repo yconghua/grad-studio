@@ -557,7 +557,7 @@ async function expectedStudents(groupId) {
 }
 
 // 统计：导师/组管看本组；超管看全局（无内容）
-async function stats({ weekKey } = {}) {
+async function stats({ weekKey, sortField, sortOrder } = {}) {
   const me = await currentUser()
   const key = weekKey && reportWeek.parseKey(weekKey) ? weekKey : reportWeek.currentWeekKey()
   const isSuper = me.role === ROLE_SUPER_ADMIN
@@ -624,7 +624,7 @@ async function stats({ weekKey } = {}) {
 
   // 超管附加：各组排名
   if (isSuper) {
-    result.ranking = await reportRepository.groupRanking(key)
+    result.ranking = await reportRepository.groupRanking(key, { sortField, sortOrder })
   }
   return result
 }

@@ -66,14 +66,14 @@
           </div>
         </div>
         <div class="table-wrap">
-          <table v-resizable-columns class="table">
+          <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="table">
             <thead>
               <tr>
-                <th>学生</th>
-                <th>周次</th>
-                <th>主题</th>
-                <th>状态</th>
-                <th>提交时间</th>
+                <th data-sort="studentName">学生</th>
+                <th data-sort="weekKey">周次</th>
+                <th data-sort="title">主题</th>
+                <th data-sort="status">状态</th>
+                <th data-sort="submittedAt">提交时间</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -164,6 +164,8 @@ const totalPages = ref(1)
 const list = ref([])
 const listLoading = ref(false)
 const filters = ref({ weekKey: '', status: '' })
+const sortField = ref('')
+const sortOrder = ref('')
 
 const holidays = ref([])
 const holidayWeek = ref('')
@@ -212,7 +214,7 @@ async function loadStats() {
 async function loadList() {
   listLoading.value = true
   try {
-    const params = { page: page.value }
+    const params = { page: page.value, sortField: sortField.value, sortOrder: sortOrder.value }
     if (filters.value.weekKey) params.weekKey = filters.value.weekKey.trim()
     if (filters.value.status) params.status = filters.value.status
     const res = await reportListGroup(params)
@@ -232,6 +234,12 @@ async function loadList() {
 }
 
 function search() {
+  page.value = 1
+  loadList()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   loadList()
 }

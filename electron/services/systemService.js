@@ -140,8 +140,8 @@ async function getDatabaseInfo() {
 /**
  * 系统参数分页列表（超级管理员「系统配置」块 3）
  */
-async function listParams({ page, keyword } = {}) {
-  const result = await systemConfigRepository.pagedList({ page, keyword })
+async function listParams({ page, keyword, sortField, sortOrder } = {}) {
+  const result = await systemConfigRepository.pagedList({ page, keyword, sortField, sortOrder })
   return {
     list: result.list.map(toParamDto),
     total: result.total,

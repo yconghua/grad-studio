@@ -231,9 +231,9 @@ async function assertParticipants(groupId, participantIds) {
  * 会议分页列表：角色可见范围在服务端强制收敛。
  * 草稿不出现在本列表（草稿走 listMyDrafts / listGroupDrafts 视图）。
  */
-async function listMeetings({ page, keyword, groupId, status, hostId, startTime, endTime } = {}) {
+async function listMeetings({ page, keyword, groupId, status, hostId, startTime, endTime, sortField, sortOrder } = {}) {
   const me = await currentUser()
-  const filters = { page, keyword, startTime, endTime }
+  const filters = { page, keyword, startTime, endTime, sortField, sortOrder }
   let effectiveGroupId = null
   let effectiveStatus = status === undefined || status === null || status === '' ? null : status
 
@@ -270,12 +270,12 @@ async function listMeetings({ page, keyword, groupId, status, hostId, startTime,
 }
 
 /** 我的草稿：当前用户创建的草稿（仅超管/组管有草稿；导师/学生 403） */
-async function listMyDrafts({ page } = {}) {
+async function listMyDrafts({ page, sortField, sortOrder } = {}) {
   const me = await currentUser()
   if (me.role !== ROLE_SUPER_ADMIN && me.role !== ROLE_GROUP_ADMIN) {
     throw new ApiError('无权限：无权查看草稿', 403)
   }
-  const result = await groupMeetingRepository.listMyDrafts(me.id, { page })
+  const result = await groupMeetingRepository.listMyDrafts(me.id, { page, sortField, sortOrder })
   return pageResult(result, toMeetingDto)
 }
 

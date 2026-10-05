@@ -11,7 +11,7 @@
  *     只能由服务层显式传入，前端夹带的非法列名一律被丢弃。
  */
 const BaseRepository = require('./BaseRepository')
-const { buildWhereClause, buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
+const { buildWhereClause, buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('./queryHelpers')
 const { ACCOUNT_STATUS_ENABLED } = require('../../../shared/constants')
 
 // 用户表安全返回列（不含 password_hash）：列表 / 详情 / 登录回填共用
@@ -20,6 +20,33 @@ const SAFE_COLUMNS = [
   'gender', 'avatar', 'group_id', 'mentor_id', 'must_change_password',
   'password_reset_at', 'created_at', 'updated_at'
 ]
+
+// 用户列表排序白名单：语义字段名 → 可信 SQL 片段（列表 SQL 无前缀场景）
+const USER_SORT_MAP = {
+  id: 'id',
+  username: 'username',
+  realName: 'real_name',
+  role: 'role',
+  status: 'status',
+  groupId: 'group_id',
+  mentorId: 'mentor_id',
+  phone: 'phone',
+  email: 'email',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  passwordResetAt: 'password_reset_at'
+}
+
+// 成员管理列表排序白名单（带 u. / m. 前缀的联表场景）
+const MEMBER_SORT_MAP = {
+  id: 'u.id',
+  username: 'u.username',
+  realName: 'u.real_name',
+  role: 'u.role',
+  status: 'u.status',
+  mentorName: 'COALESCE(m.real_name, m.username)',
+  joinTime: 'u.created_at'
+}
 
 // 档案白名单：管理员「资料」Tab 可写字段（账号 / 密码 / 角色 / 状态由服务层显式处理）
 const PROFILE_FIELDS = ['real_name', 'email', 'phone', 'gender', 'avatar', 'group_id', 'mentor_id']
@@ -118,7 +145,7 @@ class UserRepository extends BaseRepository {
     // 部分 MySQL 版本对 prepared statement 的 LIMIT ? 占位符报
     // 「Incorrect arguments to mysqld_stmt_execute」，改用文本协议参数更稳妥。
     const sql =
-      `SELECT ${cols(SAFE_COLUMNS)} FROM \`users\` ${clause} ${keywordClause} ORDER BY id ASC LIMIT ${limit} OFFSET ${offset}`
+      `SELECT ${cols(SAFE_COLUMNS)} FROM \`users\` ${clause} ${keywordClause} ${buildOrderBy(filters, USER_SORT_MAP, 'id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, [...values, ...keywordValues], 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }
@@ -373,7 +400,7 @@ class UserRepository extends BaseRepository {
        FROM \`users\` u
        LEFT JOIN \`users\` m ON m.id = u.mentor_id
        WHERE ${whereSql}${keywordClause}
-       ORDER BY u.id ASC LIMIT ${limit} OFFSET ${offset}`
+       ${buildOrderBy(filters, MEMBER_SORT_MAP, 'u.id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, [...values, ...keywordValues], 'pagedGroupMembers')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }
@@ -437,7 +464,7 @@ class UserRepository extends BaseRepository {
     // LIMIT/OFFSET 直接内联整数值（normalizePage 已做 parseInt 归一化），规避
     // prepared statement 对 LIMIT ? 占位符的支持问题（见 pagedList 注释）。
     const sql =
-      `SELECT ${cols(SAFE_COLUMNS)} FROM \`users\` WHERE ${where}${keywordClause} ORDER BY id ASC LIMIT ${limit} OFFSET ${offset}`
+      `SELECT ${cols(SAFE_COLUMNS)} FROM \`users\` WHERE ${where}${keywordClause} ${buildOrderBy(filters, USER_SORT_MAP, 'id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, [...baseValues, ...keywordValues], action)
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

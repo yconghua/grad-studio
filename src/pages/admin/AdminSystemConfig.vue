@@ -84,14 +84,14 @@
       </div>
 
       <div class="tbl-wrap">
-        <table v-resizable-columns class="tbl">
+        <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>参数键</th>
-              <th style="width: 120px">参数值</th>
-              <th>类型</th>
-              <th>描述</th>
+              <th data-sort="id">ID</th>
+              <th data-sort="configKey">参数键</th>
+              <th data-sort="configValue" style="width: 120px">参数值</th>
+              <th data-sort="configType">类型</th>
+              <th data-sort="description">描述</th>
               <th style="width: 130px">操作</th>
             </tr>
           </thead>
@@ -152,6 +152,8 @@ const dbExporting = ref(false)
 
 const keyword = ref('')
 const page = ref(1)
+const sortField = ref('')
+const sortOrder = ref('')
 const params = ref([])
 const total = ref(0)
 const totalPages = ref(1)
@@ -236,7 +238,7 @@ async function loadDb() {
   if (res && res.success) db.value = res.data || {}
 }
 async function loadParams() {
-  const res = await listParams({ page: page.value, keyword: keyword.value })
+  const res = await listParams({ page: page.value, keyword: keyword.value, sortField: sortField.value, sortOrder: sortOrder.value })
   if (res && res.success) {
     params.value = (res.data && res.data.list) || []
     total.value = (res.data && res.data.total) || 0
@@ -246,6 +248,12 @@ async function loadParams() {
   }
 }
 function search() {
+  page.value = 1
+  loadParams()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   loadParams()
 }

@@ -5,7 +5,17 @@
  * 本表为物理删除，findById / update / remove 自行实现（不带 is_deleted 条件）。
  */
 const BaseRepository = require('./BaseRepository')
-const { buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
+const { buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('./queryHelpers')
+
+// 系统参数排序白名单：语义字段名 → 可信 SQL 片段
+const CONFIG_SORT_MAP = {
+  id: 'id',
+  configKey: 'config_key',
+  configValue: 'config_value',
+  configType: 'config_type',
+  description: 'description',
+  createdAt: 'created_at'
+}
 
 // 系统参数表安全返回列
 const SAFE_COLUMNS = ['id', 'config_key', 'config_value', 'config_type', 'description', 'created_at', 'updated_at']
@@ -63,7 +73,7 @@ class SystemConfigRepository extends BaseRepository {
     // prepared statement 对 LIMIT ? 占位符的支持问题（部分 MySQL 版本报
     // 「Incorrect arguments to mysqld_stmt_execute」）。
     const sql =
-      `SELECT ${cols(SAFE_COLUMNS)} FROM \`system_configs\` ${where} ORDER BY id ASC LIMIT ${limit} OFFSET ${offset}`
+      `SELECT ${cols(SAFE_COLUMNS)} FROM \`system_configs\` ${where} ${buildOrderBy(filters, CONFIG_SORT_MAP, 'id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

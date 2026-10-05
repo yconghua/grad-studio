@@ -24,18 +24,18 @@
 
     <!-- 成员列表 -->
     <div class="tbl-wrap">
-      <table v-resizable-columns class="tbl">
+      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
         <thead>
           <tr>
             <th style="width: 40px">
               <input type="checkbox" :checked="allChecked" @change="toggleAll" />
             </th>
-            <th>姓名</th>
-            <th>用户名</th>
-            <th>角色</th>
-            <th>状态</th>
-            <th>导师</th>
-            <th>加入时间</th>
+            <th data-sort="realName">姓名</th>
+            <th data-sort="username">用户名</th>
+            <th data-sort="role">角色</th>
+            <th data-sort="status">状态</th>
+            <th data-sort="mentorName">导师</th>
+            <th data-sort="joinTime">加入时间</th>
             <th style="width: 200px">操作</th>
           </tr>
         </thead>
@@ -167,10 +167,12 @@ const mPage = ref(1)
 const members = ref([])
 const mTotal = ref(0)
 const mTotalPages = ref(1)
+const sortField = ref('')
+const sortOrder = ref('')
 
 async function loadMembers() {
   selMembers.value = []
-  const res = await listApi({ groupId: props.groupId, page: mPage.value, role: mRole.value, keyword: mKeyword.value })
+  const res = await listApi({ groupId: props.groupId, page: mPage.value, role: mRole.value, keyword: mKeyword.value, sortField: sortField.value, sortOrder: sortOrder.value })
   if (res && res.success) {
     members.value = (res.data && res.data.list) || []
     mTotal.value = (res.data && res.data.total) || 0
@@ -180,6 +182,12 @@ async function loadMembers() {
   }
 }
 function mSearch() {
+  mPage.value = 1
+  loadMembers()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   mPage.value = 1
   loadMembers()
 }

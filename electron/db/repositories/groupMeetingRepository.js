@@ -6,13 +6,25 @@
  * 并聚合参与人数量；列表不返回 content 全文，详情单独取。
  * 发起人被删除时姓名回退为「用户 #id」。
  */
-const { buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
+const { buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('./queryHelpers')
 
 // 列表安全返回列（不含 content 全文）
 const LIST_COLUMNS = [
   'id', 'group_id', 'title', 'meeting_time', 'location', 'host_id',
   'agenda', 'status', 'notice_id', 'create_time', 'update_time'
 ]
+
+// 会议列表排序白名单：语义字段名 → 可信 SQL 片段（联表带 m. / g. / h. / p. 前缀）
+const MEETING_SORT_MAP = {
+  id: 'm.id',
+  groupName: 'g.name',
+  title: 'm.title',
+  meetingTime: 'm.meeting_time',
+  location: 'm.location',
+  hostName: 'h.real_name',
+  participantCount: 'COALESCE(p.cnt, 0)',
+  status: 'm.status'
+}
 
 // 详情列（含 content 全文，供详情弹窗 / 编辑复用）
 const DETAIL_COLUMNS = [...LIST_COLUMNS, 'content']
@@ -103,7 +115,7 @@ class GroupMeetingRepository {
 
     const { page, pageSize, limit, offset } = normalizePage(filters.page)
     const sql =
-      `${baseSelect(LIST_COLUMNS)} ${clause} ORDER BY m.meeting_time DESC, m.id DESC LIMIT ${limit} OFFSET ${offset}`
+      `${baseSelect(LIST_COLUMNS)} ${clause} ${buildOrderBy(filters, MEETING_SORT_MAP, 'm.meeting_time DESC, m.id DESC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }
@@ -114,23 +126,25 @@ class GroupMeetingRepository {
    * @param {{ groupId?: number, status?: number|number[], page?: number }} filters
    */
   async listByParticipant(userId, filters = {}) {
-    const { groupId, status, page } = filters
+    const { groupId, status, page, sortField, sortOrder } = filters
     return this.pagedList({
       groupId,
       status,
       page,
-      participantUserId: userId
+      participantUserId: userId,
+      sortField,
+      sortOrder
     })
   }
 
   /** 当前用户创建的草稿分页（我的草稿视图） */
   async listMyDrafts(hostId, filters = {}) {
-    return this.pagedList({ hostId, status: 1, page: filters.page })
+    return this.pagedList({ hostId, status: 1, page: filters.page, sortField: filters.sortField, sortOrder: filters.sortOrder })
   }
 
   /** 某课题组全部草稿分页（本组草稿视图，只读） */
   async listGroupDrafts(groupId, filters = {}) {
-    return this.pagedList({ groupId, status: 1, page: filters.page })
+    return this.pagedList({ groupId, status: 1, page: filters.page, sortField: filters.sortField, sortOrder: filters.sortOrder })
   }
 
   /** 新增会议，返回自增主键 id */

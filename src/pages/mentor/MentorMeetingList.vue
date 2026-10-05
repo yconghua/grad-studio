@@ -27,16 +27,16 @@
 
     <!-- 会议表格（只读，无操作列） -->
     <div class="tbl-wrap" v-if="!notInGroup">
-      <table v-resizable-columns class="tbl">
+      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>主题</th>
-            <th>会议时间</th>
-            <th>地点</th>
-            <th>发起人</th>
-            <th>参与人数</th>
-            <th>状态</th>
+            <th data-sort="id">ID</th>
+            <th data-sort="title">主题</th>
+            <th data-sort="meetingTime">会议时间</th>
+            <th data-sort="location">地点</th>
+            <th data-sort="hostName">发起人</th>
+            <th data-sort="participantCount">参与人数</th>
+            <th data-sort="status">状态</th>
           </tr>
         </thead>
         <tbody>
@@ -85,6 +85,8 @@ const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
 const notInGroup = ref(false)
+const sortField = ref('')
+const sortOrder = ref('')
 
 const meetingStatusText = (s) => (Number(s) === 1 ? '草稿' : Number(s) === 2 ? '已发布' : '已归档')
 const meetingStatusClass = (s) => (Number(s) === 1 ? 'tag tag-orange' : Number(s) === 2 ? 'tag tag-blue' : 'tag')
@@ -94,7 +96,7 @@ const detailMeetingId = ref(null)
 const route = useRoute()
 
 async function load() {
-  const res = await listMeetings({ page: page.value, keyword: keyword.value, status: status.value })
+  const res = await listMeetings({ page: page.value, keyword: keyword.value, status: status.value, sortField: sortField.value, sortOrder: sortOrder.value })
   if (res && res.success) {
     const data = res.data || {}
     list.value = data.list || []
@@ -107,6 +109,12 @@ async function load() {
   }
 }
 function search() {
+  page.value = 1
+  load()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   load()
 }

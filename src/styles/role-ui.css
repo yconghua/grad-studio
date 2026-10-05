@@ -90,6 +90,25 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rc-resizer:hover {
   background: color-mix(in srgb, var(--primary) 35%, transparent);
 }
+
+/* 表头排序（v-sortable-columns 指令）：可排列表头显示双箭头，点击循环 升序→降序→取消 */
+th[data-sort] { cursor: pointer; user-select: none; }
+.sc-arrow {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 0;
+}
+.sc-arrow i { display: block; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; }
+.sc-arrow .up { border-bottom: 5px solid var(--text-3); }
+.sc-arrow .down { border-top: 5px solid var(--text-3); }
+th.sc-sort .sc-arrow { opacity: 0.35; }
+th.sc-asc .sc-arrow .up { border-bottom-color: var(--primary); }
+th.sc-asc .sc-arrow .down { opacity: 0.3; }
+th.sc-desc .sc-arrow .down { border-top-color: var(--primary); }
+th.sc-desc .sc-arrow .up { opacity: 0.3; }
 /* 长文本列单行省略（宽度收紧，避免表格过宽）：完整内容点击行后在详情弹窗查看 */
 .ellipsis { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

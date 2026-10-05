@@ -79,7 +79,9 @@ async function overviewList(filters = {}) {
     const tasks = await taskRepository.listAll({
       groupId: g.id,
       status,
-      creatorRoles: [ROLE_GROUP_ADMIN, ROLE_MENTOR]
+      creatorRoles: [ROLE_GROUP_ADMIN, ROLE_MENTOR],
+      sortField: filters.sortField,
+      sortOrder: filters.sortOrder
     })
     out.push({
       groupId: g.id,

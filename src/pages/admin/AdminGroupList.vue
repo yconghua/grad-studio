@@ -15,16 +15,16 @@
     </div>
 
     <div class="tbl-wrap">
-      <table v-resizable-columns class="tbl">
+      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>课题组名称</th>
-            <th>唯一标识号</th>
-            <th>描述</th>
-            <th>管理员</th>
-            <th>状态</th>
-            <th>创建时间</th>
+            <th data-sort="id">ID</th>
+            <th data-sort="name">课题组名称</th>
+            <th data-sort="code">唯一标识号</th>
+            <th data-sort="description">描述</th>
+            <th data-sort="adminUserId">管理员</th>
+            <th data-sort="status">状态</th>
+            <th data-sort="createdAt">创建时间</th>
             <th style="width: 130px">操作</th>
           </tr>
         </thead>
@@ -88,6 +88,8 @@ const page = ref(1)
 const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
+const sortField = ref('')
+const sortOrder = ref('')
 
 const showModal = ref(false)
 const isEdit = ref(false)
@@ -97,7 +99,7 @@ const detailId = ref(null)
 const route = useRoute()
 
 async function load() {
-  const res = await listGroups({ page: page.value, keyword: keyword.value })
+  const res = await listGroups({ page: page.value, keyword: keyword.value, sortField: sortField.value, sortOrder: sortOrder.value })
   if (res && res.success) {
     list.value = (res.data && res.data.list) || []
     total.value = (res.data && res.data.total) || 0
@@ -107,6 +109,12 @@ async function load() {
   }
 }
 function search() {
+  page.value = 1
+  load()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   load()
 }

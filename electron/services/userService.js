@@ -81,9 +81,9 @@ function pageResult(result, mapper) {
  * 用户分页列表（超级管理员）：关键字 / 角色 / 状态 / 课题组过滤
  * （课题组过滤供「编辑用户-资料 Tab」加载某课题组的导师候选使用）
  */
-async function listUsers({ page, keyword, role, status, groupId } = {}) {
+async function listUsers({ page, keyword, role, status, groupId, sortField, sortOrder } = {}) {
   if (role && !ALL_ROLES.includes(role)) throw new ApiError('角色参数不合法', 400)
-  const result = await userRepository.pagedList({ page, keyword, role, status, groupId })
+  const result = await userRepository.pagedList({ page, keyword, role, status, groupId, sortField, sortOrder })
   return pageResult(result, toUserDto)
 }
 

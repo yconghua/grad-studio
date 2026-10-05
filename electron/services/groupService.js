@@ -290,11 +290,11 @@ async function updateOwnGroup({ name, description } = {}) {
  * 课题组成员列表（超管任意组 / 组管仅本组）：仅本组导师 / 学生（组管理员不计入成员），
  * 可按角色、关键字过滤；返回导师姓名与加入时间。
  */
-async function listMembers({ groupId, page, keyword, role } = {}) {
+async function listMembers({ groupId, page, keyword, role, sortField, sortOrder } = {}) {
   const me = await authService.getCurrentUser()
   const gid = await resolveGroupId(me, groupId)
   if (role && ![ROLE_MENTOR, ROLE_STUDENT].includes(role)) throw new ApiError('角色参数不合法', 400)
-  const result = await userRepository.pagedGroupMembers(gid, { page, keyword, role })
+  const result = await userRepository.pagedGroupMembers(gid, { page, keyword, role, sortField, sortOrder })
   return pageResult(result, memberDto)
 }
 
@@ -472,13 +472,13 @@ async function getGroupMemberStats(groupId) {
  * 导师不在任何课题组（group_id 为空）时视为未入组，返回空页并带 notInGroup 标志，
  * 避免脏数据下仍能看到跨组学生。
  */
-async function listMentorStudents({ page, keyword } = {}) {
+async function listMentorStudents({ page, keyword, sortField, sortOrder } = {}) {
   const me = await authService.getCurrentUser()
   if (!me) throw new ApiError('未登录，请重新登录', 401)
   if (!me.groupId) {
     return { list: [], total: 0, page: 1, pageSize: 8, totalPages: 1, notInGroup: true }
   }
-  const result = await userRepository.pagedStudentsByMentor(me.id, { page, keyword })
+  const result = await userRepository.pagedStudentsByMentor(me.id, { page, keyword, sortField, sortOrder })
   return pageResult(result, userService.toUserDto)
 }
 

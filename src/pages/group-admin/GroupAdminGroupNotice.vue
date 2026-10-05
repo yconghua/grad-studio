@@ -29,14 +29,14 @@
 
     <!-- 公告表格 -->
     <div class="tbl-wrap">
-      <table v-resizable-columns class="tbl">
+      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>标题</th>
-            <th>发布人</th>
-            <th>状态</th>
-            <th>发布时间</th>
+            <th data-sort="id">ID</th>
+            <th data-sort="title">标题</th>
+            <th data-sort="publisherName">发布人</th>
+            <th data-sort="status">状态</th>
+            <th data-sort="publishTime">发布时间</th>
             <th style="width: 240px">操作</th>
           </tr>
         </thead>
@@ -106,6 +106,8 @@ const page = ref(1)
 const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
+const sortField = ref('')
+const sortOrder = ref('')
 const groupName = ref('')
 const groupStopped = ref(false)
 
@@ -165,7 +167,7 @@ watch(
 )
 
 async function load() {
-  const res = await listNotices({ page: page.value, keyword: keyword.value, status: status.value })
+  const res = await listNotices({ page: page.value, keyword: keyword.value, status: status.value, sortField: sortField.value, sortOrder: sortOrder.value })
   if (res && res.success) {
     list.value = (res.data && res.data.list) || []
     total.value = (res.data && res.data.total) || 0
@@ -175,6 +177,12 @@ async function load() {
   }
 }
 function search() {
+  page.value = 1
+  load()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   load()
 }

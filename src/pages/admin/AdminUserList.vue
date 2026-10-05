@@ -40,20 +40,20 @@
 
     <!-- 用户表格：通用列宽拖拽（v-resizable-columns），操作列保底 184px 不被挤压 -->
     <div class="tbl-wrap">
-      <table v-resizable-columns="{ min: 48, minByIndex: { 9: 184 } }" class="tbl tbl-fixed">
+      <table v-resizable-columns="{ min: 48, minByIndex: { 9: 184 } }" v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl tbl-fixed">
         <thead>
           <tr>
             <th>
               <input type="checkbox" :checked="allChecked" @change="toggleAll" />
             </th>
-            <th>ID</th>
-            <th>用户名</th>
-            <th>真实姓名</th>
-            <th>角色</th>
-            <th>状态</th>
-            <th>课题组</th>
-            <th>创建时间</th>
-            <th>最近重置</th>
+            <th data-sort="id">ID</th>
+            <th data-sort="username">用户名</th>
+            <th data-sort="realName">真实姓名</th>
+            <th data-sort="role">角色</th>
+            <th data-sort="status">状态</th>
+            <th data-sort="groupId">课题组</th>
+            <th data-sort="createdAt">创建时间</th>
+            <th data-sort="passwordResetAt">最近重置</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -132,6 +132,8 @@ const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
 const loading = ref(false)
+const sortField = ref('')
+const sortOrder = ref('')
 
 // ===== 批量操作 =====
 const selected = ref([])
@@ -177,7 +179,7 @@ async function load() {
   selected.value = []
   loading.value = true
   try {
-    const res = await listUsers({ page: page.value, keyword: keyword.value, role: role.value, status: status.value })
+    const res = await listUsers({ page: page.value, keyword: keyword.value, role: role.value, status: status.value, sortField: sortField.value, sortOrder: sortOrder.value })
     if (res && res.success) {
       list.value = (res.data && res.data.list) || []
       total.value = (res.data && res.data.total) || 0
@@ -191,6 +193,12 @@ async function load() {
 }
 
 function search() {
+  page.value = 1
+  load()
+}
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
   page.value = 1
   load()
 }
