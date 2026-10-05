@@ -34,6 +34,7 @@ const systemRoutes = require('./system')
 const sysRoutes = require('./sys')
 const updateRoutes = require('./update')
 const winRoutes = require('./win')
+const diagRoutes = require('./diag')
 
 // 敏感字段脱敏：递归替换密码类字段，避免日志泄露明文密码
 function sanitize(value) {
@@ -92,6 +93,7 @@ function registerAll(ipcMain) {
   sysRoutes.register(logger)
   updateRoutes.register(logger)
   winRoutes.register(logger)
+  diagRoutes.register(logger)
 }
 
 module.exports = { registerAll }

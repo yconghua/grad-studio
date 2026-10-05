@@ -32,6 +32,8 @@ const dataVersionService = require('./services/dataVersionService')
 const dbStatusService = require('./services/dbStatusService')
 // scan-server 独立进程管理器：扫码登录时按需拉起，应用退出时停止
 const scanServerManager = require('./services/scanServerManager')
+// 文件日志：启动时 hook console 落盘 userData/logs/main.log（含轮转），排查问题用
+const logService = require('./services/logService')
 // 路由聚合：一行注册全部 auth:* / sys:* 等 IPC 接口
 const { registerAll } = require('./ipc')
 
@@ -200,6 +202,8 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(() => {
+    // 文件日志最先初始化：之后的全部 console 输出都会同时落盘
+    logService.init()
     // 移除窗口自带的菜单栏（文件 / 编辑 / 视图等那一行）
     Menu.setApplicationMenu(null)
     // 注册 gradapp 协议：仅映射用户数据目录 uploads/ 内的文件，basename 防路径穿越

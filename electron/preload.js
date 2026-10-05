@@ -338,5 +338,12 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.on('win:maximized-changed', listener)
       return () => ipcRenderer.removeListener('win:maximized-changed', listener)
     }
+  },
+  // 日志与诊断（对应 ipc/diag.js，通道前缀 diag:*）：仅超管可用
+  diag: {
+    info: createInvoke('diag:info'),
+    logs: createInvoke('diag:logs'),
+    export: createInvoke('diag:export'),
+    openFolder: createInvoke('diag:open-folder')
   }
 })

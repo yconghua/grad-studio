@@ -123,6 +123,38 @@
       </div>
     </div>
 
+    <!-- 块 6：日志与诊断 -->
+    <div class="panel">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px">
+        <p class="panel-title" style="margin: 0">日志与诊断</p>
+        <div class="toolbar" style="margin: 0">
+          <select v-model="logLevel" class="select" style="width: 120px" @change="loadLogs">
+            <option value="all">全部日志</option>
+            <option value="error">仅错误</option>
+            <option value="warn">错误+警告</option>
+          </select>
+          <button class="btn btn-sm" @click="loadDiag">刷新</button>
+        </div>
+      </div>
+      <div class="desc-list" style="margin-top: 12px">
+        <div class="row"><span class="k">运行时长</span><span class="v">{{ diag.uptimeText || '-' }}</span></div>
+        <div class="row"><span class="k">主进程内存</span><span class="v">{{ diag.memoryText || '-' }}</span></div>
+        <div class="row"><span class="k">日志文件</span><span class="v">{{ diag.logFileText || '-' }}</span></div>
+      </div>
+      <div class="log-box">
+        <div v-for="l in logLines" :key="l.idx" class="log-line" :class="{ 'log-err': l.level === 'ERROR' }">
+          <span class="log-no">{{ l.idx }}</span>
+          <span class="log-text">{{ l.text }}</span>
+        </div>
+        <div v-if="logLines.length === 0" class="empty">暂无日志</div>
+      </div>
+      <div class="toolbar" style="margin-top: 10px">
+        <button class="btn btn-sm" @click="doExportLog">导出日志</button>
+        <button class="btn btn-sm" @click="doOpenLogFolder">打开日志目录</button>
+      </div>
+      <p class="hint" style="margin-top: 8px">日志记录主进程运行信息（含 SQL 与连接参数），请勿外传；超过 5MB 自动轮转保留最近 3 份</p>
+    </div>
+
     <!-- 新增 / 编辑系统参数弹窗 -->
     <AdminConfigFormDialog
       v-model:visible="showModal"
@@ -141,7 +173,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import RowDetailDialog from '../../components/common/RowDetailDialog.vue'
 import AdminConfigFormDialog from '../../components/admin/AdminConfigFormDialog.vue'
-import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, deleteParam, exportDb, openDevConsole, openAppFolder, openDataFolder, clearCache } from '../../api'
+import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, deleteParam, exportDb, openDevConsole, openAppFolder, openDataFolder, clearCache, getDiagInfo, getDiagLogs, exportDiagLog, openDiagFolder } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
@@ -149,6 +181,42 @@ import { useAppName } from '../../composables/useAppName'
 
 // 超级管理员独立页面：系统配置（系统信息 / 数据库信息 / 系统参数 三块）
 const { refreshAppName } = useAppName()
+
+// ===== 日志与诊断 =====
+const diag = ref({})
+const logLevel = ref('all')
+const logLines = ref([])
+
+// 诊断概览：运行时长 / 内存 / 日志文件大小（打开面板即拉取）
+async function loadDiag() {
+  const res = await getDiagInfo()
+  if (res && res.success) diag.value = res.data || {}
+  loadLogs()
+}
+
+// 按级别筛选读取日志：最新 200 行倒序展示
+async function loadLogs() {
+  const res = await getDiagLogs({ level: logLevel.value, limit: 200 })
+  if (res && res.success) {
+    logLines.value = (res.data && res.data.lines) || []
+  } else {
+    dialogAlert((res && res.message) || '读取日志失败')
+  }
+}
+
+// 导出日志到用户选择的位置
+async function doExportLog() {
+  const res = await exportDiagLog()
+  if (res && res.canceled) return
+  if (res && res.success) dialogAlert('日志已导出')
+  else dialogAlert((res && res.message) || '导出失败')
+}
+
+// 打开日志目录
+async function doOpenLogFolder() {
+  const res = await openDiagFolder()
+  if (!res || !res.success) dialogAlert((res && res.message) || '打开日志目录失败')
+}
 const info = ref({})
 const db = ref({})
 const dbExporting = ref(false)
@@ -342,6 +410,7 @@ onMounted(() => {
   loadDb()
   loadParams()
   loadDefaultTheme()
+  loadDiag()
 })
 // 数据变动（本页写操作或外部改动）后后台静默重拉参数列表与系统信息
 useAutoRefresh(() => {
@@ -350,3 +419,37 @@ useAutoRefresh(() => {
   loadDb()
 })
 </script>
+
+<style scoped>
+/* 日志查看区：等宽字体、暗底，错误行标红；高度固定内部滚动 */
+.log-box {
+  margin-top: 12px;
+  height: 320px;
+  overflow-y: auto;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.log-line {
+  display: flex;
+  gap: 10px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-2);
+}
+.log-no {
+  flex-shrink: 0;
+  color: var(--text-3);
+  user-select: none;
+}
+.log-text {
+  min-width: 0;
+}
+.log-err {
+  color: var(--danger);
+}
+</style>
