@@ -44,7 +44,7 @@
   "build": {
     "appId": "com.grad.studio",
     "productName": "Grad Studio",
-    "artifactName": "${productName}.Setup.${version}.${ext}",
+    "artifactName": "Grad.Studio.Setup.${version}.${ext}",
     "icon": "build/icon.ico",
     "publish": {
       "provider": "github",
