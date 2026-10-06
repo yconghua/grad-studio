@@ -7,9 +7,16 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import { AppDialog } from './components/dialogs'
 import AppToast from './components/common/AppToast.vue'
+import { applyInitialFontScale } from './composables/useFontScale'
+import { useAutoRefresh } from './composables/useAutoRefresh'
 // 根组件：承载路由出口 + 全局弹窗；具体布局由各角色布局（layouts/*Layout.vue）提供。
+
+onMounted(applyInitialFontScale)
+// 超管改全局默认字号后，无个人字号设置的账号立即跟随（个人设置优先，不受影响）
+useAutoRefresh(applyInitialFontScale)
 </script>
 
 <style>

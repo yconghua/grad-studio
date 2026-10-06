@@ -115,7 +115,7 @@ async function submit() {
 }
 .force-card {
   width: 420px;
-  max-width: 92vw;
+  max-width: calc(92vw / var(--app-font-zoom, 1));
   margin: auto; /* 标题栏占顶部，卡片在剩余空间居中 */
   background: var(--bg-card);
   border-radius: var(--radius-xl);

@@ -58,7 +58,7 @@ function onCancel() {
 }
 .dialog-box {
   width: 380px;
-  max-width: 92vw;
+  max-width: calc(92vw / var(--app-font-zoom, 1));
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   display: flex;

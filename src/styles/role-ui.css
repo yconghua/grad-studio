@@ -134,7 +134,7 @@ th.sc-desc .sc-arrow .up { opacity: 0.3; }
 
 /* ===== 弹窗 ===== */
 .modal-mask { position: fixed; inset: 0; z-index: 200; background: var(--mask); display: flex; align-items: center; justify-content: center; }
-.modal { width: 580px; max-width: 92vw; max-height: 88vh; background: var(--bg-card); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow: hidden; }
+.modal { width: 580px; max-width: calc(92vw / var(--app-font-zoom, 1)); max-height: calc(88vh / var(--app-font-zoom, 1)); background: var(--bg-card); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow: hidden; }
 .modal.sm { width: 420px; }
 .modal.lg { width: 760px; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border-light); }

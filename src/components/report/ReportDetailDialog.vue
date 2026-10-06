@@ -137,8 +137,8 @@ async function onDownload(a) {
 }
 .modal {
   width: 640px;
-  max-width: calc(100vw - 40px);
-  max-height: calc(100vh - 80px);
+  max-width: calc((100vw - 40px) / var(--app-font-zoom, 1));
+  max-height: calc((100vh - 80px) / var(--app-font-zoom, 1));
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   display: flex;
@@ -185,7 +185,7 @@ async function onDownload(a) {
   border-radius: var(--radius-md);
   padding: 10px 12px;
   min-height: 100px;
-  max-height: 45vh; /* 内容过长时自身滚动，避免盖住下方附件与评语 */
+  max-height: calc(45vh / var(--app-font-zoom, 1)); /* 内容过长时自身滚动，避免盖住下方附件与评语 */
   overflow: auto;
 }
 .view-review {

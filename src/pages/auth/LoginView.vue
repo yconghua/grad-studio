@@ -1054,7 +1054,7 @@ async function onDeleteConfirmed(id) {
   gap: 10px;
 }
 .footer-copy {
-  max-width: 80vw;
+  max-width: calc(80vw / var(--app-font-zoom, 1));
   min-width: 0;
   font-size: 12px;
   color: var(--muted);
@@ -1140,7 +1140,7 @@ async function onDeleteConfirmed(id) {
 }
 /* 使用帮助弹窗：内容可滚动 */
 .help-dialog .privacy-body {
-  max-height: 46vh;
+  max-height: calc(46vh / var(--app-font-zoom, 1));
   overflow-y: auto;
 }
 .help-body {
@@ -1434,8 +1434,8 @@ async function onDeleteConfirmed(id) {
   position: relative;
   z-index: 1;
   width: 460px;
-  max-width: 92vw;
-  max-height: 80vh;
+  max-width: calc(92vw / var(--app-font-zoom, 1));
+  max-height: calc(80vh / var(--app-font-zoom, 1));
   background: var(--bg-card);
   border-radius: 12px;
   display: flex;

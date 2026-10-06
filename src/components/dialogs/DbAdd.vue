@@ -371,8 +371,8 @@ watch(
   position: relative;
   z-index: 1;
   width: 620px;
-  max-width: 92vw;
-  max-height: 80vh;
+  max-width: calc(92vw / var(--app-font-zoom, 1));
+  max-height: calc(80vh / var(--app-font-zoom, 1));
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   display: flex;

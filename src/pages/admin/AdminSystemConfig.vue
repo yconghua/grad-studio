@@ -53,7 +53,7 @@
       <p class="hint" style="margin-top: 10px">控制台为渲染层开发者工具；数据文件夹存放应用配置与上传附件等</p>
     </div>
 
-    <!-- 块 4：外观（默认主题） -->
+    <!-- 块 4：外观（默认主题 + 全局默认字号） -->
     <div class="panel">
       <div style="display: flex; align-items: center; justify-content: space-between">
         <p class="panel-title" style="margin: 0">外观（默认主题）</p>
@@ -69,6 +69,9 @@
         <p class="hint">个人可在侧边栏底部主题切换器覆盖自己的偏好；本配置只作为首次登录兜底</p>
       </div>
     </div>
+
+    <!-- 块 5：全局默认字号 -->
+    <FontScalePanel mode="global" />
 
     <!-- 块 5：系统参数 -->
     <div class="panel">
@@ -173,6 +176,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import RowDetailDialog from '../../components/common/RowDetailDialog.vue'
 import AdminConfigFormDialog from '../../components/admin/AdminConfigFormDialog.vue'
+import FontScalePanel from '../../components/common/FontScalePanel.vue'
 import { getSystemInfo, getDatabaseInfo, listParams, createParam, updateParam, deleteParam, exportDb, openDevConsole, openAppFolder, openDataFolder, clearCache, getDiagInfo, getDiagLogs, exportDiagLog, openDiagFolder } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'

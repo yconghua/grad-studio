@@ -22,7 +22,7 @@ function goHome() {
 <style scoped>
 /* 独立 404 页：整体铺满视口居中，不依赖主布局（浅色主题） */
 .nf {
-  height: 100vh;
+  height: calc(100vh / var(--app-font-zoom, 1));
   display: flex;
   align-items: center;
   justify-content: center;

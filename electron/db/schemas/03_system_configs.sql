@@ -33,3 +33,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `system_configs` WHERE `config_key` = 'task.pend
 INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `description`)
 SELECT 'system.theme', 'system', 'string', '默认主题：light/dark/system（超管可配，无本地偏好的用户首次登录兜底）'
 WHERE NOT EXISTS (SELECT 1 FROM `system_configs` WHERE `config_key` = 'system.theme');
+
+INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `description`)
+SELECT 'system.font_scale', '1', 'number', '全局默认字号：0.9/1/1.125/1.25（超管可配，无个人字号设置的账号兜底）'
+WHERE NOT EXISTS (SELECT 1 FROM `system_configs` WHERE `config_key` = 'system.font_scale');

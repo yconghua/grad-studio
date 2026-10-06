@@ -22,6 +22,10 @@ const DEFAULT_APP_NAME = '千兆中心'
 const DEFAULT_THEME = 'system'
 const VALID_THEMES = ['light', 'dark', 'system']
 
+// 全局默认字号：0.9 / 1 / 1.125 / 1.25（system_configs 参数缺失或值非法时回退 1）
+const DEFAULT_FONT_SCALE = 1
+const VALID_FONT_SCALES = [0.9, 1, 1.125, 1.25]
+
 // 本地时间格式化（YYYY-MM-DD HH:mm:ss）
 function formatDate(ts) {
   const d = new Date(ts)
@@ -221,17 +225,19 @@ async function deleteParam(id) {
 }
 
 /**
- * 系统简介（所有角色）：返回系统名称、版本、简介、默认主题
+ * 系统简介（所有角色）：返回系统名称、版本、简介、默认主题、全局默认字号
  */
 async function getIntroduction() {
   let name = DEFAULT_APP_NAME
   let introduction = ''
   let defaultTheme = DEFAULT_THEME
+  let fontScale = DEFAULT_FONT_SCALE
   try {
-    const [nameRow, introRow, themeRow] = await Promise.all([
+    const [nameRow, introRow, themeRow, fontRow] = await Promise.all([
       systemConfigRepository.findByKey('system.name'),
       systemConfigRepository.findByKey('system.introduction'),
-      systemConfigRepository.findByKey('system.theme')
+      systemConfigRepository.findByKey('system.theme'),
+      systemConfigRepository.findByKey('system.font_scale')
     ])
     if (nameRow && nameRow.config_value && String(nameRow.config_value).trim()) {
       name = String(nameRow.config_value).trim()
@@ -240,10 +246,13 @@ async function getIntroduction() {
     if (themeRow && VALID_THEMES.includes(String(themeRow.config_value))) {
       defaultTheme = String(themeRow.config_value)
     }
+    if (fontRow && VALID_FONT_SCALES.includes(Number(fontRow.config_value))) {
+      fontScale = Number(fontRow.config_value)
+    }
   } catch (e) {
     // 数据库未连接 / 表不存在时回退默认值
   }
-  return { name, version: appPkg.version, introduction, defaultTheme }
+  return { name, version: appPkg.version, introduction, defaultTheme, fontScale }
 }
 
 module.exports = {
