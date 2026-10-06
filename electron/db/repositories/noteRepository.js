@@ -6,10 +6,19 @@
  * 软删除约定与全项目一致（is_deleted 0/1 + deleted_at），回收站即 is_deleted=1。
  */
 const BaseRepository = require('./BaseRepository')
-const { buildUpdateSet, normalizePage, buildPageMeta } = require('./queryHelpers')
+const { buildUpdateSet, buildOrderBy, normalizePage, buildPageMeta } = require('./queryHelpers')
 
 // 列表安全返回列（不含 content 大字段，列表页不需要；详情单独取全列）
 const LIST_COLUMNS = ['id', 'title', 'category', 'version', 'created_at', 'change_ts', 'deleted_at']
+
+// 后端排序白名单：语义字段 → 可信 SQL 片段（不接受前端列名）
+const NOTE_SORT_MAP = {
+  id: '`id`',
+  title: '`title`',
+  category: '`category`',
+  time: '`change_ts`',
+  deleted_at: '`deleted_at`'
+}
 
 // 列名拼接（反引号包裹，防与关键字冲突）
 function cols(columns) {
@@ -28,8 +37,10 @@ class NoteRepository extends BaseRepository {
    * @returns {Object|null}
    */
   async findOwnById(id, userId) {
+    // 返回任意状态（含回收站）的本人笔记：详情弹窗只读展示回收站笔记，
+    // 编辑入口由服务层 / 前端按 is_deleted 拦截。
     const sql =
-      `SELECT * FROM \`note\` WHERE id = ? AND user_id = ? AND is_deleted = 0`
+      `SELECT * FROM \`note\` WHERE id = ? AND user_id = ?`
     const [rows] = await this._execute(sql, [Number(id), Number(userId)], 'findOwnById')
     return rows[0] || null
   }
@@ -48,19 +59,25 @@ class NoteRepository extends BaseRepository {
   }
 
   /**
-   * 笔记分页列表（本人可见范围）：固定 user_id + is_deleted，类别可选过滤，按更新时间倒序
-   * @param {{ userId: number, isDeleted: number, category?: string, page?: number }} filters
+   * 笔记分页列表（本人可见范围）：固定 user_id + is_deleted，类别 / 标题关键词可选过滤，按更新时间倒序
+   * @param {{ userId: number, isDeleted: number, category?: string, keyword?: string, sortField?: string, sortOrder?: string, page?: number }} filters
    * @returns {{ list: Object[], total: number, page: number, pageSize: number, totalPages: number }}
    */
   async pagedList(filters = {}) {
     const where = 'WHERE user_id = ? AND is_deleted = ?'
     const values = [Number(filters.userId), Number(filters.isDeleted)]
+    const extra = []
     if (filters.category) {
+      extra.push('category = ?')
       values.push(filters.category)
     }
-    const categoryClause = filters.category ? ' AND category = ?' : ''
+    if (filters.keyword) {
+      extra.push('title LIKE ?')
+      values.push(`%${String(filters.keyword).trim()}%`)
+    }
+    const extraClause = extra.length ? ` AND ${extra.join(' AND ')}` : ''
 
-    const countSql = `SELECT COUNT(*) AS total FROM \`note\` ${where}${categoryClause}`
+    const countSql = `SELECT COUNT(*) AS total FROM \`note\` ${where}${extraClause}`
     const [countRows] = await this._execute(countSql, values, 'pagedList.count')
     const total = Number(countRows[0] && countRows[0].total) || 0
 
@@ -69,8 +86,8 @@ class NoteRepository extends BaseRepository {
     // prepared statement 对 LIMIT ? 占位符的支持问题（与 userRepository.pagedList 一致）。
     // summary：截取 content 前 120 字供列表摘要，避免大字段（LONGTEXT）整列回传。
     const sql =
-      `SELECT ${cols(LIST_COLUMNS)}, SUBSTRING(\`content\`, 1, 120) AS summary FROM \`note\` ${where}${categoryClause}
-       ORDER BY change_ts DESC LIMIT ${limit} OFFSET ${offset}`
+      `SELECT ${cols(LIST_COLUMNS)}, SUBSTRING(\`content\`, 1, 120) AS summary FROM \`note\` ${where}${extraClause}
+       ${buildOrderBy(filters, NOTE_SORT_MAP, '`change_ts` DESC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, values, 'pagedList')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

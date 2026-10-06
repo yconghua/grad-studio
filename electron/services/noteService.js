@@ -63,7 +63,7 @@ function assertContent(content) {
   return s
 }
 
-// 列表：status=active 正常 / deleted 回收站；category 可选过滤；按更新时间倒序分页
+// 列表：status=active 正常 / deleted 回收站；category / keyword 可选过滤；按更新时间倒序分页
 async function listNotes(filters = {}) {
   const me = await currentUser()
   await assertStudentInGroup(me)
@@ -73,6 +73,9 @@ async function listNotes(filters = {}) {
     userId: me.id,
     isDeleted: filters.status === 'deleted' ? 1 : 0,
     category,
+    keyword: filters.keyword ? String(filters.keyword).trim().slice(0, 100) : '',
+    sortField: filters.sortField,
+    sortOrder: filters.sortOrder,
     page: filters.page
   })
   return result

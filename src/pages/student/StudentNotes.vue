@@ -5,168 +5,140 @@
         <h2 class="page-title">我的笔记</h2>
         <p class="page-sub">学生私人科研草稿本：默认仅自己可见</p>
       </div>
+      <button type="button" class="btn btn-primary" @click="onCreate">新建笔记</button>
     </div>
 
-    <div class="notes-body">
-      <!-- 左：笔记列表 -->
-      <aside class="notes-list">
-        <div class="notes-list-head">
-          <div class="tabs">
-            <button type="button" :class="tab === 'active' ? 'on' : ''" @click="switchTab('active')">全部</button>
-            <button type="button" :class="tab === 'deleted' ? 'on' : ''" @click="switchTab('deleted')">回收站</button>
-          </div>
-          <button type="button" class="btn btn-primary btn-sm" @click="onCreate">新建</button>
-        </div>
-        <div class="notes-filter">
-          <select v-model="categoryFilter" class="select" @change="onFilterChange">
-            <option value="">全部类别</option>
-            <option v-for="c in NOTE_CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
-          </select>
-        </div>
-
-        <div class="notes-cards">
-          <div v-if="loading" class="empty">加载中…</div>
-          <div v-else-if="!list.length" class="empty">
-            {{ tab === 'deleted' ? '回收站是空的' : '还没有笔记，点击「新建」开始' }}
-          </div>
-          <template v-else>
-            <div
-              v-for="n in list"
-              :key="n.id"
-              class="note-card"
-              :class="{ on: currentId === n.id, trash: tab === 'deleted' }"
-              @click="onPick(n)"
-            >
-              <div class="note-card-title">{{ n.title || '无标题笔记' }}</div>
-              <div class="note-card-meta">
-                <span class="cat">{{ categoryLabel(n.category) }}</span>
-                <span class="time">{{ timeText(n.change_ts) }}</span>
-              </div>
-              <div class="note-card-summary">{{ summaryOf(n) }}</div>
-              <div v-if="tab === 'deleted'" class="note-card-actions">
-                <button type="button" class="btn btn-sm" @click.stop="onRestore(n)">恢复</button>
-                <button type="button" class="btn btn-sm btn-danger" @click.stop="onPurge(n)">彻底删除</button>
-              </div>
-            </div>
-            <div v-if="totalPages > 1" class="pager">
-              <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page--; load()">上一页</button>
-              <span>第 {{ page }} / {{ totalPages }} 页</span>
-              <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page++; load()">下一页</button>
-            </div>
-          </template>
-        </div>
-      </aside>
-
-      <!-- 右：编辑器 -->
-      <section class="notes-editor">
-        <div v-if="!currentNote" class="empty editor-empty">
-          {{ tab === 'deleted' ? '回收站笔记仅支持恢复或彻底删除' : '选择左侧笔记开始编辑' }}
-        </div>
-        <div v-else class="editor">
-          <div class="editor-head">
-            <input v-model="draftTitle" class="input editor-title" maxlength="120" placeholder="笔记主题" />
-            <div class="editor-actions">
-              <button type="button" class="btn btn-sm" :disabled="exporting" @click="onExport">
-                {{ exporting ? '导出中…' : '导出' }}
-              </button>
-              <button v-if="tab === 'active'" type="button" class="btn btn-sm btn-danger" @click="onDelete">删除</button>
-            </div>
-          </div>
-          <div class="editor-meta">
-            <select v-model="draftCategory" class="select editor-category">
-              <option v-for="c in NOTE_CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
-            </select>
-            <span class="editor-created">创建时间：{{ currentNote.created_at || '-' }}</span>
-            <span v-if="saveState !== 'idle'" class="save-state" :class="saveState">
-              {{ saveState === 'saving' ? '保存中…' : saveState === 'saved' ? '已保存' : saveErrorMsg || '保存失败' }}
-            </span>
-          </div>
-          <div class="editor-body">
-            <div class="editor-tabs">
-              <button type="button" :class="!preview ? 'on' : ''" @click="preview = false">编辑</button>
-              <button type="button" :class="preview ? 'on' : ''" @click="preview = true">预览</button>
-              <span class="word-count">{{ draftContent.length }} / 100000</span>
-            </div>
-            <textarea
-              v-if="!preview"
-              v-model="draftContent"
-              class="editor-textarea"
-              placeholder="支持 Markdown 语法：## 标题、**加粗**、- 列表、> 引用、`代码`…"
-            ></textarea>
-            <div v-else class="editor-preview">
-              <MarkdownPreview :content="draftContent" />
-            </div>
-          </div>
-          <div class="editor-foot">
-            <span class="editor-updated">最后更新于 {{ currentNote.change_ts || '-' }}</span>
-            <button v-if="saveState === 'error'" type="button" class="btn btn-sm" @click="saveNow">重试保存</button>
-          </div>
-        </div>
-      </section>
+    <div class="tabs-row">
+      <div class="tabs">
+        <button type="button" :class="tab === 'active' ? 'on' : ''" @click="switchTab('active')">我的笔记</button>
+        <button type="button" :class="tab === 'deleted' ? 'on' : ''" @click="switchTab('deleted')">回收站</button>
+      </div>
+      <div class="toolbar">
+        <select v-model="categoryFilter" class="select" @change="onFilterChange">
+          <option value="">全部类别</option>
+          <option v-for="c in NOTE_CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+        </select>
+        <input
+          v-if="tab === 'active'"
+          v-model="keyword"
+          class="input search-input"
+          placeholder="搜索标题关键词…"
+          @keyup.enter="onFilterChange"
+        />
+        <button v-if="keyword || categoryFilter" type="button" class="btn btn-sm" @click="onResetFilter">重置</button>
+      </div>
     </div>
+
+    <div class="tbl-wrap">
+      <table v-resizable-columns v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
+        <thead>
+          <tr>
+            <th data-sort="title">标题</th>
+            <th data-sort="category">分类</th>
+            <th :data-sort="tab === 'deleted' ? 'deleted_at' : 'time'">{{ tab === 'deleted' ? '删除时间' : '更新时间' }}</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading">
+            <td colspan="4"><div class="empty">加载中…</div></td>
+          </tr>
+          <tr v-else-if="!list.length">
+            <td colspan="4">
+              <div class="empty">{{ tab === 'deleted' ? '回收站是空的' : '还没有笔记，点击右上角「新建笔记」开始' }}</div>
+            </td>
+          </tr>
+          <tr v-for="n in list" :key="n.id" class="row-click" @click="onPick(n)">
+            <td><span class="title-cell" :title="n.title || '无标题笔记'">{{ n.title || '无标题笔记' }}</span></td>
+            <td><span class="cat-badge">{{ categoryLabel(n.category) }}</span></td>
+            <td class="time-cell">{{ timeText(tab === 'deleted' ? n.deleted_at : n.change_ts) }}</td>
+            <td class="op-cell" @click.stop>
+              <template v-if="tab === 'deleted'">
+                <button type="button" class="btn btn-sm" @click="onRestore(n)">恢复</button>
+                <button type="button" class="btn btn-sm btn-danger" @click="onPurge(n)">彻底删除</button>
+              </template>
+              <template v-else>
+                <button type="button" class="btn btn-sm" @click="onEditRow(n)">编辑</button>
+                <button type="button" class="btn btn-sm btn-danger" @click="onDeleteRow(n)">删除</button>
+              </template>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="totalPages > 1" class="pager">
+        <button type="button" class="btn btn-sm" :disabled="page <= 1" @click="page--; load()">上一页</button>
+        <span>第 {{ page }} / {{ totalPages }} 页</span>
+        <button type="button" class="btn btn-sm" :disabled="page >= totalPages" @click="page++; load()">下一页</button>
+      </div>
+    </div>
+
+    <NoteEditDialog
+      ref="editorRef"
+      :open="editorOpen"
+      :note-id="editorNoteId"
+      @update:open="editorOpen = $event"
+      @saved="onEditorSaved"
+    />
+    <NoteDetailDialog
+      :open="detailOpen"
+      :note-id="detailNoteId"
+      @update:open="detailOpen = $event"
+      @edit="onDetailEdit"
+      @saved="onEditorSaved"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
-import { listNotes, getNote, createNote, updateNote, deleteNote, restoreNote, purgeNote, exportNote } from '../../api'
+import { listNotes, deleteNote, restoreNote, purgeNote } from '../../api/note'
 import { NOTE_CATEGORIES } from '../../config/constants'
-import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
+import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
-import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
+import NoteEditDialog from '../../components/note/NoteEditDialog.vue'
+import NoteDetailDialog from '../../components/note/NoteDetailDialog.vue'
 
 // ===== 列表 =====
-const tab = ref('active') // active 全部 / deleted 回收站
+const tab = ref('active') // active 我的笔记 / deleted 回收站
 const categoryFilter = ref('')
+const keyword = ref('')
+const sortField = ref('')
+const sortOrder = ref('')
 const page = ref(1)
 const totalPages = ref(1)
 const list = ref([])
 const loading = ref(false)
 
-// ===== 编辑器 =====
-const currentNote = ref(null) // 当前打开的服务端最新记录（含 version）
-const currentId = computed(() => (currentNote.value ? currentNote.value.id : null))
-const draftTitle = ref('')
-const draftCategory = ref('other')
-const draftContent = ref('')
-const preview = ref(false) // false 编辑 / true 预览
-const saveState = ref('idle') // idle 未编辑 / saving 保存中 / saved 已保存 / error 保存失败
-const saveErrorMsg = ref('')
-const exporting = ref(false)
-
-// 防抖定时器 + 自动保存进行中标志（防止并发提交）
-let saveTimer = null
-let savingNow = false
-// 打开笔记 / 新建后同步草稿时跳过自动保存触发
-let syncing = false
-// 存在未保存修改（离开页面提示用）
-let dirty = false
+// ===== 详情 / 编辑弹窗 =====
+const editorRef = ref(null)
+const editorOpen = ref(false)
+const editorNoteId = ref(null)
+const detailOpen = ref(false)
+const detailNoteId = ref(null)
 
 function categoryLabel(value) {
   const item = NOTE_CATEGORIES.find((c) => c.value === value)
   return item ? item.label : value
 }
 
-// 列表更新时间：'YYYY-MM-DD HH:mm:ss' → 'MM-DD HH:mm'
+// 时间：'YYYY-MM-DD HH:mm:ss' → 'MM-DD HH:mm'
 function timeText(ts) {
   return ts ? String(ts).slice(5, 16) : ''
-}
-
-// 摘要：清洗 Markdown 符号后截断，最多两行视觉（CSS line-clamp 控制）
-function summaryOf(n) {
-  const s = String(n.summary || '')
-    .replace(/[#*`>\[\]!-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return s || '（无内容）'
 }
 
 async function load() {
   loading.value = true
   try {
-    const res = await listNotes({ status: tab.value, category: categoryFilter.value || '', page: page.value })
+    const res = await listNotes({
+      status: tab.value,
+      category: categoryFilter.value || '',
+      keyword: keyword.value.trim(),
+      sortField: sortField.value,
+      sortOrder: sortOrder.value,
+      page: page.value
+    })
     const d = res && res.data
     if (res && res.success && d) {
       list.value = d.list || []
@@ -184,6 +156,9 @@ async function load() {
 function switchTab(t) {
   if (tab.value === t) return
   tab.value = t
+  // 排序字段语义随 tab 变化（active→change_ts / deleted→deleted_at），切换时重置
+  sortField.value = ''
+  sortOrder.value = ''
   page.value = 1
   load()
 }
@@ -193,145 +168,93 @@ function onFilterChange() {
   load()
 }
 
-// ===== 打开 / 新建 =====
-async function openNoteById(id) {
-  try {
-    const res = await getNote(id)
-    if (!res || !res.success || !res.data) return
-    currentNote.value = res.data
-    syncing = true
-    draftTitle.value = res.data.title || ''
-    draftCategory.value = res.data.category || 'other'
-    draftContent.value = res.data.content || ''
-    preview.value = false
-    saveState.value = 'saved'
-    saveErrorMsg.value = ''
-    dirty = false
-    syncing = false
-  } catch (e) {
-    // 打开失败（如已被删除）：清空编辑器
-    currentNote.value = null
-  }
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
+  page.value = 1
+  load()
+}
+
+function onResetFilter() {
+  categoryFilter.value = ''
+  keyword.value = ''
+  onFilterChange()
+}
+
+// ===== 弹窗：新建 / 详情 / 编辑 / 全局搜索直达 =====
+function openEditor(id) {
+  editorNoteId.value = id
+  editorOpen.value = true
+}
+
+function openDetail(id) {
+  detailNoteId.value = id
+  detailOpen.value = true
+}
+
+function onCreate() {
+  openEditor(null)
+}
+
+// 点击行：打开详情（我的笔记 / 回收站均可只读查看）
+function onPick(n) {
+  openDetail(n.id)
+}
+
+// 表格操作列「编辑」：直接进入编辑弹窗
+function onEditRow(n) {
+  openEditor(n.id)
+}
+
+// 详情弹窗内点「编辑」：关闭详情再打开编辑
+function onDetailEdit(id) {
+  detailOpen.value = false
+  openEditor(id)
 }
 
 const route = useRoute()
 
-// 全局搜索直达：?open=<id> → 自动打开笔记。
+// 全局搜索直达：?open=<id> → 自动打开详情弹窗。
 // 用 watch 而非 onMounted：同路由下 query 变化（已在本页再点搜索结果）也会触发。
 watch(
   () => route.query.open,
   (openId) => {
     if (openId != null && /^\d+$/.test(String(openId))) {
-      openNoteById(Number(openId))
+      openDetail(Number(openId))
     }
   },
   { immediate: true }
 )
 
-function onPick(n) {
-  // 回收站笔记不可编辑，仅提供恢复/彻底删除
-  if (tab.value === 'deleted') return
-  openNoteById(n.id)
+function onEditorSaved(payload) {
+  load()
+  const action = payload && payload.action
+  if (action === 'create') {
+    refreshAfterWrite('笔记已创建')
+  } else if (action === 'delete') {
+    refreshAfterWrite('已移入回收站')
+  }
+  // update：自动保存静默刷新列表，不打扰
 }
 
-// 新建：先输标题再建（复用全局输入弹窗）
-async function onCreate() {
-  const title = await dialogPrompt('请输入笔记主题（可稍后修改）', '', '新建笔记')
-  if (title === null) return
-  const t = String(title).trim()
-  if (!t) {
-    dialogAlert('主题不能为空')
-    return
-  }
-  if (t.length > 120) {
-    dialogAlert('主题不能超过 120 字')
-    return
-  }
-  const res = await createNote({ title: t })
-  if (!res || !res.success) {
-    dialogAlert((res && res.message) || '创建失败，请重试')
-    return
-  }
-  tab.value = 'active'
-  categoryFilter.value = ''
-  page.value = 1
-  await load()
-  openNoteById(res.data.id)
-  await refreshAfterWrite('笔记已创建')
-}
-
-// ===== 自动保存 =====
-watch([draftTitle, draftCategory, draftContent], () => {
-  if (syncing || !currentNote.value) return
-  dirty = true
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(saveNow, 1000)
-})
-
-async function saveNow() {
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-    saveTimer = null
-  }
-  if (!currentNote.value || savingNow) return
-  // 主题为空不能保存（与服务端校验一致）
-  if (!String(draftTitle.value).trim()) {
-    saveState.value = 'error'
-    saveErrorMsg.value = '请输入笔记主题'
-    dirty = true
-    return
-  }
-  savingNow = true
-  saveState.value = 'saving'
-  try {
-    const res = await updateNote(currentNote.value.id, {
-      title: draftTitle.value,
-      category: draftCategory.value,
-      content: draftContent.value,
-      version: currentNote.value.version
-    })
-    if (res && res.success && res.data) {
-      currentNote.value = res.data
-      saveState.value = 'saved'
-      saveErrorMsg.value = ''
-      dirty = false
-      // 更新列表里的该项（change_ts 已变化，局部刷新）
-      const idx = list.value.findIndex((x) => x.id === currentNote.value.id)
-      if (idx >= 0) {
-        list.value[idx] = { ...list.value[idx], change_ts: res.data.change_ts }
-      }
-    } else {
-      saveState.value = 'error'
-      saveErrorMsg.value = (res && res.message) || '保存失败'
-      dirty = true
-    }
-  } catch (e) {
-    saveState.value = 'error'
-    saveErrorMsg.value = '保存失败，请重试'
-    dirty = true
-  } finally {
-    savingNow = false
-  }
-}
-
-// 离开页面前：未保存修改需确认（拦截路由离开）
+// 离开页面前：弹窗内有未保存修改需确认
 onBeforeRouteLeave(async () => {
-  if (!dirty || !currentNote.value) return true
-  const ok = await dialogConfirm('笔记有未保存的修改，确定离开吗？', '未保存的修改')
-  return !!ok
+  if (editorOpen.value && editorRef.value && editorRef.value.getDirty()) {
+    const ok = await dialogConfirm('笔记有未保存的修改，确定离开吗？', '未保存的修改')
+    return !!ok
+  }
+  return true
 })
 
-// ===== 删除 / 恢复 / 彻底删除 / 导出 =====
-async function onDelete() {
+// ===== 删除 / 恢复 / 彻底删除 =====
+async function onDeleteRow(n) {
   const ok = await dialogConfirm('删除后将移入回收站，可随时恢复。确定删除吗？', '删除笔记')
   if (!ok) return
-  const id = currentNote.value.id
-  const res = await deleteNote(id)
+  const res = await deleteNote(n.id)
   if (!res || !res.success) {
     dialogAlert((res && res.message) || '删除失败，请重试')
     return
   }
-  if (currentId.value === id) currentNote.value = null
   load()
   await refreshAfterWrite('已移入回收站')
 }
@@ -354,32 +277,9 @@ async function onPurge(n) {
     dialogAlert((res && res.message) || '删除失败，请重试')
     return
   }
-  if (currentId.value === n.id) currentNote.value = null
   load()
   await refreshAfterWrite('已彻底删除')
 }
-
-async function onExport() {
-  exporting.value = true
-  try {
-    const res = await exportNote(currentNote.value.id)
-    if (res && res.success) {
-      dialogAlert('笔记已导出')
-    } else if (res && res.canceled) {
-      // 用户取消保存：静默
-    } else {
-      dialogAlert((res && res.message) || '导出失败，请重试')
-    }
-  } catch (e) {
-    dialogAlert('导出失败，请重试')
-  } finally {
-    exporting.value = false
-  }
-}
-
-onBeforeUnmount(() => {
-  if (saveTimer) clearTimeout(saveTimer)
-})
 
 load()
 // 数据变动（本页写操作或外部改动）后后台静默重拉，保持笔记列表最新
@@ -393,35 +293,21 @@ useAutoRefresh(load)
   height: 100%;
   overflow: hidden;
 }
-.notes-body {
-  flex: 1 1 auto;
-  display: flex;
-  gap: 14px;
-  min-height: 0;
-  margin-top: 4px;
-}
-
-/* ===== 左：列表栏 ===== */
-.notes-list {
-  flex: 0 0 300px;
-  max-width: 300px;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
-  overflow: hidden;
-}
-.notes-list-head {
+.tabs-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border-light);
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 .tabs {
   display: flex;
   gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  flex: 0 0 auto;
 }
 .tabs button {
   padding: 5px 14px;
@@ -441,228 +327,40 @@ useAutoRefresh(load)
   color: var(--primary);
   font-weight: 600;
 }
-.notes-filter {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-light);
-}
-.notes-filter .select {
-  width: 100%;
-}
-.notes-cards {
+.toolbar {
   flex: 1 1 auto;
-  overflow-y: auto;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin-bottom: 0;
 }
-.note-card {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+.search-input {
+  width: 240px;
 }
-.note-card:hover {
-  border-color: var(--primary);
-}
-.note-card.on {
-  border-color: var(--primary);
-  background: var(--primary-soft);
-}
-.note-card.trash {
-  cursor: default;
-}
-.note-card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
+.title-cell {
+  display: inline-block;
+  max-width: 420px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  vertical-align: middle;
 }
-.note-card-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.note-card-meta .cat {
+.cat-badge {
+  display: inline-block;
   color: var(--primary);
   background: var(--primary-soft);
-  padding: 0 6px;
+  padding: 1px 8px;
   border-radius: var(--radius-full);
-}
-.note-card-summary {
-  margin-top: 6px;
   font-size: 12px;
-  line-height: 1.6;
+}
+.time-cell {
   color: var(--text-2);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  white-space: nowrap;
 }
-.note-card-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-.notes-cards .pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding-top: 4px;
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-/* ===== 右：编辑器栏 ===== */
-.notes-editor {
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.editor-empty {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-}
-.editor {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.editor-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border-light);
-}
-.editor-title {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.editor-actions {
-  display: flex;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-.editor-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border-light);
-  font-size: 12px;
-  color: var(--muted);
-}
-.editor-category {
-  width: 130px;
-}
-.save-state {
-  margin-left: auto;
-}
-.save-state.saving {
-  color: var(--text-2);
-}
-.save-state.saved {
-  color: var(--success);
-}
-.save-state.error {
-  color: var(--danger);
-}
-.editor-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.editor-tabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 14px 0;
-}
-.editor-tabs button {
-  padding: 4px 12px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-2);
-  font-size: 13px;
+.row-click {
   cursor: pointer;
 }
-.editor-tabs button.on {
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-weight: 600;
+.op-cell {
+  white-space: nowrap;
 }
-.word-count {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--muted);
-  padding-right: 6px;
-}
-.editor-textarea {
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 10px 14px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1.7;
-  resize: none;
-  outline: none;
-  font-family: inherit;
-}
-.editor-textarea:focus {
-  border-color: var(--primary);
-}
-.editor-preview {
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 10px 14px 0;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow-y: auto;
-}
-.editor-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.editor-updated {
-  flex: 1 1 auto;
-}
-
-/* 窄屏：列表与编辑器上下堆叠（Electron 固定 1100 宽一般不会触发） */
-@media (max-width: 860px) {
-  .notes-body {
-    flex-direction: column;
-  }
-  .notes-list {
-    flex: 0 0 320px;
-    max-width: none;
-  }
+.op-cell .btn + .btn {
+  margin-left: 8px;
 }
 </style>
