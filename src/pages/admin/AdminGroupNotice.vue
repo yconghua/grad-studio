@@ -83,12 +83,12 @@
       @saved="onNoticeSaved"
     />
 
-    <!-- 已读统计弹窗 -->
-    <NoticeStatsDialog v-model:visible="showStats" :stats="stats" />
+    <!-- 已读统计弹窗（弹窗内按 noticeId 自拉，实时刷新） -->
+    <NoticeStatsDialog v-model:visible="showStats" :notice-id="statsNoticeId" />
   </div>
 
   <!-- 公告行详情弹窗 -->
-  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
+  <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" size="lg" />
 </template>
 
 <script setup>
@@ -97,7 +97,7 @@ import { useRoute } from 'vue-router'
 import RowDetailDialog from '../../components/common/RowDetailDialog.vue'
 import NoticeFormDialog from '../../components/notice/NoticeFormDialog.vue'
 import NoticeStatsDialog from '../../components/notice/NoticeStatsDialog.vue'
-import { listNotices, getNotice, deleteNotice, toggleNoticeTop, getNoticeReadStats } from '../../api'
+import { listNotices, getNotice, deleteNotice, toggleNoticeTop } from '../../api'
 import { listGroups } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -130,7 +130,7 @@ const editId = ref(null)
 const form = reactive({ groupId: '', groupName: '', title: '', content: '', status: 1 })
 
 const showStats = ref(false)
-const stats = ref({ title: '', totalMembers: 0, readCount: 0, list: [] })
+const statsNoticeId = ref(null)
 
 // 公告状态文案与标签样式
 const noticeStatusText = (s) => (Number(s) === 2 ? '下架' : '已发布')
@@ -250,13 +250,9 @@ async function doDelete(n) {
 }
 
 async function doStats(n) {
-  const res = await getNoticeReadStats(n.id)
-  if (res && res.success) {
-    stats.value = res.data || { title: '', totalMembers: 0, readCount: 0, list: [] }
-    showStats.value = true
-  } else {
-    dialogAlert((res && res.message) || '加载统计失败')
-  }
+  // 数据由统计弹窗按 noticeId 自拉（弹窗内订阅全局刷新）
+  statsNoticeId.value = n.id
+  showStats.value = true
 }
 
 // Markdown 工具栏与表单逻辑已移至 NoticeFormDialog 组件内

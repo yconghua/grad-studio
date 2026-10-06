@@ -81,6 +81,7 @@ import ThemeSwitcher from '../components/layout/ThemeSwitcher.vue'
 import AppTitleBar from '../components/layout/AppTitleBar.vue'
 import TabBar from '../components/layout/TabBar.vue'
 import GlobalSearch from '../components/layout/GlobalSearch.vue'
+import { useAutoRefresh } from '../composables/useAutoRefresh'
 // 导航图标按配置里的 icon 名映射（配置保持纯数据，图标集中在此注册）
 import {
   DashboardOutlined,
@@ -255,6 +256,9 @@ async function refreshUnread() {
     // 拉取失败静默忽略，等待下一次轮询或路由切换重试
   }
 }
+
+// 订阅全局刷新：公告页写操作（一键已读等）广播后立即重拉角标，不等 30s 轮询
+useAutoRefresh(refreshUnread)
 
 let timer = null
 function onFocus() {

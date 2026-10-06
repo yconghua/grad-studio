@@ -85,10 +85,9 @@
       </div>
     </div>
 
-    <!-- 统计弹窗 -->
+    <!-- 统计弹窗（弹窗内自拉本组统计，实时刷新） -->
     <MeetingStatsDialog
       v-model:visible="showStats"
-      :stats="stats"
       :scope-text="groupName"
       audience-hint="本组启用导师+学生"
     />
@@ -120,7 +119,7 @@ import { useRoute } from 'vue-router'
 import MeetingFormDialog from '../../components/meeting/MeetingFormDialog.vue'
 import MeetingDetailDialog from '../../components/meeting/MeetingDetailDialog.vue'
 import MeetingStatsDialog from '../../components/meeting/MeetingStatsDialog.vue'
-import { listMeetings, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleMeetingArchive, publishMeetingAsNotice, getMeetingStats } from '../../api'
+import { listMeetings, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleMeetingArchive, publishMeetingAsNotice } from '../../api'
 import { getOwnGroup } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -157,7 +156,6 @@ const detailMeetingId = ref(null)
 const route = useRoute()
 
 const showStats = ref(false)
-const stats = ref({ total: 0, monthTotal: 0, latestTime: null, latestTitle: null, audience: 0, participationRate: 0 })
 
 async function load() {
   let res
@@ -271,13 +269,8 @@ async function doDelete(m) {
 }
 
 async function doStats() {
-  const res = await getMeetingStats()
-  if (res && res.success) {
-    stats.value = res.data || {}
-    showStats.value = true
-  } else {
-    dialogAlert((res && res.message) || '加载统计失败')
-  }
+  // 数据由统计弹窗自拉本组统计（弹窗内订阅全局刷新）
+  showStats.value = true
 }
 
 onMounted(async () => {

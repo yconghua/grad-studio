@@ -40,7 +40,7 @@
     </div>
 
     <!-- 公告详情弹窗（统一走 notice:get，查看全文） -->
-    <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" />
+    <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" size="lg" />
 
     <div v-if="!notInGroup && list.length === 0" class="panel">
       <div class="empty">暂无公告</div>

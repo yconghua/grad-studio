@@ -69,6 +69,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getTaskOverviewDetail } from '../../api/task'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { taskStatusText, taskStatusTagClass, taskPriorityText, taskPriorityTagClass } from '../../utils/labels'
 
 const props = defineProps({
@@ -105,6 +106,8 @@ async function load() {
 }
 
 onMounted(load)
+// 任务数据被改动（他人提交进展/变更状态等）后静默重拉，总览弹窗保持实时
+useAutoRefresh(load)
 </script>
 
 <style scoped>

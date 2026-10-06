@@ -89,11 +89,11 @@
       </div>
     </div>
 
-    <!-- 统计弹窗 -->
+    <!-- 统计弹窗（弹窗内按 groupId 自拉，实时刷新） -->
     <MeetingStatsDialog
       v-model:visible="showStats"
-      :stats="stats"
-      :scope-text="stats.groupId ? stats.groupName : '全平台'"
+      :group-id="statsGroupId"
+      :scope-text="statsGroupId ? (groups.find((g) => g.id === Number(statsGroupId)) || {}).name || '该课题组' : '全平台'"
       audience-hint="本组/全平台启用导师+学生"
     />
 
@@ -123,7 +123,7 @@ import { useRoute } from 'vue-router'
 import MeetingFormDialog from '../../components/meeting/MeetingFormDialog.vue'
 import MeetingDetailDialog from '../../components/meeting/MeetingDetailDialog.vue'
 import MeetingStatsDialog from '../../components/meeting/MeetingStatsDialog.vue'
-import { listMeetings, listMyDrafts, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleMeetingArchive, publishMeetingAsNotice, getMeetingStats } from '../../api'
+import { listMeetings, listMyDrafts, listGroupDrafts, getMeetingDetail, deleteMeeting, toggleMeetingArchive, publishMeetingAsNotice } from '../../api'
 import { listGroups } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
@@ -169,7 +169,7 @@ const detailMeetingId = ref(null)
 const detailGroupId = ref(null)
 
 const showStats = ref(false)
-const stats = ref({ groupId: '', groupName: '', total: 0, monthTotal: 0, latestTime: null, latestTitle: null, audience: 0, participationRate: 0 })
+const statsGroupId = ref('')
 
 async function load() {
   let res
@@ -291,20 +291,10 @@ async function doDelete(m) {
   }
 }
 
-async function doStats(m) {
-  // 统计范围：顶部已选课题组则统计该组，否则全平台
-  const targetGroupId = groupId.value || ''
-  const res = await getMeetingStats(targetGroupId)
-  if (res && res.success) {
-    const data = res.data || {}
-    stats.value = {
-      ...data,
-      groupName: targetGroupId ? (groups.value.find((g) => g.id === Number(targetGroupId)) || {}).name || '' : ''
-    }
-    showStats.value = true
-  } else {
-    dialogAlert((res && res.message) || '加载统计失败')
-  }
+async function doStats() {
+  // 数据由统计弹窗按 groupId 自拉（弹窗内订阅全局刷新）
+  statsGroupId.value = groupId.value || ''
+  showStats.value = true
 }
 
 onMounted(async () => {

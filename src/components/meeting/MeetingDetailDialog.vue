@@ -1,6 +1,6 @@
 <template>
   <div v-if="visible" class="modal-mask" @click.self="close">
-    <div class="modal">
+    <div class="modal lg">
       <div class="modal-head">
         <h3>会议详情</h3>
         <button type="button" class="modal-close" @click="close">×</button>

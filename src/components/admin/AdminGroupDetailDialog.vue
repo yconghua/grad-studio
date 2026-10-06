@@ -54,6 +54,7 @@ import MemberManagePanel from '../member/MemberManagePanel.vue'
 import { listGroups, getGroup, listUsers, listNotices, getMeetingStats } from '../../api'
 import { superGetMemberStats } from '../../api/member'
 import { fetchAll } from '../../utils/fetchAll'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { statusText, statusTagClass } from '../../utils/labels'
 
 // 超管「课题组设置」列表内嵌的课题组详情弹窗：从列表行传入 groupId
@@ -77,11 +78,14 @@ const adminStopped = computed(() => {
   return !!a && a.status === 0
 })
 
-async function load() {
-  group.value = null
-  memberStats.value = null
-  meetingStats.value = null
-  noticeTotal.value = 0
+async function load(silent = false) {
+  // silent：后台静默刷新（全局数据变更后）——不清空界面，避免弹窗闪「加载中」
+  if (!silent) {
+    group.value = null
+    memberStats.value = null
+    meetingStats.value = null
+    noticeTotal.value = 0
+  }
   const gid = currentId.value
   const [gr, ms, ns, mg] = await Promise.all([
     getGroup(gid),
@@ -94,6 +98,9 @@ async function load() {
   if (ns && ns.success) noticeTotal.value = ns.data.total || 0
   if (mg && mg.success) meetingStats.value = mg.data
 }
+
+// 添加/移除成员、指定导师等写操作后静默重拉，卡片数字与表格保持同步
+useAutoRefresh(() => load(true))
 
 function onSwitch() {
   load()

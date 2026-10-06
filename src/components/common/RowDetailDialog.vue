@@ -1,6 +1,6 @@
 <template>
   <div v-if="visible" class="modal-mask" @click.self="close">
-    <div class="modal sm">
+    <div class="modal" :class="size">
       <div class="modal-head">
         <h3>{{ title }}</h3>
         <button type="button" class="modal-close" @click="close">×</button>
@@ -39,7 +39,9 @@ const props = defineProps({
   visible: { type: Boolean, default: false },
   title: { type: String, default: '' },
   row: { type: Object, default: null },
-  fields: { type: Array, default: () => [] }
+  fields: { type: Array, default: () => [] },
+  // 弹窗尺寸：sm(420px) / 默认 580px / lg(760px)，长文详情（如公告全文）传 'lg'
+  size: { type: String, default: 'sm' }
 })
 const emit = defineEmits(['update:visible'])
 

@@ -35,11 +35,33 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
+import { getNoticeReadStats } from '../../api'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
+
+// 公告已读统计弹窗（超管 / 组管公告页共用，纯只读展示）：
+// 打开后由本组件按 noticeId 自拉数据，并订阅全局刷新，弹窗打开期间已读变化实时更新
 const props = defineProps({
   visible: { type: Boolean, default: false },
-  stats: { type: Object, default: () => ({ title: '', totalMembers: 0, readCount: 0, list: [] }) }
+  noticeId: { type: [Number, String], default: null }
 })
 const emit = defineEmits(['update:visible'])
+
+const stats = ref({ title: '', totalMembers: 0, readCount: 0, list: [] })
+
+async function load() {
+  if (!props.noticeId) return
+  const res = await getNoticeReadStats(props.noticeId)
+  if (res && res.success) stats.value = res.data || { title: '', totalMembers: 0, readCount: 0, list: [] }
+}
+
+watch(
+  () => [props.visible, props.noticeId],
+  (v) => {
+    if (v[0] && v[1]) load()
+  }
+)
+useAutoRefresh(load)
 
 function close() {
   emit('update:visible', false)
