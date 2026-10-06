@@ -23,6 +23,7 @@
             <div style="font-weight: 600; color: var(--text); margin-bottom: 4px">填写说明（表头必须保留，每行一个用户）：</div>
             <div>· <b>必填</b>：用户名（最长 50 字，全局唯一）、角色（只能填 导师 / 学生 / 课题组管理员 三种之一）</div>
             <div>· <b>选填</b>：真实姓名（≤50 字）、手机号（≤20 字）、邮箱（≤100 字）、性别（男 / 女 / 其他，留空按未设置）</div>
+            <div>· <b>选填（资料扩展）</b>：学号/工号（全局唯一，学生填学号、导师/管理员填工号）、学历（专科 / 本科 / 研究生）、学位（无 / 学士 / 硕士 / 博士）、日制（全日制 / 非全日制）、年级（4 位年份如 2025）、专业（≤100 字）、研究方向（≤200 字）、入学年份（4 位数字）、毕业年份（4 位数字）、备注（≤500 字），全部可留空</div>
             <div>· 所属课题组：填系统内的课题组名称，按名称精确匹配；不存在或名称不唯一时该行导入失败</div>
             <div>· 导师：填导师的用户名，仅学生行有效，且导师必须属于该学生填写的所属课题组；非学生行填写会被忽略</div>
             <div>· 启用状态：填 启用 / 禁用，留空默认启用；学生指定导师时必须同时填写所属课题组</div>
@@ -37,7 +38,7 @@
             class="input"
             rows="6"
             style="width: 640px; max-width: 100%; min-height: 220px; resize: vertical; font-family: monospace; font-size: 12px"
-            placeholder="用户名,真实姓名,角色,手机号,邮箱,性别,所属课题组,导师,启用状态"
+            placeholder="用户名,真实姓名,角色,手机号,邮箱,性别,学号/工号,学历,学位,日制,年级,专业,研究方向,入学年份,毕业年份,备注,所属课题组,导师,启用状态"
           ></textarea>
           <div style="margin-top: 8px">
             <button type="button" class="btn btn-primary btn-sm" :disabled="batchLoading" @click="doParsePaste">解析预览</button>
@@ -61,6 +62,7 @@
                   <th style="width: 50px">手机</th>
                   <th style="width: 50px">邮箱</th>
                   <th style="width: 50px">性别</th>
+                  <th style="width: 60px">学号/工号</th>
                   <th style="width: 76px">课题组</th>
                   <th style="width: 50px">导师</th>
                   <th style="width: 50px">状态</th>
@@ -78,6 +80,7 @@
                   <td class="ellipsis" :title="r.phone">{{ r.phone || '-' }}</td>
                   <td class="ellipsis" :title="r.email">{{ r.email || '-' }}</td>
                   <td>{{ r.genderText || '-' }}</td>
+                  <td class="ellipsis" :title="r.userNo">{{ r.userNo || '-' }}</td>
                   <td class="ellipsis" :title="r.groupName">{{ r.groupName || '-' }}</td>
                   <td class="ellipsis" :title="r.mentorUsername">{{ r.mentorUsername || '-' }}</td>
                   <td>{{ r.statusText || '启用' }}</td>
@@ -119,7 +122,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { downloadCsvTemplate, listAllUsernames, batchCreateUsers } from '../../api'
+import { downloadCsvTemplate, listAllUsernames, listAllUserNos, batchCreateUsers } from '../../api'
 import { parseCsvFile, parseCsvText, validatePreviewRows } from '../../utils/csvImport'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 
@@ -196,13 +199,17 @@ function doParsePaste() {
   applyPreview(rows, headerError)
 }
 
-// 解析成功后统一进入预览：行数限制 → 拉现有用户名预检 → 校验 → 默认全选可用行
+// 解析成功后统一进入预览：行数限制 → 拉现有用户名/学号工号预检 → 校验 → 默认全选可用行
 async function applyPreview(rows, headerError) {
   if (headerError) return dialogAlert(headerError)
   if (rows.length === 0) return dialogAlert('文件中没有数据行')
   if (rows.length > 500) return dialogAlert('单次最多 500 行，请分批导入')
-  const res = await listAllUsernames()
-  validatePreviewRows(rows, res && res.success ? res.data || [] : [])
+  const [unRes, noRes] = await Promise.all([listAllUsernames(), listAllUserNos()])
+  validatePreviewRows(
+    rows,
+    unRes && unRes.success ? unRes.data || [] : [],
+    noRes && noRes.success ? noRes.data || [] : []
+  )
   previewRows.value = rows
   checkedIdx.value = rows.map((r, i) => (r.errors.length ? -1 : i)).filter((i) => i >= 0)
 }

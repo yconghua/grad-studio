@@ -43,12 +43,23 @@ function toSafeUser(row) {
     role: row.role,
     status: row.status,
     groupId: row.group_id == null ? null : Number(row.group_id),
+    groupName: row.group_name || '',
     mentorId: row.mentor_id == null ? null : Number(row.mentor_id),
     mustChangePassword: row.must_change_password === 1,
     gender: row.gender || 0,
     phone: row.phone || '',
     email: row.email || '',
-    avatar: row.avatar || ''
+    avatar: row.avatar || '',
+    userNo: row.user_no || '',
+    education: row.education || '',
+    degree: row.degree || '',
+    studyType: row.study_type || '',
+    gradeYear: row.grade_year || '',
+    major: row.major || '',
+    researchField: row.research_field || '',
+    enrollYear: row.enroll_year || '',
+    graduateYear: row.graduate_year || '',
+    remark: row.remark || ''
   }
 }
 

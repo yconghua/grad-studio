@@ -38,6 +38,10 @@ export function batchCreateUsers(rows) {
 export function listAllUsernames() {
   return window.api.user.usernames()
 }
+// 全部学号/工号（批量导入预览预检用）
+export function listAllUserNos() {
+  return window.api.user.userNos()
+}
 // 下载批量新增 CSV 模板（超管，主进程保存对话框）
 export function downloadCsvTemplate() {
   return window.api.user.downloadCsvTemplate()

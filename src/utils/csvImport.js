@@ -2,11 +2,19 @@
 import Papa from 'papaparse'
 
 // 模板固定表头（与主进程下载的模板严格一致）
-export const BATCH_HEADERS = ['用户名', '真实姓名', '角色', '手机号', '邮箱', '性别', '所属课题组', '导师', '启用状态']
+// 学号/工号 与 学历/学位/日制/年级/专业/研究方向/入学年份/毕业年份/备注 均为选填列
+export const BATCH_HEADERS = [
+  '用户名', '真实姓名', '角色', '手机号', '邮箱', '性别',
+  '学号/工号', '学历', '学位', '日制', '年级', '专业', '研究方向', '入学年份', '毕业年份', '备注',
+  '所属课题组', '导师', '启用状态'
+]
 
 const ROLE_VALUES = ['导师', '学生', '课题组管理员']
 const GENDER_VALUES = ['', '男', '女', '其他']
 const STATUS_VALUES = ['', '启用', '禁用']
+const EDUCATION_VALUES = ['', '专科', '本科', '研究生']
+const DEGREE_VALUES = ['', '无', '学士', '硕士', '博士']
+const STUDY_TYPE_VALUES = ['', '全日制', '非全日制']
 
 /**
  * 解析上传的 CSV 文件：
@@ -56,9 +64,19 @@ export function parseCsvText(text) {
       phone: String(c[3] == null ? '' : c[3]).trim(),
       email: String(c[4] == null ? '' : c[4]).trim(),
       genderText: String(c[5] == null ? '' : c[5]).trim(),
-      groupName: String(c[6] == null ? '' : c[6]).trim(),
-      mentorUsername: String(c[7] == null ? '' : c[7]).trim(),
-      statusText: String(c[8] == null ? '' : c[8]).trim(),
+      userNo: String(c[6] == null ? '' : c[6]).trim(),
+      educationText: String(c[7] == null ? '' : c[7]).trim(),
+      degreeText: String(c[8] == null ? '' : c[8]).trim(),
+      studyTypeText: String(c[9] == null ? '' : c[9]).trim(),
+      gradeYear: String(c[10] == null ? '' : c[10]).trim(),
+      major: String(c[11] == null ? '' : c[11]).trim(),
+      researchField: String(c[12] == null ? '' : c[12]).trim(),
+      enrollYear: String(c[13] == null ? '' : c[13]).trim(),
+      graduateYear: String(c[14] == null ? '' : c[14]).trim(),
+      remark: String(c[15] == null ? '' : c[15]).trim(),
+      groupName: String(c[16] == null ? '' : c[16]).trim(),
+      mentorUsername: String(c[17] == null ? '' : c[17]).trim(),
+      statusText: String(c[18] == null ? '' : c[18]).trim(),
       errors: [],
       warnings: []
     })
@@ -72,10 +90,13 @@ export function parseCsvText(text) {
  * 权威校验与库内查重在服务端，提交后以服务端返回明细为准。
  * @param {Array} rows
  * @param {Array<string>} existingUsernames 现有全部用户名
+ * @param {Array<string>} [existingUserNos] 现有全部学号/工号
  */
-export function validatePreviewRows(rows, existingUsernames = []) {
+export function validatePreviewRows(rows, existingUsernames = [], existingUserNos = []) {
   const seen = new Set()
   const exists = new Set(existingUsernames)
+  const seenNos = new Set()
+  const existsNos = new Set(existingUserNos)
   for (const r of rows) {
     r.errors = []
     r.warnings = []
@@ -93,6 +114,22 @@ export function validatePreviewRows(rows, existingUsernames = []) {
     if (!ROLE_VALUES.includes(r.roleText)) r.errors.push('角色只能填 导师 / 学生 / 课题组管理员')
     if (r.genderText && !GENDER_VALUES.includes(r.genderText)) r.errors.push('性别只能填 男 / 女 / 其他')
     if (r.statusText && !STATUS_VALUES.includes(r.statusText)) r.errors.push('启用状态只能填 启用 / 禁用')
+    // 资料扩展列（选填）预校验
+    if (r.userNo) {
+      if (r.userNo.length > 50) r.errors.push('学号/工号不能超过 50 个字符')
+      if (seenNos.has(r.userNo)) r.errors.push('学号/工号在本批次内重复')
+      if (existsNos.has(r.userNo)) r.errors.push('学号/工号已存在')
+      seenNos.add(r.userNo)
+    }
+    if (r.educationText && !EDUCATION_VALUES.includes(r.educationText)) r.errors.push('学历只能填 专科 / 本科 / 研究生')
+    if (r.degreeText && !DEGREE_VALUES.includes(r.degreeText)) r.errors.push('学位只能填 无 / 学士 / 硕士 / 博士')
+    if (r.studyTypeText && !STUDY_TYPE_VALUES.includes(r.studyTypeText)) r.errors.push('日制只能填 全日制 / 非全日制')
+    if (r.gradeYear && !/^\d{4}$/.test(r.gradeYear)) r.errors.push('年级须为 4 位年份（如 2025）')
+    if (r.major && r.major.length > 100) r.errors.push('专业不能超过 100 个字符')
+    if (r.researchField && r.researchField.length > 200) r.errors.push('研究方向不能超过 200 个字符')
+    if (r.enrollYear && !/^\d{4}$/.test(r.enrollYear)) r.errors.push('入学年份须为 4 位数字')
+    if (r.graduateYear && !/^\d{4}$/.test(r.graduateYear)) r.errors.push('毕业年份须为 4 位数字')
+    if (r.remark && r.remark.length > 500) r.errors.push('备注不能超过 500 个字符')
     // 非学生行填了导师：不报错，黄色提示已忽略
     if (r.mentorUsername && r.roleText !== '学生') r.warnings.push('非学生角色，导师列已忽略')
     // 学生指定导师但未填所属课题组：该行失败

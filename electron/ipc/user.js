@@ -15,8 +15,10 @@ const { dialog, BrowserWindow, app } = require('electron')
 const fs = require('fs')
 const path = require('path')
 
-// 批量新增 CSV 模板（固定表头，与前端解析列名严格一致；密码不放模板，统一走角色默认密码）
-const BATCH_CSV_TEMPLATE = '用户名,真实姓名,角色,手机号,邮箱,性别,所属课题组,导师,启用状态'
+// 批量新增 CSV 模板（固定表头，与前端解析列名严格一致；密码不放模板，统一走角色默认密码；
+// 学号/工号 等资料扩展列为选填，空留即可）
+const BATCH_CSV_TEMPLATE =
+  '用户名,真实姓名,角色,手机号,邮箱,性别,学号/工号,学历,学位,日制,年级,专业,研究方向,入学年份,毕业年份,备注,所属课题组,导师,启用状态'
 
 // 仅超级管理员
 async function requireSuperAdmin() {
@@ -105,6 +107,12 @@ function register(ipcMain) {
   ipcMain.handle('user:usernames', handler(async () => {
     await requireSuperAdmin()
     return userService.listAllUsernames()
+  }))
+
+  // 全部学号/工号（超管）：批量导入预览预检学号工号重复
+  ipcMain.handle('user:user-nos', handler(async () => {
+    await requireSuperAdmin()
+    return userService.listAllUserNos()
   }))
 
   // 下载批量新增 CSV 模板（超管）：主进程保存对话框 + 写 UTF-8 BOM 文件

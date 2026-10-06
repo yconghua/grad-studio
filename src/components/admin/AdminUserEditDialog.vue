@@ -74,6 +74,66 @@
                 <option :value="2">女</option>
               </select>
             </div>
+            <!-- 学号/工号：学生=学号，导师/管理员=工号（全局唯一，可空） -->
+            <div class="field">
+              <label>{{ userNoLabel }}</label>
+              <input v-model.trim="profile.userNo" class="input" :placeholder="`请输入${userNoLabel}（选填，全局唯一）`" maxlength="50" />
+              <p class="hint">选填；{{ userNoLabel }}全局唯一，已被他人使用时会提示</p>
+            </div>
+            <div class="field">
+              <label>学历</label>
+              <select v-model="profile.education" class="select">
+                <option value="">未设置</option>
+                <option value="专科">专科</option>
+                <option value="本科">本科</option>
+                <option value="研究生">研究生</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>学位</label>
+              <select v-model="profile.degree" class="select">
+                <option value="">未设置</option>
+                <option value="无">无</option>
+                <option value="学士">学士</option>
+                <option value="硕士">硕士</option>
+                <option value="博士">博士</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>日制</label>
+              <select v-model="profile.studyType" class="select">
+                <option value="">未设置</option>
+                <option value="全日制">全日制</option>
+                <option value="非全日制">非全日制</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>年级</label>
+              <input v-model.trim="profile.gradeYear" class="input" placeholder="如 2025 / 2026" maxlength="4" />
+              <p class="hint">4 位年份，选填</p>
+            </div>
+            <div class="field">
+              <label>专业</label>
+              <input v-model.trim="profile.major" class="input" placeholder="请输入专业" maxlength="100" />
+              <p class="hint">选填，不超过 100 个字符</p>
+            </div>
+            <div class="field">
+              <label>研究方向</label>
+              <input v-model.trim="profile.researchField" class="input" placeholder="请输入研究方向" maxlength="200" />
+              <p class="hint">选填，不超过 200 个字符</p>
+            </div>
+            <div class="field">
+              <label>入学年份</label>
+              <input v-model.trim="profile.enrollYear" class="input" placeholder="4 位数字" maxlength="4" />
+            </div>
+            <div class="field">
+              <label>毕业年份</label>
+              <input v-model.trim="profile.graduateYear" class="input" placeholder="4 位数字" maxlength="4" />
+            </div>
+            <div class="field field-full">
+              <label>备注</label>
+              <textarea v-model.trim="profile.remark" class="input" rows="3" maxlength="500" style="min-height: 76px; resize: vertical" placeholder="选填，不超过 500 个字符"></textarea>
+            </div>
             <div class="field field-full">
               <label>头像</label>
               <div class="avatar-preview">
@@ -144,10 +204,17 @@ const ALL_ROLES_TEXT = {
 }
 
 const account = reactive({ username: '', password: '', confirmPassword: '', role: '', status: 1 })
-const profile = reactive({ realName: '', phone: '', email: '', gender: 0, avatar: '', groupId: '', mentorId: '' })
+const profile = reactive({
+  realName: '', phone: '', email: '', gender: 0, avatar: '',
+  userNo: '', education: '', degree: '', studyType: '', gradeYear: '',
+  major: '', researchField: '', enrollYear: '', graduateYear: '', remark: '',
+  groupId: '', mentorId: ''
+})
 
 const userIdNum = computed(() => (props.userId == null ? null : Number(props.userId)))
 const isSuper = () => user.value && user.value.role === ROLE_SUPER_ADMIN
+// 学号/工号标签随角色：学生=学号，导师/管理员=工号
+const userNoLabel = computed(() => (user.value && user.value.role === ROLE_STUDENT ? '学号' : '工号'))
 
 // 打开弹窗或切换编辑对象时加载用户详情
 watch(
@@ -175,6 +242,16 @@ async function load() {
   profile.email = res.data.email || ''
   profile.gender = res.data.gender || 0
   profile.avatar = res.data.avatar || ''
+  profile.userNo = res.data.userNo || ''
+  profile.education = res.data.education || ''
+  profile.degree = res.data.degree || ''
+  profile.studyType = res.data.studyType || ''
+  profile.gradeYear = res.data.gradeYear || ''
+  profile.major = res.data.major || ''
+  profile.researchField = res.data.researchField || ''
+  profile.enrollYear = res.data.enrollYear || ''
+  profile.graduateYear = res.data.graduateYear || ''
+  profile.remark = res.data.remark || ''
   profile.groupId = res.data.groupId === null || res.data.groupId === undefined ? '' : res.data.groupId
   profile.mentorId = res.data.mentorId === null || res.data.mentorId === undefined ? '' : res.data.mentorId
 
@@ -240,6 +317,16 @@ async function saveProfile() {
       email: profile.email,
       gender: Number(profile.gender),
       avatar: profile.avatar,
+      userNo: profile.userNo,
+      education: profile.education,
+      degree: profile.degree,
+      studyType: profile.studyType,
+      gradeYear: profile.gradeYear,
+      major: profile.major,
+      researchField: profile.researchField,
+      enrollYear: profile.enrollYear,
+      graduateYear: profile.graduateYear,
+      remark: profile.remark,
       groupId: profile.groupId === '' ? null : Number(profile.groupId),
       mentorId: profile.mentorId === '' ? null : Number(profile.mentorId)
     })

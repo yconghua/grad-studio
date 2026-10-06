@@ -15,6 +15,9 @@
         <div class="row"><span class="k">角色</span><span class="v">{{ user ? roleText(user.role) : '-' }}</span></div>
         <div class="row" v-if="user && user.groupId"><span class="k">所属课题组</span><span class="v">{{ user.groupName || ('课题组 #' + user.groupId) }}</span></div>
         <div class="row" v-if="user && user.mentorId"><span class="k">导师</span><span class="v">{{ mentorLabel }}</span></div>
+        <!-- 学号/工号：学生=学号，导师/管理员=工号；由管理员维护，此处只读 -->
+        <div class="row" v-if="user && user.userNo"><span class="k">{{ userNoLabel }}</span><span class="v">{{ user.userNo }}</span></div>
+        <div class="row" v-if="user && user.remark"><span class="k">备注</span><span class="v">{{ user.remark }}</span></div>
       </div>
 
       <!-- 基本资料（可编辑） -->
@@ -54,6 +57,61 @@
               <p class="hint">从本机选择图片文件，将复制到应用数据目录</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- 学业资料（可编辑）：学历 / 学位 / 日制 / 年级 / 专业 / 研究方向 / 入学年份 / 毕业年份 -->
+      <p class="panel-title" style="margin-top: 20px">学业资料</p>
+      <div class="form-grid">
+        <div class="field">
+          <label>学历</label>
+          <select v-model="education" class="select">
+            <option value="">未设置</option>
+            <option value="专科">专科</option>
+            <option value="本科">本科</option>
+            <option value="研究生">研究生</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>学位</label>
+          <select v-model="degree" class="select">
+            <option value="">未设置</option>
+            <option value="无">无</option>
+            <option value="学士">学士</option>
+            <option value="硕士">硕士</option>
+            <option value="博士">博士</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>日制</label>
+          <select v-model="studyType" class="select">
+            <option value="">未设置</option>
+            <option value="全日制">全日制</option>
+            <option value="非全日制">非全日制</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>年级</label>
+          <input v-model.trim="gradeYear" class="input" placeholder="如 2025 / 2026" maxlength="4" />
+          <p class="hint">4 位年份，选填</p>
+        </div>
+        <div class="field">
+          <label>专业</label>
+          <input v-model.trim="major" class="input" placeholder="请输入专业" maxlength="100" />
+          <p class="hint">选填，不超过 100 个字符</p>
+        </div>
+        <div class="field">
+          <label>研究方向</label>
+          <input v-model.trim="researchField" class="input" placeholder="请输入研究方向" maxlength="200" />
+          <p class="hint">选填，不超过 200 个字符</p>
+        </div>
+        <div class="field">
+          <label>入学年份</label>
+          <input v-model.trim="enrollYear" class="input" placeholder="4 位数字" maxlength="4" />
+        </div>
+        <div class="field">
+          <label>毕业年份</label>
+          <input v-model.trim="graduateYear" class="input" placeholder="4 位数字" maxlength="4" />
         </div>
       </div>
 
@@ -122,11 +180,41 @@ const phone = ref('')
 const email = ref('')
 const gender = ref(0)
 const avatar = ref('')
+// 学业资料（个人可编辑；学号/工号、备注由管理员维护）
+const education = ref('')
+const degree = ref('')
+const studyType = ref('')
+const gradeYear = ref('')
+const major = ref('')
+const researchField = ref('')
+const enrollYear = ref('')
+const graduateYear = ref('')
 const saving = ref(false)
 const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const changingPwd = ref(false)
+
+// 学号/工号标签随角色：学生=学号，导师/管理员=工号
+const userNoLabel = computed(() => (user.value && user.value.role === 'student' ? '学号' : '工号'))
+
+// 用一份用户数据回填页面状态（加载与保存后共用，保证所见即所得）
+function applyUser(d) {
+  user.value = d
+  realName.value = d.realName || ''
+  phone.value = d.phone || ''
+  email.value = d.email || ''
+  gender.value = d.gender || 0
+  avatar.value = d.avatar || ''
+  education.value = d.education || ''
+  degree.value = d.degree || ''
+  studyType.value = d.studyType || ''
+  gradeYear.value = d.gradeYear || ''
+  major.value = d.major || ''
+  researchField.value = d.researchField || ''
+  enrollYear.value = d.enrollYear || ''
+  graduateYear.value = d.graduateYear || ''
+}
 
 async function load() {
   const res = await getCurrentUser()
@@ -134,12 +222,7 @@ async function load() {
     dialogAlert((res && res.message) || '加载个人资料失败')
     return
   }
-  user.value = res.data
-  realName.value = res.data.realName || ''
-  phone.value = res.data.phone || ''
-  email.value = res.data.email || ''
-  gender.value = res.data.gender || 0
-  avatar.value = res.data.avatar || ''
+  applyUser(res.data)
 }
 
 // 选择头像：调用系统附件选择，复制到应用数据目录
@@ -157,10 +240,19 @@ async function save() {
       phone: phone.value,
       email: email.value,
       gender: Number(gender.value),
-      avatar: avatar.value
+      avatar: avatar.value,
+      education: education.value,
+      degree: degree.value,
+      studyType: studyType.value,
+      gradeYear: gradeYear.value,
+      major: major.value,
+      researchField: researchField.value,
+      enrollYear: enrollYear.value,
+      graduateYear: graduateYear.value
     })
     if (res && res.success) {
-      // 同步本地会话快照，右上角头像菜单等复用会话的位置立即生效
+      // 保存返回的是完整最新资料：立即回填页面，再同步本地会话快照与全局刷新
+      applyUser(res.data)
       setSession(res.data)
       await refreshAfterWrite('保存成功')
     } else {

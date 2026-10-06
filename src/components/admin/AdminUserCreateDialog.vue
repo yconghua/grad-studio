@@ -69,6 +69,66 @@
                 <option :value="2">女</option>
               </select>
             </div>
+            <!-- 学号/工号：学生=学号，导师/管理员=工号（全局唯一，可空） -->
+            <div class="field">
+              <label>{{ userNoLabel }}</label>
+              <input v-model.trim="form.userNo" class="input" :placeholder="`请输入${userNoLabel}（选填，全局唯一）`" maxlength="50" />
+              <p class="hint">选填；{{ userNoLabel }}全局唯一，已被他人使用时会提示</p>
+            </div>
+            <div class="field">
+              <label>学历</label>
+              <select v-model="form.education" class="select">
+                <option value="">未设置</option>
+                <option value="专科">专科</option>
+                <option value="本科">本科</option>
+                <option value="研究生">研究生</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>学位</label>
+              <select v-model="form.degree" class="select">
+                <option value="">未设置</option>
+                <option value="无">无</option>
+                <option value="学士">学士</option>
+                <option value="硕士">硕士</option>
+                <option value="博士">博士</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>日制</label>
+              <select v-model="form.studyType" class="select">
+                <option value="">未设置</option>
+                <option value="全日制">全日制</option>
+                <option value="非全日制">非全日制</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>年级</label>
+              <input v-model.trim="form.gradeYear" class="input" placeholder="如 2025 / 2026" maxlength="4" />
+              <p class="hint">4 位年份，选填</p>
+            </div>
+            <div class="field">
+              <label>专业</label>
+              <input v-model.trim="form.major" class="input" placeholder="请输入专业" maxlength="100" />
+              <p class="hint">选填，不超过 100 个字符</p>
+            </div>
+            <div class="field">
+              <label>研究方向</label>
+              <input v-model.trim="form.researchField" class="input" placeholder="请输入研究方向" maxlength="200" />
+              <p class="hint">选填，不超过 200 个字符</p>
+            </div>
+            <div class="field">
+              <label>入学年份</label>
+              <input v-model.trim="form.enrollYear" class="input" placeholder="4 位数字" maxlength="4" />
+            </div>
+            <div class="field">
+              <label>毕业年份</label>
+              <input v-model.trim="form.graduateYear" class="input" placeholder="4 位数字" maxlength="4" />
+            </div>
+            <div class="field field-full">
+              <label>备注</label>
+              <textarea v-model.trim="form.remark" class="input" rows="3" maxlength="500" style="min-height: 76px; resize: vertical" placeholder="选填，不超过 500 个字符"></textarea>
+            </div>
             <div class="field field-full">
               <label>头像</label>
               <div class="avatar-preview">
@@ -107,7 +167,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { listUsers, listGroups, createUser, pickAttachment } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { avatarUrl } from '../../utils/avatar'
@@ -136,10 +196,23 @@ const emptyForm = () => ({
   email: '',
   gender: 0,
   avatar: '',
+  userNo: '',
+  education: '',
+  degree: '',
+  studyType: '',
+  gradeYear: '',
+  major: '',
+  researchField: '',
+  enrollYear: '',
+  graduateYear: '',
+  remark: '',
   groupId: '',
   mentorId: ''
 })
 const form = reactive(emptyForm())
+
+// 学号/工号标签随角色：学生=学号，导师/管理员=工号
+const userNoLabel = computed(() => (form.role === 'student' ? '学号' : '工号'))
 
 // 打开弹窗：重置表单并加载课题组列表
 watch(

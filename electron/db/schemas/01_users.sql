@@ -2,7 +2,9 @@
 -- 幂等：重复执行无副作用；新增表只需在 schemas/ 下加一个「NN_表名.sql」文件，主初始化代码零改动。
 --
 -- 字段范围：登录认证（username / password_hash / role / status / must_change_password）
---   + 个人档案（real_name / email / phone / gender / avatar）
+--   + 个人档案（real_name / email / phone / gender / avatar / user_no 学号工号 /
+--     education 学历 / degree 学位 / study_type 日制 / grade_year 年级 / major 专业 /
+--     research_field 研究方向 / enroll_year 入学年份 / graduate_year 毕业年份 / remark 备注）
 --   + 归属关系（group_id 所属课题组 / mentor_id 学生对应导师）。
 -- 说明：学生、导师、课题组管理员均只属于一个课题组（group_id 单值）；
 --   一个学生只有一个导师（mentor_id 单值）；
@@ -18,6 +20,16 @@ CREATE TABLE IF NOT EXISTS `users` (
   `phone`         VARCHAR(20)  DEFAULT NULL COMMENT '手机号',
   `gender`        TINYINT      DEFAULT 0 COMMENT '性别：0未知，1男，2女',
   `avatar`        VARCHAR(255) DEFAULT NULL COMMENT '头像',
+  `user_no`       VARCHAR(50)  DEFAULT NULL UNIQUE COMMENT '学号/工号（学生=学号，管理员/导师=工号，全局唯一可空）',
+  `education`     VARCHAR(20)  DEFAULT NULL COMMENT '学历：专科/本科/研究生',
+  `degree`        VARCHAR(20)  DEFAULT NULL COMMENT '学位：无/学士/硕士/博士',
+  `study_type`    VARCHAR(10)  DEFAULT NULL COMMENT '日制：全日制/非全日制',
+  `grade_year`    VARCHAR(10)  DEFAULT NULL COMMENT '年级（如 2025 / 2026）',
+  `major`         VARCHAR(100) DEFAULT NULL COMMENT '专业',
+  `research_field` VARCHAR(200) DEFAULT NULL COMMENT '研究方向',
+  `enroll_year`   VARCHAR(10)  DEFAULT NULL COMMENT '入学年份',
+  `graduate_year` VARCHAR(10)  DEFAULT NULL COMMENT '毕业年份',
+  `remark`        VARCHAR(500) DEFAULT NULL COMMENT '备注',
   `group_id`      BIGINT       DEFAULT NULL COMMENT '所属课题组ID',
   `mentor_id`     BIGINT       DEFAULT NULL COMMENT '学生对应导师用户ID',
   `must_change_password` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否必须修改初始密码：1首次登录强制改密/0已修改',

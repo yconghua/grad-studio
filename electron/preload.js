@@ -100,6 +100,7 @@ contextBridge.exposeInMainWorld('api', {
     batchDelete: createInvoke('user:batch-delete'),
     batchCreate: createInvoke('user:batch-create', { logPayload: false }),
     usernames: createInvoke('user:usernames'),
+    userNos: createInvoke('user:user-nos'),
     downloadCsvTemplate: createInvoke('user:download-csv-template'),
     delete: createInvoke('user:delete'),
     candidates: createInvoke('user:candidates')

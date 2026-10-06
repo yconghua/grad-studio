@@ -62,6 +62,16 @@ function toUserDto(row) {
     phone: row.phone || '',
     email: row.email || '',
     avatar: row.avatar || '',
+    userNo: row.user_no || '',
+    education: row.education || '',
+    degree: row.degree || '',
+    studyType: row.study_type || '',
+    gradeYear: row.grade_year || '',
+    major: row.major || '',
+    researchField: row.research_field || '',
+    enrollYear: row.enroll_year || '',
+    graduateYear: row.graduate_year || '',
+    remark: row.remark || '',
     createdAt: row.created_at,
     changeTs: row.change_ts
   }
@@ -86,6 +96,78 @@ async function listUsers({ page, keyword, role, status, groupId, sortField, sort
   if (role && !ALL_ROLES.includes(role)) throw new ApiError('角色参数不合法', 400)
   const result = await userRepository.pagedList({ page, keyword, role, status, groupId, sortField, sortOrder })
   return pageResult(result, toUserDto)
+}
+
+// 学历 / 学位 / 日制取值白名单（与前端表单枚举一致）
+const EDUCATION_VALUES = ['专科', '本科', '研究生']
+const DEGREE_VALUES = ['无', '学士', '硕士', '博士']
+const STUDY_TYPE_VALUES = ['全日制', '非全日制']
+
+/**
+ * 校验资料扩展字段（学号工号 / 学历 / 学位 / 日制 / 年级 / 专业 / 研究方向 / 入学毕业年份 / 备注）：
+ *  - user_no 全局唯一（新增 / 编辑时校验，可排除自身）；
+ *  - 学历 / 学位 / 日制 / 年份只认白名单或空；
+ *  - 返回 snake_case 字段映射，供 repository 白名单写入。
+ * @param {Object} p 载荷（camelCase）
+ * @param {number} [excludeId] 编辑时排除自身
+ */
+async function buildProfileExtra(p, excludeId) {
+  const data = {}
+  if (p.userNo !== undefined) {
+    const v = String(p.userNo).trim()
+    if (v && v.length > 50) throw new ApiError('学号/工号不能超过 50 个字符', 400)
+    if (v) {
+      const dup = await userRepository.findByUserNo(v, excludeId)
+      if (dup) throw new ApiError(`学号/工号已被用户「${dup.username}」使用`, 400)
+    }
+    data.user_no = v || null
+  }
+  if (p.education !== undefined) {
+    const v = String(p.education).trim()
+    if (v && !EDUCATION_VALUES.includes(v)) throw new ApiError('学历只能填：专科 / 本科 / 研究生', 400)
+    data.education = v || null
+  }
+  if (p.degree !== undefined) {
+    const v = String(p.degree).trim()
+    if (v && !DEGREE_VALUES.includes(v)) throw new ApiError('学位只能填：无 / 学士 / 硕士 / 博士', 400)
+    data.degree = v || null
+  }
+  if (p.studyType !== undefined) {
+    const v = String(p.studyType).trim()
+    if (v && !STUDY_TYPE_VALUES.includes(v)) throw new ApiError('日制只能填：全日制 / 非全日制', 400)
+    data.study_type = v || null
+  }
+  if (p.gradeYear !== undefined) {
+    const v = String(p.gradeYear).trim()
+    if (v && !/^\d{4}$/.test(v)) throw new ApiError('年级须为 4 位年份（如 2025 / 2026）', 400)
+    data.grade_year = v || null
+  }
+  if (p.major !== undefined) {
+    const v = String(p.major).trim()
+    if (v.length > 100) throw new ApiError('专业不能超过 100 个字符', 400)
+    data.major = v || null
+  }
+  if (p.researchField !== undefined) {
+    const v = String(p.researchField).trim()
+    if (v.length > 200) throw new ApiError('研究方向不能超过 200 个字符', 400)
+    data.research_field = v || null
+  }
+  if (p.enrollYear !== undefined) {
+    const v = String(p.enrollYear).trim()
+    if (v && !/^\d{4}$/.test(v)) throw new ApiError('入学年份须为 4 位数字', 400)
+    data.enroll_year = v || null
+  }
+  if (p.graduateYear !== undefined) {
+    const v = String(p.graduateYear).trim()
+    if (v && !/^\d{4}$/.test(v)) throw new ApiError('毕业年份须为 4 位数字', 400)
+    data.graduate_year = v || null
+  }
+  if (p.remark !== undefined) {
+    const v = String(p.remark).trim()
+    if (v.length > 500) throw new ApiError('备注不能超过 500 个字符', 400)
+    data.remark = v || null
+  }
+  return data
 }
 
 /**
@@ -138,6 +220,8 @@ async function createUser(payload = {}) {
     email: payload.email,
     gender: payload.gender,
     avatar: payload.avatar,
+    // 资料扩展字段（学号工号 / 学历 / 学位 / 日制 / 年级 / 专业 / 研究方向 / 年份 / 备注）
+    ...(await buildProfileExtra(payload)),
     // 课题组管理员不绑定课题组（绑定关系由课题组管理的「管理员」字段维护），强制置空
     group_id: role === ROLE_GROUP_ADMIN ? null : payload.groupId,
     mentor_id: payload.mentorId
@@ -234,6 +318,10 @@ async function updateProfile(id, payload = {}) {
   }
   if (avatar !== undefined) data.avatar = String(avatar).trim() || null
 
+  // 资料扩展字段（学号工号 / 学历 / 学位 / 日制 / 年级 / 专业 / 研究方向 / 年份 / 备注）：
+  // 超管资料 Tab 全字段可改，学号工号唯一性排除自身
+  Object.assign(data, await buildProfileExtra(payload, idNum))
+
   // 所属课题组：必须存在；学生离开课题组时解除导师关系。
   // 课题组管理员 / 超级管理员不绑定课题组（绑定关系在课题组管理的「管理员」字段），忽略传入并强制置空。
   if (groupId !== undefined) {
@@ -272,14 +360,16 @@ async function updateProfile(id, payload = {}) {
 
 /**
  * 更新当前登录用户自己的资料（个人资料页）
- * 仅允许修改基本信息（真实姓名 / 手机号 / 邮箱 / 性别 / 头像）；
- * 课题组 / 导师 / 角色等归属字段由管理员维护，此处不开放修改。
+ * 仅允许修改基本信息（真实姓名 / 手机号 / 邮箱 / 性别 / 头像）与资料扩展字段
+ * （学历 / 学位 / 日制 / 年级 / 专业 / 研究方向 / 入学毕业年份）；
+ * 课题组 / 导师 / 角色等归属字段由管理员维护，此处不开放修改；
+ * 学号/工号、备注由管理员维护，此处忽略前端传入值。
  * 修改主体取自登录会话（me.id），不信任前端传入的用户 id。
  */
 async function updateOwnProfile(payload = {}) {
   const me = await authService.getCurrentUser()
   if (!me) throw new ApiError('未登录，请重新登录', 401)
-  const { realName, phone, email, gender, avatar } = payload
+  const { realName, phone, email, gender, avatar, userNo, remark, ...ownExtra } = payload
   const data = {}
 
   if (realName !== undefined) {
@@ -303,6 +393,9 @@ async function updateOwnProfile(payload = {}) {
     data.gender = g
   }
   if (avatar !== undefined) data.avatar = String(avatar).trim() || null
+
+  // 资料扩展字段（不含 user_no / remark，二者由管理员维护）
+  Object.assign(data, await buildProfileExtra(ownExtra, me.id))
 
   await userRepository.updateById(me.id, data)
   return getUser(me.id)
@@ -492,6 +585,14 @@ async function batchCreateUsers(rows = []) {
     countByUsername.set(name, (countByUsername.get(name) || 0) + 1)
   }
 
+  // 批次内学号/工号查重（空值不参与；重复的所在行全部判失败）
+  const countByUserNo = new Map()
+  for (const r of rows) {
+    const no = r.userNo ? String(r.userNo).trim() : ''
+    if (!no) continue
+    countByUserNo.set(no, (countByUserNo.get(no) || 0) + 1)
+  }
+
   const failList = []
   let successCount = 0
   for (let i = 0; i < rows.length; i++) {
@@ -500,6 +601,11 @@ async function batchCreateUsers(rows = []) {
     const username = row.username ? String(row.username).trim() : ''
     if (username && (countByUsername.get(username) || 0) > 1) {
       failList.push({ row: rowNo, username, reason: '用户名在本批次内重复' })
+      continue
+    }
+    const userNo = row.userNo ? String(row.userNo).trim() : ''
+    if (userNo && (countByUserNo.get(userNo) || 0) > 1) {
+      failList.push({ row: rowNo, username: username || '-', reason: '学号/工号在本批次内重复' })
       continue
     }
     try {
@@ -553,6 +659,17 @@ async function createImportedUser(row) {
     email: row.email,
     gender: parseGenderText(row.genderText),
     avatar: '',
+    // 资料扩展字段（学号工号 / 学历 / 学位 / 日制 / 年级 / 专业 / 研究方向 / 年份 / 备注，均选填）
+    userNo: row.userNo,
+    education: row.educationText,
+    degree: row.degreeText,
+    studyType: row.studyTypeText,
+    gradeYear: row.gradeYear,
+    major: row.major,
+    researchField: row.researchField,
+    enrollYear: row.enrollYear,
+    graduateYear: row.graduateYear,
+    remark: row.remark,
     groupId,
     mentorId
   })
@@ -563,6 +680,13 @@ async function createImportedUser(row) {
  */
 async function listAllUsernames() {
   return userRepository.findAllUsernames()
+}
+
+/**
+ * 全部学号/工号（批量导入预览预检用）：仅超级管理员调用
+ */
+async function listAllUserNos() {
+  return userRepository.findAllUserNos()
 }
 
 /**
@@ -595,6 +719,7 @@ module.exports = {
   batchDelete,
   batchCreateUsers,
   listAllUsernames,
+  listAllUserNos,
   deleteUser,
   listCandidates,
   toUserDto

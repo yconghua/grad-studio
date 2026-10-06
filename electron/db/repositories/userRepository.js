@@ -17,7 +17,9 @@ const { ACCOUNT_STATUS_ENABLED } = require('../../../shared/constants')
 // 用户表安全返回列（不含 password_hash）：列表 / 详情 / 登录回填共用
 const SAFE_COLUMNS = [
   'id', 'username', 'real_name', 'role', 'status', 'email', 'phone',
-  'gender', 'avatar', 'group_id', 'mentor_id', 'must_change_password',
+  'gender', 'avatar', 'user_no', 'education', 'degree', 'study_type',
+  'grade_year', 'major', 'research_field', 'enroll_year', 'graduate_year', 'remark',
+  'group_id', 'mentor_id', 'must_change_password',
   'password_reset_at', 'created_at', 'change_ts'
 ]
 
@@ -26,6 +28,7 @@ const USER_SORT_MAP = {
   id: 'u.id',
   username: 'u.username',
   realName: 'u.real_name',
+  userNo: 'u.user_no',
   role: 'u.role',
   status: 'u.status',
   groupId: 'g.name',
@@ -49,7 +52,12 @@ const MEMBER_SORT_MAP = {
 }
 
 // 档案白名单：管理员「资料」Tab 可写字段（账号 / 密码 / 角色 / 状态由服务层显式处理）
-const PROFILE_FIELDS = ['real_name', 'email', 'phone', 'gender', 'avatar', 'group_id', 'mentor_id']
+const PROFILE_FIELDS = [
+  'real_name', 'email', 'phone', 'gender', 'avatar',
+  'user_no', 'education', 'degree', 'study_type', 'grade_year',
+  'major', 'research_field', 'enroll_year', 'graduate_year', 'remark',
+  'group_id', 'mentor_id'
+]
 
 // 列名拼接（反引号包裹，防与关键字冲突；prefix 给联表 SQL 加表别名前缀）
 function cols(columns, prefix) {
@@ -227,6 +235,27 @@ class UserRepository extends BaseRepository {
   async findAllUsernames() {
     const [rows] = await this._execute('SELECT username FROM `users`', [], 'findAllUsernames')
     return (rows || []).map((r) => r.username)
+  }
+
+  /**
+   * 全部学号/工号（批量导入预览预检用）：仅超级管理员调用
+   * @returns {Array<string>}
+   */
+  async findAllUserNos() {
+    const [rows] = await this._execute('SELECT user_no FROM `users` WHERE user_no IS NOT NULL AND user_no != ?', [''], 'findAllUserNos')
+    return (rows || []).map((r) => r.user_no)
+  }
+
+  /**
+   * 按学号/工号查用户（唯一性校验用）
+   * @param {string} userNo
+   * @param {number} [excludeId] 编辑时排除自身
+   * @returns {Object|null}
+   */
+  async findByUserNo(userNo, excludeId) {
+    const sql = `SELECT id, username, user_no FROM \`users\` WHERE user_no = ?${excludeId ? ' AND id != ?' : ''} LIMIT 1`
+    const [rows] = await this._execute(sql, excludeId ? [userNo, Number(excludeId)] : [userNo], 'findByUserNo')
+    return (rows && rows[0]) || null
   }
 
   /**

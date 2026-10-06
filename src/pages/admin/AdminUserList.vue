@@ -40,7 +40,7 @@
 
     <!-- 用户表格：通用列宽拖拽（v-resizable-columns），操作列保底 184px 不被挤压 -->
     <div class="tbl-wrap">
-      <table v-resizable-columns="{ min: 48, minByIndex: { 9: 184 } }" v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl tbl-fixed">
+      <table v-resizable-columns="{ min: 48, minByIndex: { 10: 184 } }" v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl tbl-fixed">
         <thead>
           <tr>
             <th>
@@ -49,6 +49,7 @@
             <th data-sort="id">ID</th>
             <th data-sort="username">用户名</th>
             <th data-sort="realName">真实姓名</th>
+            <th data-sort="userNo">学号/工号</th>
             <th data-sort="role">角色</th>
             <th data-sort="status">状态</th>
             <th data-sort="groupId">课题组</th>
@@ -63,6 +64,7 @@
             <td>{{ u.id }}</td>
             <td class="ellipsis">{{ u.username }}</td>
             <td class="ellipsis">{{ u.realName || '-' }}</td>
+            <td class="ellipsis">{{ u.userNo || '-' }}</td>
             <td><span class="tag tag-blue">{{ roleText(u.role) }}</span></td>
             <td><span :class="statusTagClass(u.status)">{{ statusText(u.status) }}</span></td>
             <td class="ellipsis">{{ u.groupName || '-' }}</td>
@@ -77,7 +79,7 @@
             </td>
           </tr>
           <tr v-if="!loading && list.length === 0">
-            <td colspan="10"><div class="empty">暂无用户数据</div></td>
+            <td colspan="11"><div class="empty">暂无用户数据</div></td>
           </tr>
         </tbody>
       </table>
@@ -259,7 +261,7 @@ const detailVisible = ref(false)
 const detailRow = ref(null)
 const detailFields = ref([])
 const detailTitle = ref('')
-// 用户详情字段：不含密码等敏感字段；所属课题组显示名称
+// 用户详情字段：不含密码等敏感字段；所属课题组显示名称；学号/工号标签随角色语义（学生=学号，导师/管理员=工号）
 const userDetailFields = [
   { key: 'id', label: 'ID' },
   { key: 'username', label: '用户名' },
@@ -267,6 +269,16 @@ const userDetailFields = [
   { key: 'role', label: '角色', render: roleText },
   { key: 'status', label: '状态', render: statusText },
   { key: 'groupName', label: '所属课题组', render: (v) => v || '-' },
+  { key: 'userNo', label: '学号/工号', render: (v) => v || '-' },
+  { key: 'education', label: '学历', render: (v) => v || '-' },
+  { key: 'degree', label: '学位', render: (v) => v || '-' },
+  { key: 'studyType', label: '日制', render: (v) => v || '-' },
+  { key: 'gradeYear', label: '年级', render: (v) => v || '-' },
+  { key: 'major', label: '专业', render: (v) => v || '-' },
+  { key: 'researchField', label: '研究方向', render: (v) => v || '-' },
+  { key: 'enrollYear', label: '入学年份', render: (v) => v || '-' },
+  { key: 'graduateYear', label: '毕业年份', render: (v) => v || '-' },
+  { key: 'remark', label: '备注', render: (v) => v || '-' },
   { key: 'phone', label: '手机号' },
   { key: 'email', label: '邮箱' },
   { key: 'gender', label: '性别', render: (v) => (Number(v) === 1 ? '男' : Number(v) === 2 ? '女' : '未知') },
