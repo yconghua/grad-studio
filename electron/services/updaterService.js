@@ -95,7 +95,7 @@ function friendlyError(err) {
     return '更新源未找到版本信息（latest.yml），请确认 GitHub Release 已上传更新文件'
   }
   if (/404/i.test(raw)) {
-    return '更新源不可用（404），请检查网络或仓库地址'
+    return '更新源不可用（404），请检查镜像地址或网络'
   }
   if (raw) return '检查更新失败：' + raw
   return '检查更新失败，请稍后重试'

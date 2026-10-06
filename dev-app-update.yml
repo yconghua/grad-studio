@@ -1,6 +1,6 @@
 # 开发模式更新源配置（仅 electron . / npm run dev 时生效）
 # electron-updater 在未打包运行时读取本文件定位更新源；
 # 打包后的应用自动读取 resources/app-update.yml（由 electron-builder 生成），不受本文件影响。
-provider: github
-owner: yconghua
-repo: grad-studio
+# 更新源：国内加速镜像（gh-proxy.com）代理 GitHub releases/latest/download 快捷路径，自动跟随最新版。
+provider: generic
+url: https://gh-proxy.com/https://github.com/yconghua/grad-studio/releases/latest/download
