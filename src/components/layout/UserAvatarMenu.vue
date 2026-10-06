@@ -40,6 +40,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSession } from '../../composables/useSession'
+import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { dialogConfirm } from '../../composables/useDialog'
 import { logout, switchAccount } from '../../api'
 import { avatarUrl } from '../../utils/avatar'
@@ -64,7 +65,8 @@ const router = useRouter()
 const { getSessionUser, clearSession, setSession } = useSession()
 const { clearTabs } = useTabs()
 
-const user = getSessionUser()
+// 用户信息：响应式 ref（非 sessionStorage 快照），写操作后由全局刷新广播触发重读
+const user = ref(getSessionUser())
 const open = ref(false)
 const rootRef = ref(null)
 
@@ -74,9 +76,9 @@ const ROLE_TEXT = {
   [ROLE_MENTOR]: '导师',
   [ROLE_STUDENT]: '学生'
 }
-const roleText = computed(() => (user ? ROLE_TEXT[user.role] || user.role : ''))
+const roleText = computed(() => (user.value ? ROLE_TEXT[user.value.role] || user.value.role : ''))
 const avatarChar = computed(() => {
-  const name = (user && (user.realName || user.username)) || '?'
+  const name = (user.value && (user.value.realName || user.value.username)) || '?'
   return name.slice(0, 1).toUpperCase()
 })
 
@@ -94,6 +96,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', onClickOutside)
   document.removeEventListener('keydown', onKeydown)
+})
+
+// 资料保存等写操作后（data:changed / db:changed）重读会话用户，头像/姓名即时更新
+useAutoRefresh(() => {
+  user.value = getSessionUser()
 })
 
 // 跳转本角色个人资料 / 设置页
@@ -131,6 +138,7 @@ async function onSwitchAccount(username) {
     const d = res && res.data
     if (res && res.success && d && d.ok && d.user) {
       setSession(d.user)
+      user.value = d.user
       // 换账号：清空上个账号的标签，防止恢复出不属于新账号的页面
       clearTabs()
       router.replace(ROLE_HOME[d.user.role] || '/login')
