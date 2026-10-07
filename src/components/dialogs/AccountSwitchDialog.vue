@@ -58,7 +58,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useAccountHistory } from '../../composables/useAccountHistory'
-import { ticketStatus } from '../../api'
+import { ticketStatus, getUserByUsername } from '../../api'
 import { avatarUrl } from '../../utils/avatar'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 
@@ -98,7 +98,7 @@ function timeText(ts) {
   return days + ' 天前登录'
 }
 
-// 打开时：加载历史账号 + 查询可免密账号集合
+// 打开时：加载历史账号 + 查询可免密账号集合 + 静默刷新各账号最新资料
 watch(
   () => props.visible,
   async (v) => {
@@ -116,6 +116,23 @@ watch(
       // 查询失败仅不显示免密标记，不影响列表展示
     }
     loading.value = false
+    // 并行静默刷新每个历史账号的资料（姓名/角色/头像），失败保留本地快照
+    const usernames = accounts.value.map((a) => a.username)
+    await Promise.allSettled(
+      usernames.map(async (uname) => {
+        const res = await getUserByUsername(uname)
+        if (!res || !res.success || !res.data) return
+        const d = res.data
+        const idx = accounts.value.findIndex((x) => x.username === uname)
+        if (idx < 0) return
+        accounts.value[idx] = {
+          ...accounts.value[idx],
+          realName: d.realName || d.username,
+          role: d.role || accounts.value[idx].role,
+          avatar: d.avatar || accounts.value[idx].avatar
+        }
+      })
+    )
   }
 )
 

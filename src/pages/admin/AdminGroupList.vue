@@ -78,7 +78,7 @@ import { listGroups, listUsers, deleteGroup } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
-import { fetchAll } from '../../utils/fetchAll'
+import { useAsyncList } from '../../composables/useAsyncList'
 import { statusText, statusTagClass } from '../../utils/labels'
 import AdminGroupDetailDialog from '../../components/admin/AdminGroupDetailDialog.vue'
 import AdminGroupFormDialog from '../../components/admin/AdminGroupFormDialog.vue'
@@ -95,7 +95,8 @@ const sortOrder = ref('')
 const showModal = ref(false)
 const isEdit = ref(false)
 const editId = ref(null)
-const admins = ref([])
+// 管理员候选下拉：统一加载状态，失败时弹窗提示
+const { data: admins, run: runAdmins, error: adminsError } = useAsyncList(listUsers)
 const detailId = ref(null)
 const route = useRoute()
 
@@ -166,7 +167,8 @@ async function doDelete(g) {
 }
 
 async function loadAdmins() {
-  admins.value = await fetchAll(listUsers, { role: 'group_admin' })
+  await runAdmins({ role: 'group_admin' })
+  if (adminsError.value) dialogAlert(adminsError.value)
 }
 
 onMounted(() => {

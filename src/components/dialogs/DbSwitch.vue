@@ -32,6 +32,11 @@
               >{{ c.id === dbActive ? '使用中' : '切换' }}</button>
               <button
                 type="button"
+                class="conn-edit"
+                @click="onEditDb(c)"
+              >编辑</button>
+              <button
+                type="button"
                 class="conn-delete"
                 @click="onDeleteDb(c.id)"
               >删除</button>
@@ -62,7 +67,7 @@ const props = defineProps({
   extMsg: { type: String, default: '' },
   extMsgOk: { type: Boolean, default: false }
 })
-const emit = defineEmits(['close', 'add-db', 'db-changed', 'request-delete'])
+const emit = defineEmits(['close', 'add-db', 'db-changed', 'request-delete', 'request-edit'])
 
 const dbMsg = ref('')
 const dbMsgOk = ref(false)
@@ -145,6 +150,12 @@ function onDeleteDb(id) {
     return
   }
   emit('request-delete', id)
+}
+
+// 编辑连接：把该行连接对象交父组件，由父组件打开编辑弹窗
+function onEditDb(conn) {
+  dbMsg.value = ''
+  emit('request-edit', conn)
 }
 </script>
 
@@ -291,6 +302,20 @@ function onDeleteDb(id) {
 }
 .conn-delete:hover {
   background: var(--danger-soft);
+}
+.conn-edit {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-2-strong);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.conn-edit:hover {
+  background: var(--bg-hover);
 }
 
 /* 通用消息 + 弹窗底部按钮 */

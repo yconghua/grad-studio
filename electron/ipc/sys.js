@@ -17,6 +17,7 @@ const connectionService = require('../services/connectionService')
 const dbStatusService = require('../services/dbStatusService')
 const authService = require('../services/authService')
 const systemService = require('../services/systemService')
+const autoLaunchService = require('../services/autoLaunchService')
 
 // 默认系统名称（system_configs 参数缺失时回退）
 const DEFAULT_APP_NAME = '千兆中心'
@@ -206,6 +207,20 @@ function register(ipcMain) {
     }
   })
 
+  // 编辑连接（密码留空表示不修改）。仅登录页（未登录）配置数据库时可用。
+  ipcMain.handle('sys:update-db', async (_evt, payload) => {
+    if (await authService.getCurrentUser()) {
+      return { success: false, code: 403, message: '已登录状态下不可编辑数据库连接，请退出登录后在登录页操作' }
+    }
+    try {
+      const { id, data } = payload || {}
+      return await connectionService.update(id, data || {})
+    } catch (err) {
+      console.error('[sys:update-db] 未预期异常:', err)
+      return { success: false, code: 500, message: '编辑失败，请稍后重试' }
+    }
+  })
+
   // 导出数据库备份：先弹「保存」对话框让用户选位置，再导出当前库为 SQL 文件；仅超级管理员
   ipcMain.handle('sys:export-db', async (event) => {
     const user = await authService.getCurrentUser()
@@ -340,6 +355,29 @@ function register(ipcMain) {
       return { success: false, code: 401, message: '未登录，请重新登录' }
     }
     return { success: true, code: 0, available: !!findUninstaller() }
+  })
+
+  // 开机自启状态查询（设置页用；状态由操作系统保存，不随清缓存清除）
+  ipcMain.handle('sys:get-auto-launch', async () => {
+    const user = await authService.getCurrentUser()
+    if (!user) {
+      return { success: false, code: 401, message: '未登录，请重新登录' }
+    }
+    return { success: true, code: 0, ...autoLaunchService.getStatus() }
+  })
+
+  // 开机自启开关（默认关闭；开发模式下设置不真正生效，返回 packaged 供前端提示）
+  ipcMain.handle('sys:set-auto-launch', async (_evt, payload) => {
+    const user = await authService.getCurrentUser()
+    if (!user) {
+      return { success: false, code: 401, message: '未登录，请重新登录' }
+    }
+    try {
+      return { success: true, code: 0, ...autoLaunchService.setEnabled(!!(payload && payload.enabled)) }
+    } catch (err) {
+      console.error('[sys:set-auto-launch] 未预期异常:', err)
+      return { success: false, code: 500, message: '设置开机自启失败，请重试' }
+    }
   })
 
   // 卸载程序：启动 NSIS 卸载向导（非静默，用户可确认），随后退出应用。

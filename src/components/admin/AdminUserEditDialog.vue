@@ -180,7 +180,7 @@ import { getUser, updateAccount, updateProfile, listGroups, listUsers, pickAttac
 import { dialogAlert } from '../../composables/useDialog'
 import { avatarUrl } from '../../utils/avatar'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
-import { fetchAll } from '../../utils/fetchAll'
+import { useAsyncList } from '../../composables/useAsyncList'
 import { roleText } from '../../utils/labels'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 
@@ -192,8 +192,17 @@ const emit = defineEmits(['update:visible'])
 
 const tab = ref('account')
 const user = ref(null)
-const groups = ref([])
-const mentors = ref([])
+// 课题组 / 导师下拉：统一加载状态，失败时弹窗提示
+const { data: groups, run: runGroups, error: groupsError } = useAsyncList(listGroups)
+const { data: mentors, run: runMentors, error: mentorsError } = useAsyncList(listUsers)
+async function loadGroups() {
+  await runGroups()
+  if (groupsError.value) dialogAlert(groupsError.value)
+}
+async function loadMentors(groupId) {
+  await runMentors({ role: 'mentor', groupId })
+  if (mentorsError.value) dialogAlert(mentorsError.value)
+}
 const saving = ref(false)
 
 const ALL_ROLES_TEXT = {
@@ -255,9 +264,9 @@ async function load() {
   profile.groupId = res.data.groupId === null || res.data.groupId === undefined ? '' : res.data.groupId
   profile.mentorId = res.data.mentorId === null || res.data.mentorId === undefined ? '' : res.data.mentorId
 
-  groups.value = await fetchAll(listGroups)
+  loadGroups()
   if (res.data.role === ROLE_STUDENT && profile.groupId) {
-    mentors.value = await fetchAll(listUsers, { role: 'mentor', groupId: profile.groupId })
+    await loadMentors(profile.groupId)
   }
 }
 
@@ -266,7 +275,7 @@ async function onGroupChange() {
   profile.mentorId = ''
   mentors.value = []
   if (!profile.groupId) return
-  mentors.value = await fetchAll(listUsers, { role: 'mentor', groupId: profile.groupId })
+  await loadMentors(profile.groupId)
 }
 
 // 选择头像

@@ -102,7 +102,7 @@ import { listGroups } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
-import { fetchAll } from '../../utils/fetchAll'
+import { useAsyncList } from '../../composables/useAsyncList'
 
 // 超级管理员独立页面：课题组公告管理（可发布/编辑/删除/置顶任意课题组公告，查看全部已读统计）
 const keyword = ref('')
@@ -114,7 +114,8 @@ const total = ref(0)
 const totalPages = ref(1)
 const sortField = ref('')
 const sortOrder = ref('')
-const groups = ref([])
+// 课题组筛选下拉：统一加载状态，失败时弹窗提示
+const { data: groups, run: runGroups, error: groupsError } = useAsyncList(listGroups)
 
 // 指定课题组是否已停用（超管全部课题组视图下按行归属判断）
 function groupStoppedOf(gid) {
@@ -258,7 +259,8 @@ async function doStats(n) {
 // Markdown 工具栏与表单逻辑已移至 NoticeFormDialog 组件内
 
 onMounted(async () => {
-  groups.value = await fetchAll(listGroups)
+  await runGroups()
+  if (groupsError.value) dialogAlert(groupsError.value)
   load()
 })
 // 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新

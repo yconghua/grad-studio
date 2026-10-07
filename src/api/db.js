@@ -31,6 +31,9 @@ export function exportDbTemplate() {
 export function deleteDb(id) {
   return window.api.sys.deleteDb({ id })
 }
+export function updateDb(id, data = {}) {
+  return window.api.sys.updateDb({ id, data })
+}
 export function exportDb() {
   return window.api.sys.exportDb()
 }
@@ -52,4 +55,11 @@ export function openDataFolder() {
 }
 export function clearCache() {
   return window.api.sys.clearCache()
+}
+// 开机自启（设置页）：查询 / 开关；状态由操作系统保存，不受清缓存影响
+export function getAutoLaunch() {
+  return window.api.sys.getAutoLaunch()
+}
+export function setAutoLaunch(enabled) {
+  return window.api.sys.setAutoLaunch({ enabled })
 }

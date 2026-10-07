@@ -57,6 +57,13 @@ function register(ipcMain) {
     return userService.getUser(payload && payload.id)
   }))
 
+  // 按用户名查用户（任意已登录角色）：切换账号弹窗静默刷新历史账号资料
+  ipcMain.handle('user:get-by-username', handler(async (_evt, payload) => {
+    const u = await authService.getCurrentUser()
+    if (!u) throw new ApiError('未登录，请重新登录', 401)
+    return userService.getUserByUsername(payload && payload.username)
+  }))
+
   // 账号密码 Tab 保存
   ipcMain.handle('user:update-account', handler(async (_evt, payload) => {
     await requireSuperAdmin()

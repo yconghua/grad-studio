@@ -53,8 +53,9 @@ import { ref, computed, onMounted } from 'vue'
 import MemberManagePanel from '../member/MemberManagePanel.vue'
 import { listGroups, getGroup, listUsers, listNotices, getMeetingStats } from '../../api'
 import { superGetMemberStats } from '../../api/member'
-import { fetchAll } from '../../utils/fetchAll'
+import { useAsyncList } from '../../composables/useAsyncList'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { dialogAlert } from '../../composables/useDialog'
 import { statusText, statusTagClass } from '../../utils/labels'
 
 // 超管「课题组设置」列表内嵌的课题组详情弹窗：从列表行传入 groupId
@@ -63,13 +64,22 @@ const props = defineProps({
 })
 defineEmits(['close'])
 
-const groups = ref([])
 const currentId = ref(0)
 const group = ref(null)
 const memberStats = ref(null)
 const noticeTotal = ref(0)
 const meetingStats = ref(null)
-const admins = ref([])
+// 课题组 / 管理员候选：统一加载状态，失败时弹窗提示
+const { data: groups, run: runGroups, error: groupsError } = useAsyncList(listGroups)
+const { data: admins, run: runAdmins, error: adminsError } = useAsyncList(listUsers)
+async function loadGroups() {
+  await runGroups()
+  if (groupsError.value) dialogAlert(groupsError.value)
+}
+async function loadAdmins() {
+  await runAdmins({ role: 'group_admin' })
+  if (adminsError.value) dialogAlert(adminsError.value)
+}
 const groupStopped = computed(() => group.value != null && group.value.status === 0)
 // 管理员已停用：adminUserId 指向的用户账号为停用状态
 const adminStopped = computed(() => {
@@ -113,9 +123,9 @@ function adminName(adminUserId) {
 }
 
 onMounted(async () => {
-  groups.value = await fetchAll(listGroups)
+  await loadGroups()
   currentId.value = props.groupId
-  admins.value = await fetchAll(listUsers, { role: 'group_admin' })
+  await loadAdmins()
   if (currentId.value) load()
 })
 </script>

@@ -3,25 +3,62 @@
     <div class="panel-head"><span class="panel-title">本地缓存</span></div>
     <div class="cache-row">
       <div class="cache-info">
-        <p class="cache-title">清空本地缓存</p>
-        <p class="cache-sub">清除列宽、主题、标签页、账号历史等本地偏好；登录状态与业务数据不受影响，列宽等将在下次进入页面时重新生成</p>
+        <p class="cache-title">清空运行缓存</p>
+        <p class="cache-sub">仅清除运行缓存（页面加载缓存、临时数据等）；账号历史、列宽、主题、标签页等偏好全部保留，登录状态不受影响</p>
       </div>
-      <button class="btn" type="button" @click="onClear">清空本地缓存</button>
+      <button class="btn" type="button" :disabled="clearing" @click="onClear">{{ clearing ? '清理中…' : '清空运行缓存' }}</button>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { dialogConfirm } from '../../composables/useDialog'
 import { showToast } from '../../composables/useToast'
+import { clearCache } from '../../api'
 
-// 设置页「清空本地缓存」：只清 localStorage（列宽/主题/标签页/账号历史等可再生的 UI 偏好），
-// 登录态在 sessionStorage 不受影响；业务数据在数据库，无需重拉
+// 设置页「清空运行缓存」：白名单清理
+// - 保留：账号历史（gra_account_history_001）、主题（gra_theme_mode）、字号（gra_font_scale）、
+//   标签页（gra_studio_tabs_v1）、侧栏布局（gra_studio_side_*）、全部列宽（rc-cols- 前缀）
+// - 清理：白名单外的其余 localStorage 临时数据 + 主进程 Chromium/HTTP 缓存
+// 登录态在 sessionStorage，不在此范围，清除后无需重新登录
+const KEEP_KEYS = [
+  'gra_account_history_001',
+  'gra_theme_mode',
+  'gra_font_scale',
+  'gra_studio_tabs_v1',
+  'gra_studio_side_collapsed',
+  'gra_studio_side_width'
+]
+const KEEP_PREFIXES = ['rc-cols-']
+
+function shouldKeep(key) {
+  return KEEP_KEYS.includes(key) || KEEP_PREFIXES.some((p) => key.startsWith(p))
+}
+
+const clearing = ref(false)
+
 async function onClear() {
-  const ok = await dialogConfirm('将清除列宽、主题、标签页、账号历史等本地偏好，登录状态和业务数据不受影响。确定继续？')
+  const ok = await dialogConfirm('将清除运行缓存（页面加载缓存与临时数据），账号、列宽、主题、标签等偏好会保留。确定继续？')
   if (!ok) return
-  localStorage.clear()
-  showToast('本地缓存已清空，部分显示偏好将在下次进入时重置')
+  clearing.value = true
+  let removed = 0
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i)
+      if (!shouldKeep(key)) {
+        localStorage.removeItem(key)
+        removed++
+      }
+    }
+    const res = await clearCache()
+    const mainMsg = res && res.success ? (res.message || '') : ''
+    showToast(`运行缓存已清除${removed ? `（本地临时数据 ${removed} 项）` : ''}${mainMsg ? '，' + mainMsg : ''}，账号、列宽、主题、标签等偏好已保留`)
+  } catch (e) {
+    showToast('清除缓存失败，请重试')
+  } finally {
+    clearing.value = false
+  }
 }
 </script>
 

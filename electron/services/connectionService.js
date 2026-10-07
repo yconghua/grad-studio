@@ -472,6 +472,7 @@ function list() {
     host: c.host,
     port: c.port,
     database: c.database,
+    user: c.user,
     hasPassword: !!c.password
   }))
   return { active: connections.active, list }
@@ -612,6 +613,41 @@ async function remove(id) {
   return { success: true, message: '已删除连接「' + target.name + '」' }
 }
 
+// 编辑连接：密码留空表示不修改原密码；编辑的是当前生效连接时先试连成功再热生效，
+// 试连失败则回滚配置（避免把正在使用的连接改成连不上的地址）
+async function update(id, payload) {
+  const { name, host, port, user, password, database } = payload || {}
+  if (!name || !host || !user || !database) {
+    return { success: false, message: '请填写名称、主机、账号与数据库名' }
+  }
+  if (!/^[A-Za-z0-9_]+$/.test(database)) {
+    return { success: false, message: '数据库名仅支持字母、数字、下划线' }
+  }
+  const target = connections.list.find((x) => x.id === id)
+  if (!target) return { success: false, message: '未找到该连接' }
+  const next = {
+    ...target,
+    name,
+    host,
+    port: Number(port) || DEFAULT_DB_PORT,
+    user,
+    database,
+    password: password !== undefined && password !== '' ? password : target.password
+  }
+  if (target.id === connections.active) {
+    const cfg = buildConfig(next)
+    const test = await ping(cfg)
+    if (!test.ok) {
+      return { success: false, message: '连接测试失败：' + test.message + '（配置未保存）' }
+    }
+    activeConfig = cfg
+    setActiveConfig(cfg)
+  }
+  connections.list = connections.list.map((x) => (x.id === id ? next : x))
+  saveConnections()
+  return { success: true, message: '已更新连接「' + next.name + '」' }
+}
+
 module.exports = {
   init,
   ping,
@@ -624,5 +660,6 @@ module.exports = {
   add,
   importMany,
   remove,
+  update,
   DB_IMPORT_TEMPLATE
 }

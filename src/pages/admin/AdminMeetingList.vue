@@ -128,7 +128,7 @@ import { listGroups } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
-import { fetchAll } from '../../utils/fetchAll'
+import { useAsyncList } from '../../composables/useAsyncList'
 
 // 超级管理员独立页面：会议记录管理（可管理任意课题组会议，含我的草稿/本组草稿视图）
 const keyword = ref('')
@@ -142,7 +142,8 @@ const total = ref(0)
 const totalPages = ref(1)
 const sortField = ref('')
 const sortOrder = ref('')
-const groups = ref([])
+// 课题组筛选下拉：统一加载状态，失败时弹窗提示
+const { data: groups, run: runGroups, error: groupsError } = useAsyncList(listGroups)
 const route = useRoute()
 
 // 指定课题组是否已停用（超管全部课题组视图下按行归属判断）
@@ -298,7 +299,8 @@ async function doStats() {
 }
 
 onMounted(async () => {
-  groups.value = await fetchAll(listGroups)
+  await runGroups()
+  if (groupsError.value) dialogAlert(groupsError.value)
   load()
 })
 // 数据变动（本页写操作或外部改动）后后台静默重拉，保持列表最新

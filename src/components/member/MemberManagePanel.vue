@@ -88,11 +88,14 @@
             <button class="btn btn-primary" @click="loadCandidates">搜索</button>
           </div>
           <div class="cand-list">
-            <label v-for="c in candidates" :key="c.id" class="cand-item">
-              <input type="checkbox" :value="c.id" v-model="checkedIds" />
-              <span>{{ c.realName || c.username }}（{{ c.username }} · {{ roleText(c.role) }}）</span>
-            </label>
-            <p v-if="candidates.length === 0" class="empty">暂无未入组的{{ addRole === 'mentor' ? '导师' : '学生' }}可选</p>
+            <ListLoadState v-if="candLoading || candError" :loading="candLoading" :error="candError" :on-retry="loadCandidates" />
+            <template v-else>
+              <label v-for="c in candidates" :key="c.id" class="cand-item">
+                <input type="checkbox" :value="c.id" v-model="checkedIds" />
+                <span>{{ c.realName || c.username }}（{{ c.username }} · {{ roleText(c.role) }}）</span>
+              </label>
+              <p v-if="candidates.length === 0" class="empty">暂无未入组的{{ addRole === 'mentor' ? '导师' : '学生' }}可选</p>
+            </template>
           </div>
           <p class="hint">只能选择未加入任何课题组的{{ addRole === 'mentor' ? '导师' : '学生' }}；已选择 {{ checkedIds.length }} 人</p>
         </div>
@@ -119,6 +122,10 @@
               <option value="">请选择导师</option>
               <option v-for="m in mentors" :key="m.id" :value="m.id">{{ m.realName || m.username }}</option>
             </select>
+            <p v-if="mentorError" class="hint" style="color: var(--danger)">
+              {{ mentorError }}<button type="button" class="hint-retry" @click="loadMentors">重试</button>
+            </p>
+            <p v-else-if="mentorLoading" class="hint">导师列表加载中…</p>
           </div>
           <p class="hint">{{ mentorPickHint }}</p>
         </div>
@@ -144,7 +151,8 @@ import {
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
-import { fetchAll } from '../../utils/fetchAll'
+import { useAsyncList } from '../../composables/useAsyncList'
+import ListLoadState from '../common/ListLoadState.vue'
 import { roleText, statusText } from '../../utils/labels'
 
 // 课题组成员管理公共面板：超管（任意组，group:* + groupId）与组管（本组，group-admin:*）共用
@@ -276,12 +284,13 @@ async function batchRemove() {
 const showAdd = ref(false)
 const addRole = ref('mentor')
 const addKeyword = ref('')
-const candidates = ref([])
 const checkedIds = ref([])
 const saving = ref(false)
 
+// 候选人列表：统一加载三态（加载中 / 失败可重试 / 空态）
+const { loading: candLoading, error: candError, data: candidates, run: runCandidates } = useAsyncList(listCandidates)
 async function loadCandidates() {
-  candidates.value = await fetchAll(listCandidates, { role: addRole.value, keyword: addKeyword.value })
+  await runCandidates({ role: addRole.value, keyword: addKeyword.value })
 }
 function openAdd() {
   if (props.disabled) {
@@ -314,7 +323,7 @@ async function doAdd() {
 }
 
 // ===== 指定导师（单条 / 批量共用弹窗）=====
-const mentors = ref([])
+const { loading: mentorLoading, error: mentorError, data: mentors, run: runMentors } = useAsyncList(listApi)
 const showMentorPick = ref(false)
 const mentorPickTarget = ref(null) // null = 批量
 const mentorPickId = ref('')
@@ -326,7 +335,7 @@ const mentorPickHint = computed(() => {
 })
 
 async function loadMentors() {
-  mentors.value = await fetchAll(listApi, { groupId: props.groupId, role: 'mentor' })
+  await runMentors({ groupId: props.groupId, role: 'mentor' })
 }
 function openMentorPick(target) {
   mentorPickTarget.value = target
@@ -412,5 +421,20 @@ useAutoRefresh(() => {
 }
 .cand-item:hover {
   background: var(--bg-hover);
+}
+.hint-retry {
+  margin-left: 8px;
+  padding: 0 10px;
+  height: 22px;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--danger);
+  font-size: 12px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.hint-retry:hover {
+  background: var(--danger-soft);
 }
 </style>

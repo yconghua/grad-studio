@@ -8,6 +8,7 @@
     </div>
     <ClearCachePanel />
     <FontScalePanel />
+    <AutoLaunchPanel />
     <UninstallPanel />
   </div>
 </template>
@@ -16,5 +17,6 @@
 import ClearCachePanel from '../../components/common/ClearCachePanel.vue'
 import UninstallPanel from '../../components/common/UninstallPanel.vue'
 import FontScalePanel from '../../components/common/FontScalePanel.vue'
+import AutoLaunchPanel from '../../components/common/AutoLaunchPanel.vue'
 // 超级管理员独立页面：设置（入口与路由可用）
 </script>

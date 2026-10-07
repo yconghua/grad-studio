@@ -254,8 +254,10 @@
       @add-db="showAddDb = true"
       @db-changed="onDbChanged"
       @request-delete="onRequestDelete"
+      @request-edit="onRequestEdit"
     />
     <DbAdd :visible="showAddDb" @close="showAddDb = false" @added="onDbAdded" />
+    <DbEdit :visible="showEditDb" :connection="editingConn" @close="showEditDb = false" @updated="onDbUpdated" />
     <DbDeleteConfirm
       :visible="showDeleteConfirm"
       :target-id="pendingDeleteId"
@@ -276,7 +278,7 @@ import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
 import { ROLE_HOME } from '../../router'
 import { USER_AGREEMENT, PRIVACY_POLICY } from './agreements'
-import { BaseConfig, DbSwitch, DbAdd, DbDeleteConfirm } from '../../components/dialogs'
+import { BaseConfig, DbSwitch, DbAdd, DbEdit, DbDeleteConfirm } from '../../components/dialogs'
 import ParticleBackground from '../../components/particles/ParticleBackground.vue'
 import AppTitleBar from '../../components/layout/AppTitleBar.vue'
 import logoUrl from '../../assets/logo.ico'
@@ -802,6 +804,8 @@ const showAdminContact = ref(false)
 const showBaseConfig = ref(false)
 const showSwitchDb = ref(false)
 const showAddDb = ref(false)
+const showEditDb = ref(false)
+const editingConn = ref(null)
 const showDeleteConfirm = ref(false)
 const pendingDeleteId = ref('')
 const settingsRefreshKey = ref(0)
@@ -822,6 +826,18 @@ function onDbChanged() {
 }
 
 function onDbAdded() {
+  switchRefreshKey.value++
+  refreshDbStatus()
+  refreshDbConnected()
+}
+
+function onRequestEdit(conn) {
+  editingConn.value = conn
+  showEditDb.value = true
+}
+
+// 编辑成功：刷新切换弹窗列表 + 数据库状态
+function onDbUpdated() {
   switchRefreshKey.value++
   refreshDbStatus()
   refreshDbConnected()

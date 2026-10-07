@@ -92,6 +92,7 @@ contextBridge.exposeInMainWorld('api', {
     list: createInvoke('user:list'),
     create: createInvoke('user:create'),
     detail: createInvoke('user:detail'),
+    getByUsername: createInvoke('user:get-by-username'),
     updateAccount: createInvoke('user:update-account'),
     updateProfile: createInvoke('user:update-profile'),
     updateOwnProfile: createInvoke('user:update-own-profile'),
@@ -305,6 +306,7 @@ contextBridge.exposeInMainWorld('api', {
     importDb: createInvoke('sys:import-db'),
     exportDbTemplate: createInvoke('sys:export-db-template'),
     deleteDb: createInvoke('sys:delete-db'),
+    updateDb: createInvoke('sys:update-db'),
     exportDb: createInvoke('sys:export-db'),
     pickAttachment: createInvoke('sys:pick-attachment'),
     openAttachment: createInvoke('sys:open-attachment'),
@@ -314,6 +316,8 @@ contextBridge.exposeInMainWorld('api', {
     clearCache: createInvoke('sys:clear-cache'),
     uninstallAvailable: createInvoke('sys:uninstall-available'),
     uninstallApp: createInvoke('sys:uninstall-app'),
+    getAutoLaunch: createInvoke('sys:get-auto-launch'),
+    setAutoLaunch: createInvoke('sys:set-auto-launch'),
     // 业务数据版本变化订阅（dataVersionService 轮询发现库变动时触发）；返回取消订阅函数
     onDbChanged: (cb) => {
       const listener = () => cb()

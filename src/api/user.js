@@ -8,6 +8,10 @@ export function createUser(data = {}) {
 export function getUser(id) {
   return window.api.user.detail({ id })
 }
+// 按用户名查用户（切换账号弹窗静默刷新历史账号资料）
+export function getUserByUsername(username) {
+  return window.api.user.getByUsername({ username })
+}
 export function updateAccount(id, data = {}) {
   return window.api.user.updateAccount({ id, data })
 }

@@ -171,7 +171,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { listUsers, listGroups, createUser, pickAttachment } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { avatarUrl } from '../../utils/avatar'
-import { fetchAll } from '../../utils/fetchAll'
+import { useAsyncList } from '../../composables/useAsyncList'
 import { DEFAULT_PASSWORD_BY_ROLE } from '../../config/constants'
 
 const props = defineProps({
@@ -182,8 +182,17 @@ const emit = defineEmits(['update:visible', 'saved'])
 const CREATE_ROLES = { group_admin: '课题组管理员', mentor: '导师', student: '学生' }
 const tab = ref('account')
 const saving = ref(false)
-const groups = ref([])
-const mentors = ref([])
+// 课题组 / 导师下拉：统一加载状态，失败时弹窗提示
+const { data: groups, run: runGroups, error: groupsError } = useAsyncList(listGroups)
+const { data: mentors, run: runMentors, error: mentorsError } = useAsyncList(listUsers)
+async function loadGroups() {
+  await runGroups()
+  if (groupsError.value) dialogAlert(groupsError.value)
+}
+async function loadMentors() {
+  await runMentors({ role: 'mentor', groupId: form.groupId })
+  if (mentorsError.value) dialogAlert(mentorsError.value)
+}
 
 const emptyForm = () => ({
   username: '',
@@ -222,7 +231,7 @@ watch(
     Object.assign(form, emptyForm())
     tab.value = 'account'
     mentors.value = []
-    groups.value = await fetchAll(listGroups)
+    loadGroups()
   }
 )
 
@@ -244,7 +253,7 @@ async function onGroupChange() {
   form.mentorId = ''
   mentors.value = []
   if (!form.groupId) return
-  mentors.value = await fetchAll(listUsers, { role: 'mentor', groupId: form.groupId })
+  await loadMentors()
 }
 
 // 选择头像：调用系统附件选择，复制到应用数据目录

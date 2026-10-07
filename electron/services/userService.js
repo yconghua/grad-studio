@@ -239,6 +239,16 @@ async function getUser(id) {
 }
 
 /**
+ * 按用户名查用户（任意已登录角色可用）：供切换账号弹窗静默刷新历史账号资料
+ */
+async function getUserByUsername(username) {
+  if (!username || !String(username).trim()) throw new ApiError('缺少用户名', 400)
+  const row = await userRepository.findByUsername(String(username).trim())
+  if (!row) throw new ApiError('用户不存在', 404)
+  return toUserDto(row)
+}
+
+/**
  * 账号密码 Tab 保存：
  *   - 用户名区分大小写且不可重复；
  *   - 密码为空表示不修改；修改则校验强度与确认密码一致，并置 must_change_password=1；
@@ -711,6 +721,7 @@ module.exports = {
   listUsers,
   createUser,
   getUser,
+  getUserByUsername,
   updateAccount,
   updateProfile,
   updateOwnProfile,
