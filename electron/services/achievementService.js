@@ -15,6 +15,7 @@
  * 退回后回到 pending 可改再提交。
  */
 const achievementRepository = require('../db/repositories/achievementRepository')
+const achievementAttachmentRepository = require('../db/repositories/achievementAttachmentRepository')
 const userRepository = require('../db/repositories/userRepository')
 const groupRepository = require('../db/repositories/groupRepository')
 const authService = require('./authService')
@@ -26,7 +27,10 @@ const {
   ROLE_STUDENT,
   ROLE_MENTOR,
   ROLE_GROUP_ADMIN,
-  ROLE_SUPER_ADMIN
+  ROLE_SUPER_ADMIN,
+  REPORT_ATTACH_EXTS,
+  REPORT_ATTACH_MAX_BYTES,
+  REPORT_ATTACH_QUOTA_BYTES
 } = require('../../shared/constants')
 
 const TYPES = ['paper', 'patent', 'software', 'award', 'project', 'other']
@@ -349,7 +353,7 @@ async function batchConfirmAll(viewer) {
   return { success: true, confirmed: affected }
 }
 
-// 删除成果（学生本人任意状态可删；超管可删）：软删
+// 删除成果（学生本人任意状态可删；超管可删）：软删 + 级联清附件
 async function removeAchievement(id, viewer) {
   const me = await currentUser()
   const row = await achievementRepository.findByIdWithOwner(Number(id))
@@ -361,6 +365,7 @@ async function removeAchievement(id, viewer) {
     throw new ApiError('无权限：只能删除自己的成果', 403)
   }
   await achievementRepository.delete(Number(id))
+  await achievementAttachmentRepository.deleteByAchievementId(Number(id))
   return { success: true }
 }
 
@@ -390,9 +395,118 @@ async function exportXlsx({ groupId, type, status, keyword }, viewer) {
   })
 }
 
-// 学生删除时级联清理（用户删除事务内调用）：软删全部成果
+// 学生删除时级联清理（用户删除事务内调用）：软删全部成果 + 物理删成果附件
 async function deleteByUser(userId) {
   await achievementRepository.softDeleteByUser(Number(userId))
+  await achievementAttachmentRepository.deleteByUser(Number(userId))
+}
+
+// ===== 附件（LONGBLOB 入库，与周报附件同模式） =====
+
+// 扩展名提取（小写，不带点）
+function extOf(fileName) {
+  const idx = String(fileName || '').lastIndexOf('.')
+  return idx >= 0 ? String(fileName).slice(idx + 1).toLowerCase() : ''
+}
+
+// 只读校验：当前用户可查看某条成果（学生=自己；导师=名下；组管=本组；超管=任意）
+async function assertCanViewAchievement(row, me) {
+  if (me.role === ROLE_STUDENT) {
+    if (me.id !== Number(row.user_id)) throw new ApiError('无权限：只能查看自己的成果', 403)
+  } else if (me.role === ROLE_MENTOR) {
+    const target = await userRepository.findById(Number(row.user_id))
+    if (!target || Number(target.mentor_id) !== me.id) throw new ApiError('无权限：只能查看名下学生的成果', 403)
+  } else if (me.role === ROLE_GROUP_ADMIN) {
+    const g = await groupOf(me.id)
+    if (!g || Number(g.id) !== Number(row.group_id)) throw new ApiError('无权限：只能查看本组学生的成果', 403)
+  } else if (me.role !== ROLE_SUPER_ADMIN) {
+    throw new ApiError('无权限', 403)
+  }
+}
+
+// 上传附件：上传者对成果有管理权（学生本人/导师/超管）+ 状态非 confirmed + 类型白名单 + 单文件 50MB + 累计 1GB
+async function addAttachment({ achievementId, fileName, mimeType, data }, viewer) {
+  const me = await currentUser()
+  const row = await achievementRepository.findByIdWithOwner(Number(achievementId))
+  if (!row) throw new ApiError('成果不存在', 404)
+  await assertCanManage(Number(row.user_id), me)
+  if (row.status === 'confirmed') throw new ApiError('成果已确认，附件已冻结，不能修改', 400)
+  const name = String(fileName == null ? '' : fileName).trim()
+  if (!name) throw new ApiError('缺少文件名', 400)
+  const ext = extOf(name)
+  if (!REPORT_ATTACH_EXTS.includes(ext)) {
+    throw new ApiError(`仅支持上传：${REPORT_ATTACH_EXTS.join(' / ')}`, 400)
+  }
+  // IPC 传参后 data 可能为 Buffer / Uint8Array / ArrayBuffer
+  const buf = Buffer.isBuffer(data)
+    ? data
+    : data instanceof ArrayBuffer
+      ? Buffer.from(data)
+      : data && data.buffer instanceof ArrayBuffer
+        ? Buffer.from(data.buffer, data.byteOffset, data.byteLength)
+        : null
+  if (!buf || buf.length === 0) throw new ApiError('文件内容为空', 400)
+  if (buf.length > REPORT_ATTACH_MAX_BYTES) {
+    throw new ApiError(`单文件不能超过 ${Math.floor(REPORT_ATTACH_MAX_BYTES / 1024 / 1024)}MB`, 400)
+  }
+  const used = await achievementAttachmentRepository.sumSizeByUser(me.id)
+  if (used + buf.length > REPORT_ATTACH_QUOTA_BYTES) {
+    const remain = Math.floor((REPORT_ATTACH_QUOTA_BYTES - used) / 1024 / 1024)
+    throw new ApiError(`附件总量已达上限（1GB），剩余可用约 ${Math.max(0, remain)}MB`, 400)
+  }
+  const id = await achievementAttachmentRepository.create({
+    achievementId: Number(achievementId),
+    userId: me.id,
+    fileName: name,
+    fileSize: buf.length,
+    mimeType: String(mimeType || '').slice(0, 100),
+    fileExt: ext,
+    data: buf
+  })
+  return { success: true, id }
+}
+
+// 附件元数据列表（大字段隔离，不含二进制）
+async function listAttachments(achievementId, viewer) {
+  const me = await currentUser()
+  const row = await achievementRepository.findByIdWithOwner(Number(achievementId))
+  if (!row) throw new ApiError('成果不存在', 404)
+  await assertCanViewAchievement(row, me)
+  const list = await achievementAttachmentRepository.listMetaByAchievement(Number(achievementId))
+  return { list }
+}
+
+// 删除附件：上传者本人 + 成果非 confirmed（物理删除）
+async function removeAttachment(id, viewer) {
+  const me = await currentUser()
+  const att = await achievementAttachmentRepository.getById(Number(id))
+  if (!att) throw new ApiError('附件不存在', 404)
+  const row = await achievementRepository.findByIdWithOwner(Number(att.achievement_id))
+  if (!row) throw new ApiError('成果不存在', 404)
+  await assertCanManage(Number(row.user_id), me)
+  if (row.status === 'confirmed') throw new ApiError('成果已确认，附件已冻结，不能修改', 400)
+  if (Number(att.user_id) !== me.id && me.role !== ROLE_SUPER_ADMIN) {
+    throw new ApiError('无权限：只能删除自己上传的附件', 403)
+  }
+  const affected = await achievementAttachmentRepository.deleteById(Number(id))
+  if (affected === 0) throw new ApiError('附件不存在', 404)
+  return { success: true }
+}
+
+// 下载附件：只读校验通过后返回元数据 + 二进制（文件写入由 IPC 层完成）
+async function downloadAttachment(id, viewer) {
+  const me = await currentUser()
+  const att = await achievementAttachmentRepository.getWithData(Number(id))
+  if (!att) throw new ApiError('附件不存在', 404)
+  const row = await achievementRepository.findByIdWithOwner(Number(att.achievement_id))
+  if (!row) throw new ApiError('成果不存在', 404)
+  await assertCanViewAchievement(row, me)
+  return {
+    fileName: att.file_name,
+    mimeType: att.mime_type,
+    size: Number(att.file_size),
+    data: att.file_data
+  }
 }
 
 module.exports = {
@@ -407,5 +521,9 @@ module.exports = {
   removeAchievement,
   exportDocx,
   exportXlsx,
-  deleteByUser
+  deleteByUser,
+  addAttachment,
+  listAttachments,
+  removeAttachment,
+  downloadAttachment
 }

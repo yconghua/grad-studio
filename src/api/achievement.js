@@ -42,3 +42,16 @@ export function exportAchievementDocx(userId) {
 export function exportAchievementXlsx({ groupId, type, status, keyword } = {}) {
   return window.api.achievement.exportXlsx({ groupId: groupId || null, type: type || '', status: status || '', keyword: keyword || '' })
 }
+// ===== 附件（LONGBLOB 入库，与周报附件同模式） =====
+export function uploadAchievementAttachment({ achievementId, fileName, mimeType, data }) {
+  return window.api.achievement.attachmentUpload({ achievementId, fileName, mimeType, data })
+}
+export function listAchievementAttachments(achievementId) {
+  return window.api.achievement.attachmentList({ achievementId })
+}
+export function removeAchievementAttachment(id) {
+  return window.api.achievement.attachmentRemove({ id })
+}
+export function downloadAchievementAttachment(id) {
+  return window.api.achievement.attachmentDownload({ id })
+}

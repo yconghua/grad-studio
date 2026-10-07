@@ -386,6 +386,10 @@ contextBridge.exposeInMainWorld('api', {
     batchConfirmAll: createInvoke('achievement:batch-confirm-all'),
     remove: createInvoke('achievement:remove'),
     exportDocx: createInvoke('achievement:export-docx'),
-    exportXlsx: createInvoke('achievement:export-xlsx')
+    exportXlsx: createInvoke('achievement:export-xlsx'),
+    attachmentUpload: createInvoke('achievement:attachment-upload'),
+    attachmentList: createInvoke('achievement:attachment-list'),
+    attachmentRemove: createInvoke('achievement:attachment-remove'),
+    attachmentDownload: createInvoke('achievement:attachment-download')
   }
 })

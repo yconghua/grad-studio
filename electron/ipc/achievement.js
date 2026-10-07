@@ -141,6 +141,55 @@ function register(ipcMain) {
       buffer
     })
   }))
+
+  // ===== 附件（LONGBLOB 入库，与周报附件同模式） =====
+
+  // 上传附件：前端传二进制（file.arrayBuffer()），主进程校验后 INSERT
+  ipcMain.handle('achievement:attachment-upload', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementService.addAttachment(payload || {}, (await authService.getCurrentUser()))
+  }))
+
+  // 附件元数据列表（不含二进制）
+  ipcMain.handle('achievement:attachment-list', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementService.listAttachments(payload && payload.achievementId, (await authService.getCurrentUser()))
+  }))
+
+  // 删除附件：物理删除
+  ipcMain.handle('achievement:attachment-remove', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementService.removeAttachment(payload && payload.id, (await authService.getCurrentUser()))
+  }))
+
+  // 下载附件：权限校验通过后弹系统保存框写入文件
+  ipcMain.handle('achievement:attachment-download', handler(async (event, payload) => {
+    await requireLogin()
+    const att = await achievementService.downloadAttachment(payload && payload.id, (await authService.getCurrentUser()))
+    const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null
+    const options = {
+      title: '下载附件',
+      defaultPath: safeFileName(att.fileName),
+      filters: [{ name: '附件', extensions: [String(att.fileName).split('.').pop() || '*'] }]
+    }
+    let picked
+    try {
+      picked = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    } catch (err) {
+      console.error('[achievement:attachment-download] 保存对话框异常:', err)
+      return { success: false, code: 500, message: '打开保存窗口失败，请重试' }
+    }
+    if (!picked || picked.canceled || !picked.filePath) {
+      return { success: false, code: 0, canceled: true, message: '已取消下载' }
+    }
+    try {
+      fs.writeFileSync(picked.filePath, att.data)
+      return { success: true, code: 0, message: '附件已下载' }
+    } catch (err) {
+      console.error('[achievement:attachment-download] 写入文件失败:', err)
+      return { success: false, code: 500, message: '下载失败，请重试' }
+    }
+  }))
 }
 
 module.exports = { register }

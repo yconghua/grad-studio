@@ -39,7 +39,18 @@
           <div class="ad-item"><span class="ad-item__label">作者</span><span class="ad-item__value">{{ row.authors || '-' }}</span></div>
           <div class="ad-item"><span class="ad-item__label">第一作者</span><span class="ad-item__value">{{ row.isFirst ? '是' : '否' }}</span></div>
           <div class="ad-item"><span class="ad-item__label">发表/授权日期</span><span class="ad-item__value">{{ row.publishDate || '-' }}</span></div>
-          <div class="ad-item"><span class="ad-item__label">附件路径</span><span class="ad-item__value">{{ row.attachmentPath || '-' }}</span></div>
+          <div class="ad-item ad-item--block">
+            <span class="ad-item__label">附件</span>
+            <div class="attach-box">
+              <div v-if="!attachments.length" class="attach-empty">无附件</div>
+              <div v-for="a in attachments" :key="a.id" class="attach-item">
+                <span class="attach-icon">📎</span>
+                <span class="attach-name" :title="a.file_name">{{ a.file_name }}</span>
+                <span class="attach-size">{{ sizeText(a.file_size) }}</span>
+                <button type="button" class="btn btn-sm" @click="onDownload(a)">下载</button>
+              </div>
+            </div>
+          </div>
           <div class="ad-item"><span class="ad-item__label">成果说明</span><span class="ad-item__value ad-item__value--block">{{ row.description || '-' }}</span></div>
           <div v-if="row.rejectReason" class="ad-item"><span class="ad-item__label">退回意见</span><span class="ad-item__value ad-item__value--block" style="color:#dc2626">{{ row.rejectReason }}</span></div>
         </div>
@@ -69,14 +80,14 @@
     </div>
   </div>
 
-  <!-- 代填新增成果弹窗 -->
-  <AchievementEditDialog v-model:visible="editVisible" :user-id="row && row.userId" @save="saveNew" />
+  <!-- 编辑 / 代填新增成果弹窗（编辑传 row，新增不传） -->
+  <AchievementEditDialog v-model:visible="editVisible" :row="editRow" :user-id="row && row.userId" @save="saveNew" />
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import AchievementEditDialog from './AchievementEditDialog.vue'
-import { confirmAchievement, returnAchievement, submitAchievement, removeAchievement, saveAchievement } from '../../api'
+import { confirmAchievement, returnAchievement, submitAchievement, removeAchievement, saveAchievement, listAchievementAttachments, downloadAchievementAttachment } from '../../api'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 
@@ -93,6 +104,39 @@ const acting = ref(false)
 const returnVisible = ref(false)
 const returnReason = ref('')
 const editVisible = ref(false)
+const editRow = ref(null)
+const attachments = ref([])
+
+function sizeText(bytes) {
+  const b = Number(bytes) || 0
+  if (b >= 1024 * 1024) return (b / 1024 / 1024).toFixed(1) + 'MB'
+  if (b >= 1024) return (b / 1024).toFixed(1) + 'KB'
+  return b + 'B'
+}
+
+async function loadAttachments(achievementId) {
+  try {
+    const res = await listAchievementAttachments(achievementId)
+    if (res && res.success) {
+      attachments.value = (res.data && res.data.list) || []
+    }
+  } catch (e) {
+    // 附件加载失败不打断详情展示
+  }
+}
+
+async function onDownload(a) {
+  try {
+    const res = await downloadAchievementAttachment(a.id)
+    if (res && res.success) {
+      dialogAlert(`附件已保存：${a.file_name}`)
+    } else if (!(res && res.canceled)) {
+      dialogAlert((res && res.message) || '下载失败，请重试')
+    }
+  } catch (e) {
+    dialogAlert('下载失败，请重试')
+  }
+}
 
 const statusLabel = computed(() => STATUS_LABELS[props.row && props.row.status] || (props.row && props.row.status) || '')
 const statusTagClass = computed(() => {
@@ -106,6 +150,8 @@ watch(
     if (v) {
       returnVisible.value = false
       editVisible.value = false
+      attachments.value = []
+      if (props.row && props.row.id) loadAttachments(props.row.id)
     }
   }
 )
@@ -154,6 +200,7 @@ async function doReturn() {
 }
 
 function openCreate() {
+  editRow.value = null
   editVisible.value = true
 }
 async function saveNew(payload) {
@@ -169,6 +216,7 @@ async function saveNew(payload) {
 }
 
 function openEdit() {
+  editRow.value = props.row
   editVisible.value = true
 }
 async function submit() {
@@ -238,9 +286,33 @@ async function remove() {
 .ad-overview__actions { margin-left: auto; display: flex; gap: 8px; }
 .ad-detail { display: flex; flex-direction: column; gap: 10px; }
 .ad-item { display: flex; gap: 12px; align-items: baseline; }
+.ad-item--block { align-items: flex-start; }
 .ad-item__label { width: 96px; flex-shrink: 0; font-size: 13px; color: var(--text-2, #6b7280); }
 .ad-item__value { font-size: 14px; color: var(--text, #111827); word-break: break-all; }
 .ad-item__value--block { flex: 1; white-space: pre-wrap; }
+.attach-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border, #e5e7eb);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-2, #f9fafb);
+}
+.attach-empty { font-size: 12px; color: var(--text-3, #9aa0aa); }
+.attach-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.attach-icon { color: var(--text-2, #6b7280); }
+.attach-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text, #111827);
+}
+.attach-size { color: var(--text-3, #9aa0aa); }
 .tag-ok { background: #ecfdf5; color: #16a34a; font-size: 12px; padding: 1px 8px; border-radius: 10px; }
 .tag-warn { background: #fffbeb; color: #d97706; font-size: 12px; padding: 1px 8px; border-radius: 10px; }
 .tag-off { background: #f3f4f6; color: #6b7280; font-size: 12px; padding: 1px 8px; border-radius: 10px; }

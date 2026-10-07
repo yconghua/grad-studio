@@ -167,7 +167,7 @@ useAutoRefresh(refreshAll)
 </script>
 
 <style scoped>
-.page-actions { margin-left: auto; }
+.page-actions { margin-left: auto; display: flex; gap: 10px; }
 .ach-table { padding: 10px; }
 .ach-table tr { cursor: pointer; }
 .ach-table tr:hover td { background: var(--bg-hover, #f3f4f6); }
