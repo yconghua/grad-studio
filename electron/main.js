@@ -29,6 +29,8 @@ const ticketService = require('./services/ticketService')
 // 任务定时扫描：到期/逾期/待验收超时提醒（应用 ready 后启动）
 const taskScheduler = require('./services/taskScheduler')
 const reportScheduler = require('./services/reportScheduler')
+// 学业节点提醒：临近/逾期节点扫描（应用 ready 后启动，remind_at 去重）
+const academicScheduler = require('./services/academicScheduler')
 // 全局数据版本轮询：业务表指纹变化时广播 db:changed（页面后台静默重拉）
 const dataVersionService = require('./services/dataVersionService')
 // 数据库连接状态：持续 SELECT 1 探测，未连接时登录页禁用登录表单（连接恢复自动解锁）
@@ -269,7 +271,7 @@ if (!gotTheLock) {
     }
   })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     // 文件日志最先初始化：之后的全部 console 输出都会同时落盘
     logService.init()
     // 移除窗口自带的菜单栏（文件 / 编辑 / 视图等那一行）
@@ -282,8 +284,10 @@ if (!gotTheLock) {
       if (!fs.existsSync(filePath)) return new Response('Not Found', { status: 404 })
       return net.fetch(pathToFileURL(filePath).toString())
     })
-    // 初始化连接服务（加载连接清单、建立连接池）——须在 app ready 之后
-    connectionService.init()
+    // 初始化连接服务（加载连接清单、建立连接池）；若检测到版本变化，
+    // 会先同步等待升级迁移全部执行完再返回——之后的调度器与窗口首个查询
+    // 一定发生在迁移完成之后，避免新表尚未建立时查询报错
+    await connectionService.init()
     // 初始化免密票据服务（加载本机密钥与票据表）
     ticketService.init()
     // 注册全部 IPC 路由（auth: / sys: 等），渲染层即可通信；登录态变化时重建托盘菜单
@@ -292,6 +296,8 @@ if (!gotTheLock) {
     taskScheduler.start()
     // 启动周报定时提醒（未交 / 批阅超时 / 打回未改）
     reportScheduler.start()
+    // 启动学业节点提醒（临近 / 逾期未记录节点 → 通知学生与导师）
+    academicScheduler.start()
     // 启动全局数据版本轮询（业务表指纹变化 → 广播 db:changed，页面无感刷新）
     dataVersionService.start()
     // 启动数据库连接探测（先于窗口创建，登录页挂载即可读到真实连接状态）
@@ -305,6 +311,7 @@ if (!gotTheLock) {
   app.on('will-quit', () => {
     taskScheduler.stop()
     reportScheduler.stop()
+    academicScheduler.stop()
     dataVersionService.stop()
     dbStatusService.stop()
     scanServerManager.stop()

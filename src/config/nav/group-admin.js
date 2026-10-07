@@ -7,6 +7,7 @@ export const GROUP_ADMIN_NAV = [
   { key: 'group-admin-notifications', path: '/group-admin/notifications', title: '通知中心', icon: 'BellOutlined' },
   { key: 'group-admin-group', path: '/group-admin/group', title: '课题组设置', icon: 'ApartmentOutlined' },
   { key: 'group-admin-members', path: '/group-admin/members', title: '课题组成员', icon: 'TeamOutlined' },
+  { key: 'group-admin-academic', path: '/group-admin/academic', title: '本组学业档案管理', icon: 'FileDoneOutlined' },
   { key: 'group-admin-notices', path: '/group-admin/notices', title: '本组公告管理', icon: 'NotificationOutlined' },
   { key: 'group-admin-meetings', path: '/group-admin/meetings', title: '本组会议管理', icon: 'CalendarOutlined' },
   { key: 'group-admin-tasks', path: '/group-admin/tasks', title: '本组任务管理', icon: 'CheckSquareOutlined' },

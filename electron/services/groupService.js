@@ -25,6 +25,7 @@ const reportConfigRepository = require('../db/repositories/reportConfigRepositor
 const authService = require('./authService')
 const userService = require('./userService')
 const notificationService = require('./notificationService')
+const academicService = require('./academicService')
 const ApiError = require('./apiError')
 const {
   ROLE_SUPER_ADMIN,
@@ -160,6 +161,13 @@ async function createGroup({ name, description, adminUserId, status } = {}) {
   })
   // 同步管理员用户的所属课题组
   await userRepository.updateById(Number(adminUserId), { group_id: id })
+  // 建组初始模板快照：把当前全局默认模板三套培养类型一次性拷为本组模板，
+  // 之后组管全权管理本组；快照失败不阻断建组（组管仍可在模板弹窗手动配置）
+  try {
+    await academicService.initGroupTemplates(id)
+  } catch (e) {
+    console.error('[academic] 建组模板初始化失败 groupId=' + id, e && e.message)
+  }
   return getGroup(id)
 }
 

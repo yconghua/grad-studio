@@ -153,12 +153,13 @@ function buildConfig(conn) {
  * 须在 app ready 之后调用（app.getPath 依赖 ready 状态）。
  * 没有任何已保存连接时，连接层置空（pool=null），登录页会提示「未配置数据库」，
  * 用户添加第一个连接后自动成为当前生效连接。
- * 若应用版本较上次启动发生变化，则在后台对所有“已配置数据库”重跑
- * schemas/ 下的 SQL（建库 / 建表 / 种子，幂等），作为一次升级迁移；
- * 迁移在后台执行，不阻塞窗口创建，且每个版本号只会触发一次。
- * 由 main.js 在窗口创建前调用一次。
+ * 若应用版本较上次启动发生变化，则对所有“已配置数据库”重跑 schemas/ 下的
+ * SQL（建库 / 建表 / 种子，幂等），作为一次升级迁移，并 await 迁移全部执行完
+ * 后才返回——保证后续调度器 / 窗口的首次数据库查询都发生在迁移完成之后
+ * （避免新表尚未建立时查询报错）。每个版本号只会触发一次。
+ * 由 main.js 在窗口创建前调用一次（await）。
  */
-function init() {
+async function init() {
   connections = loadConnections()
   const activeConn = getActiveConn()
   if (activeConn) {
@@ -173,7 +174,7 @@ function init() {
   const current = appPkg.version
   const state = loadState()
   if (!state || state.lastAppVersion !== current) {
-    runUpgradeMigration(current)
+    await runUpgradeMigration(current)
   }
   return { success: true }
 }

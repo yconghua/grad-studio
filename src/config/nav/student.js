@@ -9,6 +9,7 @@ export const STUDENT_NAV = [
   { key: 'student-meetings', path: '/student/meetings', title: '会议记录', icon: 'CalendarOutlined' },
   { key: 'student-tasks', path: '/student/tasks', title: '我的任务', icon: 'CheckSquareOutlined' },
   { key: 'student-notes', path: '/student/notes', title: '我的笔记', icon: 'EditOutlined' },
+  { key: 'student-academic', path: '/student/academic', title: '学业档案', icon: 'FileDoneOutlined' },
   { key: 'student-report', path: '/student/report', title: '我的周报', icon: 'FileTextOutlined' },
   { key: 'student-chat', path: '/student/chat', title: '聊天', icon: 'MessageOutlined' }
 ]

@@ -66,6 +66,7 @@ const routes = [
     meta: { role: ROLE_SUPER_ADMIN },
     children: [
       { path: 'dashboard', name: 'admin-dashboard', component: () => import('../pages/admin/AdminDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'academic', name: 'admin-academic', component: () => import('../pages/achievement/SuperAdminAcademic.vue'), meta: { title: '学业档案管理' } },
       { path: 'report', name: 'admin-report', component: () => import('../pages/admin/SuperAdminReport.vue'), meta: { title: '周报统计' } },
       { path: 'users', name: 'admin-users', component: () => import('../pages/admin/AdminUserList.vue'), meta: { title: '用户管理' } },
       { path: 'groups', name: 'admin-groups', component: () => import('../pages/admin/AdminGroupList.vue'), meta: { title: '课题组设置' } },
@@ -88,6 +89,7 @@ const routes = [
     meta: { role: ROLE_GROUP_ADMIN },
     children: [
       { path: 'dashboard', name: 'group-admin-dashboard', component: () => import('../pages/group-admin/GroupAdminDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'academic', name: 'group-admin-academic', component: () => import('../pages/achievement/GroupAdminAcademic.vue'), meta: { title: '本组学业档案管理' } },
       { path: 'report', name: 'group-admin-report', component: () => import('../pages/group-admin/GroupAdminReport.vue'), meta: { title: '组内周报' } },
       { path: 'group', name: 'group-admin-group', component: () => import('../pages/group-admin/GroupAdminGroupSetting.vue'), meta: { title: '课题组设置' } },
       { path: 'members', name: 'group-admin-members', component: () => import('../pages/group-admin/GroupAdminMemberManage.vue'), meta: { title: '课题组成员' } },
@@ -109,6 +111,7 @@ const routes = [
     meta: { role: ROLE_MENTOR },
     children: [
       { path: 'dashboard', name: 'mentor-dashboard', component: () => import('../pages/mentor/MentorDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'academic', name: 'mentor-academic', component: () => import('../pages/achievement/MentorAcademic.vue'), meta: { title: '学生学业档案' } },
       { path: 'report', name: 'mentor-report', component: () => import('../pages/mentor/MentorReport.vue'), meta: { title: '周报批阅' } },
       { path: 'students', name: 'mentor-students', component: () => import('../pages/mentor/MentorStudentList.vue'), meta: { title: '我的学生' } },
       { path: 'notices', name: 'mentor-notices', component: () => import('../pages/mentor/MentorGroupNotice.vue'), meta: { title: '课题组公告' } },
@@ -129,6 +132,7 @@ const routes = [
     meta: { role: ROLE_STUDENT },
     children: [
       { path: 'dashboard', name: 'student-dashboard', component: () => import('../pages/student/StudentDashboard.vue'), meta: { title: '工作台' } },
+      { path: 'academic', name: 'student-academic', component: () => import('../pages/achievement/StudentAcademic.vue'), meta: { title: '学业档案' } },
       { path: 'report', name: 'student-report', component: () => import('../pages/student/StudentReport.vue'), meta: { title: '我的周报' } },
       { path: 'notes', name: 'student-notes', component: () => import('../pages/student/StudentNotes.vue'), meta: { title: '我的笔记' } },
       { path: 'notices', name: 'student-notices', component: () => import('../pages/student/StudentGroupNotice.vue'), meta: { title: '课题组公告' } },

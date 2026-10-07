@@ -356,5 +356,21 @@ contextBridge.exposeInMainWorld('api', {
     logs: createInvoke('diag:logs'),
     export: createInvoke('diag:export'),
     openFolder: createInvoke('diag:open-folder')
+  },
+  // 学生学业记录档案（对应 ipc/academic.js，通道前缀 academic:*）
+  academic: {
+    records: createInvoke('academic:records'),
+    saveRecord: createInvoke('academic:save-record'),
+    submitRecord: createInvoke('academic:submit-record'),
+    confirmRecord: createInvoke('academic:confirm-record'),
+    returnRecord: createInvoke('academic:return-record'),
+    batchConfirm: createInvoke('academic:batch-confirm'),
+    templates: createInvoke('academic:templates'),
+    templateSave: createInvoke('academic:template-save'),
+    templateToggle: createInvoke('academic:template-toggle'),
+    templateRemove: createInvoke('academic:template-remove'),
+    stats: createInvoke('academic:stats'),
+    statsSummary: createInvoke('academic:stats-summary'),
+    export: createInvoke('academic:export')
   }
 })

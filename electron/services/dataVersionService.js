@@ -34,7 +34,9 @@ const MONITOR_TABLES = [
   ['report_attachment', 'change_ts'],
   ['report_template', 'change_ts'],
   ['report_holiday', 'change_ts'],
-  ['note', 'change_ts']
+  ['note', 'change_ts'],
+  ['academic_records', 'change_ts'],
+  ['academic_stage_templates', 'change_ts']
 ]
 
 let timer = null

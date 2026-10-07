@@ -30,6 +30,7 @@ const USER_SORT_MAP = {
   realName: 'u.real_name',
   userNo: 'u.user_no',
   role: 'u.role',
+  degree: 'u.degree',
   status: 'u.status',
   groupId: 'g.name',
   mentorId: 'u.mentor_id',
@@ -472,6 +473,31 @@ class UserRepository extends BaseRepository {
   }
 
   /**
+   * 某课题组全部启用学生（学业档案统计用，不分页）
+   * @param {number} groupId
+   * @returns {Array}
+   */
+  async listAllStudentsOfGroup(groupId) {
+    const sql =
+      `SELECT \`id\`, \`username\`, \`real_name\`, \`user_no\`, \`degree\`, \`group_id\`, \`mentor_id\`
+       FROM \`users\` WHERE role = ? AND group_id = ? AND status = ? ORDER BY id ASC`
+    const [rows] = await this._execute(sql, ['student', Number(groupId), ACCOUNT_STATUS_ENABLED], 'listAllStudentsOfGroup')
+    return rows
+  }
+
+  /**
+   * 全部启用学生（学业档案全局统计用，超管范围=全部课题组）
+   * @returns {Array}
+   */
+  async listAllStudents() {
+    const sql =
+      `SELECT \`id\`, \`username\`, \`real_name\`, \`user_no\`, \`degree\`, \`group_id\`, \`mentor_id\`
+       FROM \`users\` WHERE role = ? AND status = ? ORDER BY id ASC`
+    const [rows] = await this._execute(sql, ['student', ACCOUNT_STATUS_ENABLED], 'listAllStudents')
+    return rows
+  }
+
+  /**
    * 通用条件分页（内部复用）：固定条件 + 可选关键字（账号/真实姓名）
    */
   async _pagedByCondition(condArr, condValues, filters, action) {
@@ -494,7 +520,7 @@ class UserRepository extends BaseRepository {
     // LIMIT/OFFSET 直接内联整数值（normalizePage 已做 parseInt 归一化），规避
     // prepared statement 对 LIMIT ? 占位符的支持问题（见 pagedList 注释）。
     const sql =
-      `SELECT ${cols(SAFE_COLUMNS)} FROM \`users\` WHERE ${where}${keywordClause} ${buildOrderBy(filters, USER_SORT_MAP, 'id ASC')} LIMIT ${limit} OFFSET ${offset}`
+      `SELECT ${cols(SAFE_COLUMNS, 'u')} FROM \`users\` u WHERE ${where}${keywordClause} ${buildOrderBy(filters, USER_SORT_MAP, 'u.id ASC')} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(sql, [...baseValues, ...keywordValues], action)
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

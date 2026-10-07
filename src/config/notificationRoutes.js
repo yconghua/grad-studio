@@ -5,10 +5,10 @@ import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '.
 
 // 各角色下各业务类型的路由表
 const ROUTE_TABLE = {
-  [ROLE_SUPER_ADMIN]: { notice: '/admin/notices', meeting: '/admin/meetings', task: '/admin/task-overview', report: '/admin/report' },
-  [ROLE_GROUP_ADMIN]: { notice: '/group-admin/notices', meeting: '/group-admin/meetings', task: '/group-admin/tasks', report: '/group-admin/report' },
-  [ROLE_MENTOR]: { notice: '/mentor/notices', meeting: '/mentor/meetings', task: '/mentor/tasks', report: '/mentor/report' },
-  [ROLE_STUDENT]: { notice: '/student/notices', meeting: '/student/meetings', task: '/student/tasks', report: '/student/report' }
+  [ROLE_SUPER_ADMIN]: { notice: '/admin/notices', meeting: '/admin/meetings', task: '/admin/task-overview', report: '/admin/report', academic: '/admin/academic' },
+  [ROLE_GROUP_ADMIN]: { notice: '/group-admin/notices', meeting: '/group-admin/meetings', task: '/group-admin/tasks', report: '/group-admin/report', academic: '/group-admin/academic' },
+  [ROLE_MENTOR]: { notice: '/mentor/notices', meeting: '/mentor/meetings', task: '/mentor/tasks', report: '/mentor/report', academic: '/mentor/academic' },
+  [ROLE_STUDENT]: { notice: '/student/notices', meeting: '/student/meetings', task: '/student/tasks', report: '/student/report', academic: '/student/academic' }
 }
 
 // 角色 → 路由前缀（用于通知中心自身路由兜底）
