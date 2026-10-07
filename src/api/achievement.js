@@ -55,3 +55,28 @@ export function removeAchievementAttachment(id) {
 export function downloadAchievementAttachment(id) {
   return window.api.achievement.attachmentDownload({ id })
 }
+// ===== 时间进度（节点模板 + 节点时间记录） =====
+export function listAchievementStageTemplates(type) {
+  return window.api.achievement.stageTemplates({ type })
+}
+export function saveAchievementStageTemplate(payload) {
+  return window.api.achievement.stageTemplateSave(payload)
+}
+export function toggleAchievementStageTemplate(id, enabled) {
+  return window.api.achievement.stageTemplateToggle({ id, enabled })
+}
+export function removeAchievementStageTemplate(id) {
+  return window.api.achievement.stageTemplateRemove({ id })
+}
+export function getAchievementStageRecords(achievementId) {
+  return window.api.achievement.stageRecords({ achievementId })
+}
+export function saveAchievementStageRecord(payload) {
+  return window.api.achievement.stageRecordSave(payload)
+}
+export function submitAchievementStageRecord(recordId) {
+  return window.api.achievement.stageRecordSubmit({ recordId })
+}
+export function reviewAchievementStageRecord({ recordId, action, reason }) {
+  return window.api.achievement.stageRecordReview({ recordId, action, reason })
+}

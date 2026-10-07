@@ -6,6 +6,7 @@
         <p class="page-sub">全局学生科研成果统计、查看与导出</p>
       </div>
       <div class="page-actions">
+        <button class="btn" @click="templateVisible = true">节点管理</button>
         <button class="btn" :disabled="exporting" @click="exportXlsx">{{ exporting ? '导出中…' : '导出 Excel' }}</button>
       </div>
     </div>
@@ -64,15 +65,19 @@
     </template>
 
     <AchievementDetailDialog v-model:visible="detailVisible" :row="detailRow" mode="super-admin" @changed="refreshAll" />
+    <AchievementStageTemplateDialog v-model:visible="templateVisible" type="paper" @changed="refreshAll" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import AchievementDetailDialog from './AchievementDetailDialog.vue'
+import AchievementStageTemplateDialog from './AchievementStageTemplateDialog.vue'
 import { getAchievementStats, getAchievementStatsSummary, exportAchievementXlsx, listGroups } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+
+const templateVisible = ref(false)
 
 const STATUS_LABELS = { pending: '待填写', submitted: '待确认', confirmed: '已确认' }
 function statusLabel(s) { return STATUS_LABELS[s] || s }

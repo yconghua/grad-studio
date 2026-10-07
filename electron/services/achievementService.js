@@ -16,6 +16,7 @@
  */
 const achievementRepository = require('../db/repositories/achievementRepository')
 const achievementAttachmentRepository = require('../db/repositories/achievementAttachmentRepository')
+const achievementStageService = require('./achievementStageService')
 const userRepository = require('../db/repositories/userRepository')
 const groupRepository = require('../db/repositories/groupRepository')
 const authService = require('./authService')
@@ -366,6 +367,7 @@ async function removeAchievement(id, viewer) {
   }
   await achievementRepository.delete(Number(id))
   await achievementAttachmentRepository.deleteByAchievementId(Number(id))
+  await achievementStageService.deleteByAchievement(Number(id))
   return { success: true }
 }
 
@@ -395,10 +397,11 @@ async function exportXlsx({ groupId, type, status, keyword }, viewer) {
   })
 }
 
-// 学生删除时级联清理（用户删除事务内调用）：软删全部成果 + 物理删成果附件
+// 学生删除时级联清理（用户删除事务内调用）：软删全部成果 + 物理删成果附件 + 物理删节点时间记录
 async function deleteByUser(userId) {
   await achievementRepository.softDeleteByUser(Number(userId))
   await achievementAttachmentRepository.deleteByUser(Number(userId))
+  await achievementStageService.deleteByUser(Number(userId))
 }
 
 // ===== 附件（LONGBLOB 入库，与周报附件同模式） =====

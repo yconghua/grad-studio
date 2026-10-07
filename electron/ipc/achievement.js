@@ -9,6 +9,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const { BrowserWindow, dialog } = require('electron')
 const achievementService = require('../services/achievementService')
+const achievementStageService = require('../services/achievementStageService')
 const authService = require('../services/authService')
 const ApiError = require('../services/apiError')
 const { handler } = require('./helper')
@@ -189,6 +190,59 @@ function register(ipcMain) {
       console.error('[achievement:attachment-download] 写入文件失败:', err)
       return { success: false, code: 500, message: '下载失败，请重试' }
     }
+  }))
+
+  // ===== 时间进度（节点模板 + 节点时间记录） =====
+
+  // 节点模板列表（超管=全局；组管=本组快照）
+  ipcMain.handle('achievement:stage-templates', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementStageService.listTemplates(payload || {}, (await authService.getCurrentUser()))
+  }))
+
+  // 新增/更新模板节点
+  ipcMain.handle('achievement:stage-template-save', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementStageService.saveTemplate(payload || {}, (await authService.getCurrentUser()))
+  }))
+
+  // 停用/启用模板节点
+  ipcMain.handle('achievement:stage-template-toggle', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementStageService.toggleTemplate(payload && payload.id, payload && payload.enabled, (await authService.getCurrentUser()))
+  }))
+
+  // 彻底删除模板节点
+  ipcMain.handle('achievement:stage-template-remove', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementStageService.removeTemplate(payload && payload.id, (await authService.getCurrentUser()))
+  }))
+
+  // 某成果的时间进度（只读视图，学生/导师/组管/超管按各自可见范围）
+  ipcMain.handle('achievement:stage-records', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementStageService.recordsOf(payload && payload.achievementId, (await authService.getCurrentUser()))
+  }))
+
+  // 学生填写/修改节点时间
+  ipcMain.handle('achievement:stage-record-save', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementStageService.saveRecord(payload || {}, (await authService.getCurrentUser()))
+  }))
+
+  // 学生提交节点（→ 待导师审核，通知导师）
+  ipcMain.handle('achievement:stage-record-submit', handler(async (_evt, payload) => {
+    await requireLogin()
+    return achievementStageService.submitRecord(payload && payload.recordId, (await authService.getCurrentUser()))
+  }))
+
+  // 导师确认 / 退回节点
+  ipcMain.handle('achievement:stage-record-review', handler(async (_evt, payload) => {
+    await requireLogin()
+    if (payload && payload.action === 'return') {
+      return achievementStageService.returnRecord(payload.recordId, payload.reason, (await authService.getCurrentUser()))
+    }
+    return achievementStageService.confirmRecord(payload && payload.recordId, (await authService.getCurrentUser()))
   }))
 }
 

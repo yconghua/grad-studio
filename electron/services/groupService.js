@@ -26,6 +26,7 @@ const authService = require('./authService')
 const userService = require('./userService')
 const notificationService = require('./notificationService')
 const academicService = require('./academicService')
+const achievementStageService = require('./achievementStageService')
 const ApiError = require('./apiError')
 const {
   ROLE_SUPER_ADMIN,
@@ -167,6 +168,12 @@ async function createGroup({ name, description, adminUserId, status } = {}) {
     await academicService.initGroupTemplates(id)
   } catch (e) {
     console.error('[academic] 建组模板初始化失败 groupId=' + id, e && e.message)
+  }
+  // 成果节点模板快照：建组瞬间拷贝全局六类成果节点，之后组管全权管理本组
+  try {
+    await achievementStageService.initGroupTemplates(id)
+  } catch (e) {
+    console.error('[achievement-stage] 建组节点模板初始化失败 groupId=' + id, e && e.message)
   }
   return getGroup(id)
 }

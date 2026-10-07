@@ -390,6 +390,14 @@ contextBridge.exposeInMainWorld('api', {
     attachmentUpload: createInvoke('achievement:attachment-upload'),
     attachmentList: createInvoke('achievement:attachment-list'),
     attachmentRemove: createInvoke('achievement:attachment-remove'),
-    attachmentDownload: createInvoke('achievement:attachment-download')
+    attachmentDownload: createInvoke('achievement:attachment-download'),
+    stageTemplates: createInvoke('achievement:stage-templates'),
+    stageTemplateSave: createInvoke('achievement:stage-template-save'),
+    stageTemplateToggle: createInvoke('achievement:stage-template-toggle'),
+    stageTemplateRemove: createInvoke('achievement:stage-template-remove'),
+    stageRecords: createInvoke('achievement:stage-records'),
+    stageRecordSave: createInvoke('achievement:stage-record-save'),
+    stageRecordSubmit: createInvoke('achievement:stage-record-submit'),
+    stageRecordReview: createInvoke('achievement:stage-record-review')
   }
 })
