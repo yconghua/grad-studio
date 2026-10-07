@@ -207,7 +207,7 @@
           <button type="button" class="privacy-close" @click="showAdminContact = false" aria-label="关闭">×</button>
         </div>
         <div class="privacy-body">
-          <p>管理员联系方式：1509054114@qq.com</p>
+          <p>管理员联系方式：12312341234@qq.com</p>
         </div>
       </div>
     </div>

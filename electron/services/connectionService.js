@@ -43,8 +43,8 @@ const DB_IMPORT_TEMPLATE = [
   '#   - # 开头的行是注释，空行自动跳过',
   '# 将下面示例替换成你的连接，保存后导入即可',
   '# ============================================',
-  '{"name":"本地开发库","host":"localhost","port":3306,"user":"root","password":"123456","database":"grad_studio"}',
-  '{"name":"阿里云正式库","host":"rm-xxx.mysql.rds.aliyuncs.com","port":3306,"user":"admin","password":"Pass|w0rd","database":"grad_studio"}'
+  '{"name":"本地开发库","host":"xxxxxxxxxx","port":3306,"user":"xxxx","password":"xxxxxxx","database":"xxxxxxxxx"}',
+  '{"name":"阿里云正式库","host":"xxxxxxxx.com","port":3306,"user":"xxxx","password":"xxxxxx","database":"xxxxxxxxx"}'
 ].join('\n') + '\n'
 
 // 内存中的连接清单（启动时加载，运行时增删改后写回磁盘）
