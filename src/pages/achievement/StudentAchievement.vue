@@ -21,37 +21,35 @@
         <div class="ach-overview__item"><span class="ach-overview__label">待确认</span><b style="color:#d97706">{{ summary.submitted }}</b></div>
       </div>
 
-      <div class="card ach-table">
-        <div class="tbl-wrap">
-          <table v-resizable-columns="{ min: 48 }" v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
-            <thead>
-              <tr>
-                <th data-sort="type">类型</th>
-                <th data-sort="title">成果名称</th>
-                <th data-sort="venue">发表载体</th>
-                <th data-sort="publishDate">日期</th>
-                <th data-sort="status">状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in list" :key="row.id" @click="openDetail(row)">
-                <td>{{ row.typeLabel }}</td>
-                <td class="ellipsis" style="max-width: 280px">{{ row.title }}</td>
-                <td class="ellipsis" style="max-width: 200px">{{ row.venue || '-' }}</td>
-                <td>{{ row.publishDate || '-' }}</td>
-                <td><span :class="statusTag(row.status)">{{ statusLabel(row.status) }}</span></td>
-              </tr>
-              <tr v-if="list.length === 0">
-                <td colspan="5"><div class="empty">暂无成果，点击右上角「新增成果」开始记录</div></td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="pager">
-            <button class="btn btn-sm" :disabled="page <= 1" @click="page--; load()">上一页</button>
-            <span>第 {{ page }} / {{ totalPages || 1 }} 页</span>
-            <button class="btn btn-sm" :disabled="page >= totalPages" @click="page++; load()">下一页</button>
-            <span>共 {{ total }} 条</span>
-          </div>
+      <div class="tbl-wrap">
+        <table v-resizable-columns="{ min: 48 }" v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
+          <thead>
+            <tr>
+              <th data-sort="type">类型</th>
+              <th data-sort="title">成果名称</th>
+              <th data-sort="venue">发表载体</th>
+              <th data-sort="publishDate">日期</th>
+              <th data-sort="status">状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in list" :key="row.id" @click="openDetail(row)">
+              <td>{{ row.typeLabel }}</td>
+              <td class="ellipsis" style="max-width: 280px">{{ row.title }}</td>
+              <td class="ellipsis" style="max-width: 200px">{{ row.venue || '-' }}</td>
+              <td>{{ row.publishDate || '-' }}</td>
+              <td><span :class="statusTag(row.status)">{{ statusLabel(row.status) }}</span></td>
+            </tr>
+            <tr v-if="list.length === 0">
+              <td colspan="5"><div class="empty">暂无成果，点击右上角「新增成果」开始记录</div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="pager">
+          <button class="btn btn-sm" :disabled="page <= 1" @click="page--; load()">上一页</button>
+          <span>第 {{ page }} / {{ totalPages || 1 }} 页</span>
+          <button class="btn btn-sm" :disabled="page >= totalPages" @click="page++; load()">下一页</button>
+          <span>共 {{ total }} 条</span>
         </div>
       </div>
     </template>
@@ -166,9 +164,8 @@ useAutoRefresh(refreshAll)
 
 <style scoped>
 .page-actions { margin-left: auto; display: flex; gap: 10px; }
-.ach-table { padding: 10px; }
-.ach-table tr { cursor: pointer; }
-.ach-table tr:hover td { background: var(--bg-hover, #f3f4f6); }
+.tbl-wrap tr { cursor: pointer; }
+.tbl-wrap tr:hover td { background: var(--bg-hover, #f3f4f6); }
 .ach-overview {
   display: flex;
   gap: 22px;

@@ -132,18 +132,19 @@ class UserRepository extends BaseRepository {
     }
     if (filters.groupId) conditions.push({ field: 'group_id', op: '=', value: Number(filters.groupId) })
     if (filters.mentorId) conditions.push({ field: 'mentor_id', op: '=', value: Number(filters.mentorId) })
+    if (filters.degree) conditions.push({ field: 'degree', op: 'LIKE', value: `%${String(filters.degree).trim()}%` })
     if (filters.unassigned) conditions.push({ field: 'group_id', op: 'IS NULL', value: true })
     // 联表场景统一加 u. 前缀：groups 表存在 id/status/created_at 等同名列，避免歧义
     const { clause, values } = buildWhereClause(conditions, 'u')
 
-    // 关键字（账号/真实姓名模糊）需与前缀条件 OR 连接：
+    // 关键字（账号/真实姓名/学号模糊）需与前缀条件 OR 连接：
     // 无前缀条件时以 WHERE 开头，有前缀条件时以 AND 衔接
     let keywordClause = ''
     let keywordValues = []
     if (filters.keyword && String(filters.keyword).trim()) {
       const kw = `%${String(filters.keyword).trim()}%`
-      keywordClause = (clause ? ' AND ' : 'WHERE ') + '(u.username LIKE ? OR u.real_name LIKE ?)'
-      keywordValues = [kw, kw]
+      keywordClause = (clause ? ' AND ' : 'WHERE ') + '(u.username LIKE ? OR u.real_name LIKE ? OR u.user_no LIKE ?)'
+      keywordValues = [kw, kw, kw]
     }
 
     const countSql = `SELECT COUNT(*) AS total FROM \`users\` u ${clause} ${keywordClause}`

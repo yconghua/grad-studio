@@ -487,13 +487,15 @@ async function statOne(s, today) {
 }
 
 // 学生分页列表：与其他列表统一（每页 8 条，后端分页+排序），返回 { list, total, page, pageSize, totalPages }
-async function stats({ groupId, page, pageSize, sortField, sortOrder }, viewer) {
+async function stats({ groupId, keyword, degree, page, pageSize, sortField, sortOrder }, viewer) {
   const me = await currentUser()
   const scopeGroup = await resolveScope(groupId, me)
-  // 学生清单分页（组为空 = 全部学生）
+  // 学生清单分页（组为空 = 全部学生）；keyword/degree 在 repository 内过滤
   const { list, total, page: curPage, pageSize: size, totalPages } = await userRepository.pagedList({
     roles: [ROLE_STUDENT],
     groupId: scopeGroup ? scopeGroup.id : undefined,
+    keyword,
+    degree,
     page,
     pageSize,
     sortField,
@@ -514,13 +516,26 @@ async function stats({ groupId, page, pageSize, sortField, sortOrder }, viewer) 
 }
 
 // 全量统计摘要（顶部统计卡用）：范围学生数 / 平均完成率 / 逾期节点总数。
+// 支持 keyword/degree 过滤（与列表同一筛选口径，统计卡随筛选变化）。
 // 只在本页加载、切换范围或数据变化时调用一次（聚合全量学生，按 20 人一批并发）
-async function statsSummary({ groupId }, viewer) {
+async function statsSummary({ groupId, keyword, degree }, viewer) {
   const me = await currentUser()
   const scopeGroup = await resolveScope(groupId, me)
-  const students = scopeGroup
+  let students = scopeGroup
     ? await userRepository.listAllStudentsOfGroup(scopeGroup.id)
     : await userRepository.listAllStudents()
+  if (keyword && String(keyword).trim()) {
+    const kw = String(keyword).trim().toLowerCase()
+    students = students.filter(
+      (s) =>
+        String(s.username || '').toLowerCase().includes(kw) ||
+        String(s.real_name || '').toLowerCase().includes(kw) ||
+        String(s.user_no || '').toLowerCase().includes(kw)
+    )
+  }
+  if (degree) {
+    students = students.filter((s) => s.degree === degree)
+  }
   const today = fmtDate(new Date())
 
   const out = []

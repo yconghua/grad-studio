@@ -7,41 +7,40 @@
       </div>
     </div>
 
-    <div class="card mt-toolbar">
-      <div class="mt-search">
-        <input v-model="keyword" class="input" style="width: 240px" placeholder="用户名 / 真实姓名" @keyup.enter="search" />
-        <button class="btn btn-sm" @click="search">搜索</button>
-      </div>
-      <span class="mt-count">共 {{ total }} 名学生</span>
+    <!-- 筛选区：查询 / 重置（与用户管理等页面统一） -->
+    <div class="toolbar">
+      <input v-model="keyword" class="input" style="width: 220px" placeholder="学生姓名 / 学号 / 用户名" @keyup.enter="search" />
+      <button class="btn btn-primary" @click="search">查询</button>
+      <button class="btn" @click="reset">重置</button>
+      <div class="spacer"></div>
+      <span style="font-size: 13px; color: var(--text-2)">共 <b>{{ total }}</b> 人</span>
     </div>
 
-    <div class="card mt-table">
-      <div class="tbl-wrap">
-        <table v-resizable-columns="{ min: 48 }" v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
-          <thead>
-            <tr>
-              <th data-sort="realName">学生</th>
-              <th data-sort="userNo">学号</th>
-              <th data-sort="degree">类型</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="s in list" :key="s.id" @click="openDetail(s.id)">
-              <td class="ellipsis">{{ s.realName || s.username }}</td>
-              <td class="ellipsis">{{ s.userNo || '-' }}</td>
-              <td>{{ labelOfDegree(s.degree) }}</td>
-            </tr>
-            <tr v-if="list.length === 0">
-              <td colspan="3"><div class="empty">暂无名下学生</div></td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="pager">
-          <button class="btn btn-sm" :disabled="page <= 1" @click="page--; load()">上一页</button>
-          <span>第 {{ page }} / {{ totalPages || 1 }} 页</span>
-          <button class="btn btn-sm" :disabled="page >= totalPages" @click="page++; load()">下一页</button>
-          <span>共 {{ total }} 人</span>
-        </div>
+    <div class="tbl-wrap">
+      <table v-resizable-columns="{ min: 48 }" v-sortable-columns="{ field: sortField, order: sortOrder, onSort }" class="tbl">
+        <thead>
+          <tr>
+            <th data-sort="realName">学生</th>
+            <th data-sort="userNo">学号</th>
+            <th data-sort="degree">类型</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in list" :key="s.id" @click="openDetail(s.id)">
+            <td class="ellipsis">{{ s.realName || s.username }}</td>
+            <td class="ellipsis">{{ s.userNo || '-' }}</td>
+            <td>{{ labelOfDegree(s.degree) }}</td>
+          </tr>
+          <tr v-if="list.length === 0">
+            <td colspan="3"><div class="empty">暂无名下学生</div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pager">
+        <button class="btn btn-sm" :disabled="page <= 1" @click="page--; load()">上一页</button>
+        <span>第 {{ page }} / {{ totalPages || 1 }} 页</span>
+        <button class="btn btn-sm" :disabled="page >= totalPages" @click="page++; load()">下一页</button>
+        <span>共 {{ total }} 人</span>
       </div>
     </div>
 
@@ -99,6 +98,12 @@ function search() {
   page.value = 1
   load()
 }
+// 重置：清空筛选并回到第一页
+function reset() {
+  keyword.value = ''
+  page.value = 1
+  load()
+}
 // 表头排序：回到第一页并重新加载（与其他列表一致）
 function onSort(field, order) {
   sortField.value = field
@@ -117,17 +122,6 @@ useAutoRefresh(load)
 </script>
 
 <style scoped>
-.mt-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-  padding: 12px 18px;
-}
-.mt-search { display: flex; gap: 8px; }
-.mt-count { margin-left: auto; font-size: 13px; color: var(--text-2, #6b7280); }
-.mt-table { padding: 10px; }
-.mt-table tr { cursor: pointer; }
-.mt-table tr:hover td { background: var(--bg-hover, #f3f4f6); }
+.tbl-wrap tr { cursor: pointer; }
+.tbl-wrap tr:hover td { background: var(--bg-hover, #f3f4f6); }
 </style>
