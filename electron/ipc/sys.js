@@ -18,6 +18,8 @@ const dbStatusService = require('../services/dbStatusService')
 const authService = require('../services/authService')
 const systemService = require('../services/systemService')
 const autoLaunchService = require('../services/autoLaunchService')
+// 程序名称单一来源：package.json productName（与 main.js 窗口标题 / 托盘、system:info 同源）
+const appPkg = require('../../package.json')
 
 // 默认系统名称（system_configs 参数缺失时回退）
 const DEFAULT_APP_NAME = '千兆中心'
@@ -80,7 +82,17 @@ function register(ipcMain) {
     } catch (err) {
       // 数据库未连接 / 表不存在时静默回退默认值
     }
-    return { success: true, code: 0, message: 'success', appName, defaultTheme, version, introduction, fontScale }
+    return {
+      success: true,
+      code: 0,
+      message: 'success',
+      appName,
+      programName: (appPkg.build && appPkg.build.productName) || appPkg.name,
+      defaultTheme,
+      version,
+      introduction,
+      fontScale
+    }
   })
 
   // 当前生效数据库信息 + 实时连接状态（SELECT 1 探活）；不要求登录，供登录页「数据库」展示

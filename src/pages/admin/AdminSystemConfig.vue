@@ -12,6 +12,7 @@
       <p class="panel-title">系统信息</p>
       <div class="desc-list">
         <div class="row"><span class="k">系统名称</span><span class="v">{{ info.name }}</span></div>
+        <div class="row"><span class="k">程序名称</span><span class="v">{{ info.programName || '-' }}</span></div>
         <div class="row"><span class="k">版本号</span><span class="v">v{{ info.version }}</span></div>
         <div class="row"><span class="k">运行环境</span><span class="v">{{ info.environment }}</span></div>
         <div class="row"><span class="k">服务器时间</span><span class="v">{{ info.serverTime }}</span></div>

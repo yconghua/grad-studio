@@ -1,10 +1,11 @@
-// 全局平台名称：从后端 system_param.app_name 读取，未配置时回退默认值。
+// 全局平台名称：从后端 sys:get-public-info 读取（system_configs 的系统名称），未配置/请求失败时回退默认值。
+// 默认值与后端 systemService / ipc sys 的 DEFAULT_APP_NAME 保持一致（千兆中心），避免前后端兜底不一致。
 // 单例 reactive，所有页面共享；超管在系统参数保存后调 refreshAppName() 即时刷新。
 import { reactive, computed } from 'vue'
 import { getPublicInfo } from '../api'
 
 const state = reactive({
-  appName: '小组管理平台',
+  appName: '千兆中心',
   loaded: false
 })
 

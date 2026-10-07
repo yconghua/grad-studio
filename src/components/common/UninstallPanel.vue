@@ -3,7 +3,7 @@
     <div class="panel-head"><span class="panel-title">卸载程序</span></div>
     <div class="uninstall-row">
       <div class="uninstall-info">
-        <p class="uninstall-title">卸载 Grad Studio</p>
+        <p class="uninstall-title">卸载 {{ programName || '程序' }}</p>
         <p class="uninstall-sub">
           {{ available
             ? '卸载并删除本程序（安装目录内文件）。你的数据（账号记忆、缓存、业务数据）将保留，不会一并删除。'
@@ -17,6 +17,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { getPublicInfo } from '../../api'
 import { dialogConfirm } from '../../composables/useDialog'
 import { showToast } from '../../composables/useToast'
 
@@ -24,6 +25,8 @@ import { showToast } from '../../composables/useToast'
 // 卸载只删安装目录文件，用户数据（记住我/缓存/业务数据）保留；
 // 开发模式（npm run dev）下无卸载器，按钮置灰，不提供伪卸载避免误删开发目录
 const available = ref(false)
+// 程序名称从后端公开信息动态获取（package.json productName），不写死
+const programName = ref('')
 
 onMounted(async () => {
   try {
@@ -31,6 +34,12 @@ onMounted(async () => {
     if (res && res.success) available.value = !!res.available
   } catch (e) {
     // 探测失败保持禁用
+  }
+  try {
+    const res = await getPublicInfo()
+    if (res && res.success && res.programName) programName.value = res.programName
+  } catch (e) {
+    // 获取失败保留占位文案
   }
 })
 

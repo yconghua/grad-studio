@@ -235,6 +235,7 @@ function onEditDb(conn) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -245,14 +246,19 @@ function onEditDb(conn) {
   background: var(--primary-soft);
 }
 .conn-main {
-  width: 300px;
+  flex: 1;
+  min-width: 0;
 }
 .conn-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .conn-badge {
+  flex-shrink: 0;
   margin-left: 8px;
   padding: 1px 8px;
   border-radius: var(--radius-lg);
@@ -265,10 +271,14 @@ function onEditDb(conn) {
   font-size: 12px;
   color: var(--muted);
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-/* 操作按钮组：整体靠右（配合 .conn-item 的 space-between，信息靠左、按钮靠右） */
+/* 操作按钮组：整体靠右、不随名称长度压缩，三个按钮始终一行；文字不换行 */
 .conn-actions {
   display: flex;
+  flex-shrink: 0;
   gap: 10px;
 }
 .conn-switch {
@@ -279,6 +289,7 @@ function onEditDb(conn) {
   background: var(--primary);
   color: var(--on-accent);
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
   transition: opacity 0.2s;
 }
@@ -297,6 +308,7 @@ function onEditDb(conn) {
   background: var(--bg-card);
   color: var(--danger);
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -311,6 +323,7 @@ function onEditDb(conn) {
   background: var(--bg-card);
   color: var(--text-2-strong);
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.2s;
 }

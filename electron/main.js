@@ -19,6 +19,9 @@ const { app, BrowserWindow, Menu, ipcMain, shell, nativeImage, protocol, net, Tr
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
+// 程序名称单一来源：package.json productName（与安装包产物名、system:info 的 programName 同源）
+const appPkg = require('../package.json')
+const PROGRAM_NAME = (appPkg.build && appPkg.build.productName) || appPkg.name
 // 连接服务：启动时调用 init() 加载连接清单并注入连接池
 const connectionService = require('./services/connectionService')
 // 免密票据服务：启动时初始化密钥与票据（登录后切换账号用）
@@ -76,7 +79,7 @@ function createWindow() {
     show: false,
     icon: resolveIcon(),
     // 任务栏按钮显示的应用名；页面 <title> 更新被下方 page-title-updated 拦截，不会覆盖此值
-    title: 'Grad Studio',
+    title: PROGRAM_NAME,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -217,7 +220,7 @@ function rebuildTrayMenu() {
   const iconPath = resolveIcon()
   if (!iconPath) return
   if (!tray) tray = new Tray(nativeImage.createFromPath(iconPath))
-  tray.setToolTip('Grad Studio')
+  tray.setToolTip(PROGRAM_NAME)
   tray.setContextMenu(buildTrayMenu())
 }
 

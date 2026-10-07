@@ -92,6 +92,7 @@ async function getInfo() {
   }
   return {
     name,
+    programName: (appPkg.build && appPkg.build.productName) || appPkg.name,
     version: appPkg.version,
     environment: app.isPackaged ? 'production' : 'development',
     serverTime: formatDate(Date.now()),

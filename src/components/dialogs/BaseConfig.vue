@@ -10,7 +10,7 @@
         <div class="sys-info-list">
           <div class="sys-info-row">
             <span class="sys-info-key">系统名称</span>
-            <span class="sys-info-val">{{ sysName }}</span>
+            <span class="sys-info-val">{{ sysName || '—' }}</span>
           </div>
           <div class="sys-info-row">
             <span class="sys-info-key">版本号</span>
@@ -34,10 +34,10 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { getDbInfo } from '../../api'
+import { getDbInfo, getPublicInfo } from '../../api'
 import pkg from '../../../package.json'
 
-// 基础配置弹窗（从登录页抽离）：自持「程序名称 / 版本号 / 当前数据库」展示
+// 基础配置弹窗（从登录页抽离）：自持「系统名称 / 版本号 / 当前数据库」展示
 // 父组件通过 visible 控制显隐；切换数据库后由父组件 bump refreshKey 触发刷新。
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -46,12 +46,23 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'switch-db'])
 
-// 程序名称 / 版本号：实时读取 package.json（非前端写死；改 package.json 后重新构建即生效）
-const sysName = (pkg.build && pkg.build.productName) || pkg.name
+// 系统名称：从 sys:get-public-info 读取（system_configs 系统名称，未登录即可读）；
+// 读取失败显示占位符，不使用程序名顶替；版本号：实时读取 package.json（改后重新构建即生效）
+const sysName = ref('')
 const sysVersion = pkg.version
 // 当前数据库：打开弹窗时直接从后端读取（后端已放开登录守卫，无需登录即可显示）
 const dbName = ref('')
 const dbStatus = ref('')
+
+// 读取系统名称（与登录页品牌名同源：system_configs.system.name）
+async function loadSysName() {
+  try {
+    const res = await getPublicInfo()
+    if (res && res.success && res.appName) sysName.value = res.appName
+  } catch (e) {
+    // 读取失败保持占位符，不影响弹窗使用
+  }
+}
 
 async function loadDbInfo() {
   dbName.value = '加载中…'
@@ -73,7 +84,10 @@ async function loadDbInfo() {
 watch(
   () => props.visible,
   (v) => {
-    if (v) loadDbInfo()
+    if (v) {
+      loadSysName()
+      loadDbInfo()
+    }
   }
 )
 watch(
