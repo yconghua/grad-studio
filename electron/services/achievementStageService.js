@@ -35,19 +35,17 @@ async function currentUser() {
 }
 
 // 用户当前有效课题组（未入组返回 null；返回完整组行含 name）。
-// 绑定机制按角色分流：组管绑定存于 groups.admin_user_id；导师/学生走活跃组关系。
+// 与学业档案 academicService.groupOf 完全一致：组管直接按 groups.admin_user_id 返回，
+// 导师/学生走活跃组关系；不在本层追加 is_deleted 过滤（否则返回形态差异会导致误判未绑定）。
 async function groupOf(userId) {
   const u = await userRepository.findById(Number(userId))
   if (!u) return null
-  let ref = null
   if (u.role === ROLE_GROUP_ADMIN) {
-    ref = await groupRepository.findByAdminUserId(u.id)
-  } else {
-    ref = await userRepository.findActiveGroupOfUser(u.id)
-    if (!ref) return null
-    return await groupRepository.findById(ref.group_id)
+    return await groupRepository.findByAdminUserId(u.id)
   }
-  return ref && ref.is_deleted === 0 ? ref : null
+  const ref = await userRepository.findActiveGroupOfUser(u.id)
+  if (!ref) return null
+  return await groupRepository.findById(ref.group_id)
 }
 
 // 日期格式化（空/非法返回 null）
