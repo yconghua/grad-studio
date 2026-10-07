@@ -218,7 +218,9 @@ function buildTrayMenu() {
   template.push({
     label: fitTrayLabel(`开机启动：${launch.enabled ? '已开启' : '已关闭'}`),
     click: () => {
-      autoLaunchService.setEnabled(!launch.enabled).then(() => rebuildTrayMenu())
+      // setEnabled 为同步调用（返回状态对象），直接切换后重建菜单
+      autoLaunchService.setEnabled(!launch.enabled)
+      rebuildTrayMenu()
     }
   })
   template.push({ label: fitTrayLabel(`当前版本：v${app.getVersion()}`), enabled: false })
