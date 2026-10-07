@@ -31,6 +31,7 @@ const reportAttachmentRepository = require('../db/repositories/reportAttachmentR
 const reportConfigRepository = require('../db/repositories/reportConfigRepository')
 // 学业档案清理：删除用户时级联软删档案记录并清理附件文件
 const academicService = require('./academicService')
+const achievementService = require('./achievementService')
 const { runTransaction } = require('../db/connection')
 const {
   ROLE_SUPER_ADMIN,
@@ -531,6 +532,7 @@ async function deleteUser(id) {
     await notificationService.purgeByUserDelete(idNum)
     // 学业档案清理：级联软删记录并清理附件文件（用户删除事务内）
     await academicService.deleteByUser(idNum)
+    await achievementService.deleteByUser(idNum)
     // 笔记数据清理：物理删除该用户全部笔记（含回收站）
     await noteRepository.deleteByUser(idNum)
     // 任务数据清理：先删其创建的任务（子表→主表），再清其参与/操作/提醒记录

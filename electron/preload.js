@@ -372,5 +372,20 @@ contextBridge.exposeInMainWorld('api', {
     stats: createInvoke('academic:stats'),
     statsSummary: createInvoke('academic:stats-summary'),
     export: createInvoke('academic:export')
+  },
+
+  // 学生科研成果（对应 ipc/achievement.js，通道前缀 achievement:*）
+  achievement: {
+    stats: createInvoke('achievement:stats'),
+    statsSummary: createInvoke('achievement:stats-summary'),
+    save: createInvoke('achievement:save'),
+    submit: createInvoke('achievement:submit'),
+    confirm: createInvoke('achievement:confirm'),
+    return: createInvoke('achievement:return'),
+    batchConfirm: createInvoke('achievement:batch-confirm'),
+    batchConfirmAll: createInvoke('achievement:batch-confirm-all'),
+    remove: createInvoke('achievement:remove'),
+    exportDocx: createInvoke('achievement:export-docx'),
+    exportXlsx: createInvoke('achievement:export-xlsx')
   }
 })
