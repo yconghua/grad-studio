@@ -168,6 +168,21 @@ function trayShowWindow(win) {
   win.focus()
 }
 
+// 托盘菜单 label 宽度控制：按显示宽度截断（中文全角=2、ASCII=1），
+// 动态文本（账号、数据库连接名）超长时截断加省略号，保证菜单宽度固定不撑宽
+const MAX_TRAY_LABEL_WIDTH = 20 // 半角单位，约 10 个中文字符
+function labelDisplayWidth(text) {
+  let w = 0
+  for (const ch of text) w += ch.charCodeAt(0) > 255 ? 2 : 1
+  return w
+}
+function fitTrayLabel(text) {
+  if (labelDisplayWidth(text) <= MAX_TRAY_LABEL_WIDTH) return text
+  let s = text
+  while (s.length && labelDisplayWidth(`${s}…`) > MAX_TRAY_LABEL_WIDTH) s = s.slice(0, -1)
+  return `${s}…`
+}
+
 // 构建托盘右键菜单（每次调用都读最新状态：登录账号 / 数据库连接 / 开机自启 / 版本号）
 // 数据库未连接时可点击 → 显示主窗口并通知登录页打开「基础配置」弹窗
 function buildTrayMenu() {
@@ -176,19 +191,20 @@ function buildTrayMenu() {
   const db = dbStatusService.getStatus()
   const launch = autoLaunchService.getStatus()
   const template = []
-  // 已登录：账号行（姓名（账户名）），仅展示
+  // 已登录：账号行（姓名（账户名）），仅展示；超长截断避免菜单过宽
   if (user) {
-    template.push({ label: `当前账号：${user.realName || user.username}（${user.username}）`, enabled: false })
+    template.push({ label: fitTrayLabel(`当前账号：${user.realName || user.username}（${user.username}）`), enabled: false })
   }
-  template.push({ label: '显示主窗口', click: () => trayShowWindow(win) })
+  template.push({ label: fitTrayLabel('显示主窗口'), click: () => trayShowWindow(win) })
   template.push({ type: 'separator' })
   // 数据库状态：未连接时可点击 → 显示主窗口并打开登录页基础配置弹窗
   if (db.connected) {
     const activeName = connectionService.getActiveName()
-    template.push({ label: activeName ? `数据库：已连接（${activeName}）` : '数据库：已连接', enabled: false })
+    // 连接名过长时截断展示（不显示全名），避免菜单被撑宽
+    template.push({ label: fitTrayLabel(activeName ? `数据库：已连接（${activeName}）` : '数据库：已连接'), enabled: false })
   } else {
     template.push({
-      label: '数据库：未连接（点击配置）',
+      label: fitTrayLabel('数据库：未连接（配置）'),
       click: () => {
         trayShowWindow(win)
         if (win && !win.isDestroyed()) win.webContents.send('tray:open-db-config')
@@ -196,16 +212,17 @@ function buildTrayMenu() {
     })
   }
   template.push({ type: 'separator' })
+  // 开机启动：用普通项 + 文字状态（不用 checkbox 类型，避免左侧复选框留白撑宽菜单）
   template.push({
-    label: '开机启动',
-    type: 'checkbox',
-    checked: !!launch.enabled,
-    click: (item) => autoLaunchService.setEnabled(!!item.checked)
+    label: fitTrayLabel(`开机启动：${launch.enabled ? '已开启' : '已关闭'}`),
+    click: () => {
+      autoLaunchService.setEnabled(!launch.enabled).then(() => rebuildTrayMenu())
+    }
   })
-  template.push({ label: `当前版本：v${app.getVersion()}`, enabled: false })
+  template.push({ label: fitTrayLabel(`当前版本：v${app.getVersion()}`), enabled: false })
   template.push({ type: 'separator' })
   template.push({
-    label: '退出',
+    label: fitTrayLabel('退出'),
     click: () => {
       // 菜单点击即为明确退出意图，置位后放行 close，不再二次确认
       isQuitting = true
