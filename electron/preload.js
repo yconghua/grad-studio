@@ -329,6 +329,12 @@ contextBridge.exposeInMainWorld('api', {
       const listener = (_evt, data) => cb(data)
       ipcRenderer.on('db:status-changed', listener)
       return () => ipcRenderer.removeListener('db:status-changed', listener)
+    },
+    // 托盘菜单点击「数据库：未连接（点击配置）」时触发；返回取消订阅函数
+    onTrayOpenDbConfig: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('tray:open-db-config', listener)
+      return () => ipcRenderer.removeListener('tray:open-db-config', listener)
     }
   },
   // 窗口控制（对应 ipc/win.js，通道前缀 win:*）：无边框窗口标题栏按钮用

@@ -75,9 +75,10 @@ function withLogging(ipcMain) {
 }
 
 // 注册全部 IPC 路由（统一走带日志的包装）
-function registerAll(ipcMain) {
+// deps：主进程注入的依赖（如 { rebuildTray }——登录/登出后重建托盘菜单）
+function registerAll(ipcMain, deps = {}) {
   const logger = withLogging(ipcMain)
-  authRoutes.register(logger)
+  authRoutes.register(logger, deps)
   userRoutes.register(logger)
   groupRoutes.register(logger)
   noticeRoutes.register(logger)

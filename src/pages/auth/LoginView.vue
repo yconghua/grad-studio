@@ -272,7 +272,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import QRCode from 'qrcode'
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
-import { login, getCaptcha, getScanQr, scanStatus, scanCancel, deleteDb, getDbInfo, getDbStatus, onDbStatusChanged, getPublicInfo, remember, getRemembered, forgetRemembered } from '../../api'
+import { login, getCaptcha, getScanQr, scanStatus, scanCancel, deleteDb, getDbInfo, getDbStatus, onDbStatusChanged, onTrayOpenDbConfig, getPublicInfo, remember, getRemembered, forgetRemembered } from '../../api'
 import { useSession } from '../../composables/useSession'
 import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
@@ -316,6 +316,8 @@ const dbConnected = ref(true)
 const dbBannerMsg = ref('')
 // 数据库状态变化订阅句柄（onUnmounted 退订）
 let unsubscribeDbStatus = null
+// 托盘菜单「数据库：未连接（点击配置）」订阅句柄（onUnmounted 退订）
+let unsubscribeTrayDbConfig = null
 // 密码显示/隐藏（眼睛图标切换，不改变输入内容）
 const showPassword = ref(false)
 // 账号锁定倒计时（毫秒）：>0 时锁定登录按钮并每秒刷新剩余时间
@@ -560,6 +562,7 @@ onUnmounted(() => {
   stopScanPolling()
   stopLockCountdown()
   if (unsubscribeDbStatus) unsubscribeDbStatus()
+  if (unsubscribeTrayDbConfig) unsubscribeTrayDbConfig()
   window.removeEventListener('online', onNetworkOnline)
   window.removeEventListener('offline', onNetworkOffline)
   if (scanTicket.value && !scanSucceeded) {
@@ -763,6 +766,10 @@ onMounted(() => {
   unsubscribeDbStatus = onDbStatusChanged(({ connected, message }) => {
     dbConnected.value = !!connected
     dbBannerMsg.value = connected ? '' : (message || '')
+  })
+  // 托盘菜单「数据库：未连接（点击配置）」：打开基础配置弹窗
+  unsubscribeTrayDbConfig = onTrayOpenDbConfig(() => {
+    showBaseConfig.value = true
   })
   // 网络切换感知：离线提示，恢复后自动刷新二维码
   window.addEventListener('online', onNetworkOnline)

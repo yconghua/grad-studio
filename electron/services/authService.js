@@ -270,4 +270,9 @@ async function changePassword({ username, oldPassword, newPassword, confirmPassw
   return true
 }
 
-module.exports = { login, loginByCredentials, logout, switchByTicket, getCurrentUser, isAdmin, changePassword, toSafeUser }
+// 同步读取当前登录用户快照（不查库）：供主进程托盘菜单等同步构建场景使用
+function getCachedUser() {
+  return currentUser
+}
+
+module.exports = { login, loginByCredentials, logout, switchByTicket, getCurrentUser, getCachedUser, isAdmin, changePassword, toSafeUser }

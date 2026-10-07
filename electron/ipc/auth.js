@@ -12,7 +12,10 @@ const rememberService = require('../services/rememberService')
 const ApiError = require('../services/apiError')
 const { handler } = require('./helper')
 
-function register(ipcMain) {
+function register(ipcMain, deps = {}) {
+  // 登录态变化后重建托盘菜单（主进程注入的回调，可能未提供——如单测环境）
+  const rebuildTray = deps.rebuildTray || (() => {})
+
   // 获取图形验证码：返回 { captchaId, svg }，答案仅存主进程内存
   ipcMain.handle('auth:captcha', handler(() => captchaService.create()))
 
@@ -27,8 +30,12 @@ function register(ipcMain) {
   ipcMain.handle('auth:scan-cancel', handler((_evt, payload) =>
     scanLoginService.cancel(payload && payload.ticket, payload && payload.baseUrl)))
 
-  // 登录校验（用户名/密码区分大小写；连续失败后需带验证码）
-  ipcMain.handle('auth:login', handler((_evt, payload) => authService.login(payload || {})))
+  // 登录校验（用户名/密码区分大小写；连续失败后需带验证码）；成功后重建托盘菜单显示账号
+  ipcMain.handle('auth:login', handler(async (_evt, payload) => {
+    const res = await authService.login(payload || {})
+    if (res && res.user) rebuildTray()
+    return res
+  }))
 
   // 记住我：登录成功且勾选时，加密保存账号密码（7 天有效，登录页自动回填免输入）
   ipcMain.handle('auth:remember', handler((_evt, payload) => {
@@ -45,13 +52,19 @@ function register(ipcMain) {
     return true
   }))
 
-  // 退出登录（清除登录态；不吊销免密票据）
-  ipcMain.handle('auth:logout', handler(() => authService.logout()))
+  // 退出登录（清除登录态；不吊销免密票据）；成功后重建托盘菜单为未登录版
+  ipcMain.handle('auth:logout', handler(() => {
+    const res = authService.logout()
+    rebuildTray()
+    return res
+  }))
 
-  // 切换账号（免密票据）：主进程内部强制「先完整退出旧账号 → 再登录新账号」
-  ipcMain.handle('auth:switch-account', handler((_evt, payload) =>
-    authService.switchByTicket(payload && payload.username)
-  ))
+  // 切换账号（免密票据）：主进程内部强制「先完整退出旧账号 → 再登录新账号」；成功后重建托盘菜单
+  ipcMain.handle('auth:switch-account', handler(async (_evt, payload) => {
+    const res = await authService.switchByTicket(payload && payload.username)
+    if (res && res.user) rebuildTray()
+    return res
+  }))
 
   // 查询当前哪些历史账号有有效免密票据（不刷新、不影响状态）；需已登录
   ipcMain.handle('auth:ticket-status', handler(async () => {

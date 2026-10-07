@@ -13,6 +13,10 @@ export function getDbStatus() {
 export function onDbStatusChanged(cb) {
   return window.api.sys.onDbStatusChanged(cb)
 }
+// 托盘菜单「数据库：未连接（点击配置）」触发：登录页收到后打开基础配置弹窗
+export function onTrayOpenDbConfig(cb) {
+  return window.api.sys.onTrayOpenDbConfig(cb)
+}
 export function getDbConnections() {
   return window.api.sys.dbConnections()
 }

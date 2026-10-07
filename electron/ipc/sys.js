@@ -126,12 +126,15 @@ function register(ipcMain) {
   })
 
   // 切换当前生效连接。仅登录页（未登录）配置数据库时可用。
+  // 成功后立即触发一次探测：托盘菜单 / 登录页状态不等下一个 5s 周期即更新
   ipcMain.handle('sys:switch-db', async (_evt, payload) => {
     if (await authService.getCurrentUser()) {
       return { success: false, code: 403, message: '已登录状态下不可切换数据库连接，请退出登录后在登录页操作' }
     }
     try {
-      return await connectionService.switchConnection(payload && payload.id)
+      const res = await connectionService.switchConnection(payload && payload.id)
+      if (res && res.success) dbStatusService.refresh()
+      return res
     } catch (err) {
       console.error('[sys:switch-db] 未预期异常:', err)
       return { success: false, code: 500, message: '切换失败，请稍后重试' }
@@ -144,7 +147,9 @@ function register(ipcMain) {
       return { success: false, code: 403, message: '已登录状态下不可新增数据库连接，请退出登录后在登录页操作' }
     }
     try {
-      return await connectionService.add(payload || {})
+      const res = await connectionService.add(payload || {})
+      if (res && res.success) dbStatusService.refresh()
+      return res
     } catch (err) {
       console.error('[sys:add-db] 未预期异常:', err)
       return { success: false, code: 500, message: '添加失败，请稍后重试' }
@@ -157,7 +162,9 @@ function register(ipcMain) {
       return { success: false, code: 403, message: '已登录状态下不可导入数据库连接，请退出登录后在登录页操作' }
     }
     try {
-      return await connectionService.importMany(payload && payload.list)
+      const res = await connectionService.importMany(payload && payload.list)
+      if (res && res.success) dbStatusService.refresh()
+      return res
     } catch (err) {
       console.error('[sys:import-db] 未预期异常:', err)
       return { success: false, code: 500, message: '导入失败，请稍后重试' }
@@ -200,7 +207,9 @@ function register(ipcMain) {
       return { success: false, code: 403, message: '已登录状态下不可删除数据库连接，请退出登录后在登录页操作' }
     }
     try {
-      return await connectionService.remove(payload && payload.id)
+      const res = await connectionService.remove(payload && payload.id)
+      if (res && res.success) dbStatusService.refresh()
+      return res
     } catch (err) {
       console.error('[sys:delete-db] 未预期异常:', err)
       return { success: false, code: 500, message: '删除失败，请稍后重试' }
@@ -214,7 +223,9 @@ function register(ipcMain) {
     }
     try {
       const { id, data } = payload || {}
-      return await connectionService.update(id, data || {})
+      const res = await connectionService.update(id, data || {})
+      if (res && res.success) dbStatusService.refresh()
+      return res
     } catch (err) {
       console.error('[sys:update-db] 未预期异常:', err)
       return { success: false, code: 500, message: '编辑失败，请稍后重试' }

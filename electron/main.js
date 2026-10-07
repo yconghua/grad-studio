@@ -30,6 +30,9 @@ const reportScheduler = require('./services/reportScheduler')
 const dataVersionService = require('./services/dataVersionService')
 // 数据库连接状态：持续 SELECT 1 探测，未连接时登录页禁用登录表单（连接恢复自动解锁）
 const dbStatusService = require('./services/dbStatusService')
+// 登录会话 / 开机自启：托盘菜单动态展示账号与自启勾选
+const authService = require('./services/authService')
+const autoLaunchService = require('./services/autoLaunchService')
 // scan-server 独立进程管理器：扫码登录时按需拉起，应用退出时停止
 const scanServerManager = require('./services/scanServerManager')
 // 文件日志：启动时 hook console 落盘 userData/logs/main.log（含轮转），排查问题用
@@ -149,40 +152,85 @@ function createWindow() {
   return win
 }
 
-// 系统托盘：仅提供驻留入口与基础菜单，不做消息提示
+// 系统托盘：按登录态 / 数据库状态 / 开机自启状态动态重建右键菜单
+// 未登录：数据库状态 / 显示主窗口 / 开机启动 / 当前版本 / 退出
+// 已登录：额外显示「当前账号：姓名（账户名）」
+// 数据库未连接时点击该项 → 显示主窗口并通知登录页打开「基础配置」弹窗
 let tray = null
-function createTray(win) {
+
+function trayShowWindow(win) {
+  if (!win || win.isDestroyed()) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+// 构建托盘右键菜单（每次调用都读最新状态：登录账号 / 数据库连接 / 开机自启 / 版本号）
+// 数据库未连接时可点击 → 显示主窗口并通知登录页打开「基础配置」弹窗
+function buildTrayMenu() {
+  const win = BrowserWindow.getAllWindows()[0]
+  const user = authService.getCachedUser()
+  const db = dbStatusService.getStatus()
+  const launch = autoLaunchService.getStatus()
+  const template = []
+  // 已登录：账号行（姓名（账户名）），仅展示
+  if (user) {
+    template.push({ label: `当前账号：${user.realName || user.username}（${user.username}）`, enabled: false })
+  }
+  template.push({ label: '显示主窗口', click: () => trayShowWindow(win) })
+  template.push({ type: 'separator' })
+  // 数据库状态：未连接时可点击 → 显示主窗口并打开登录页基础配置弹窗
+  if (db.connected) {
+    const activeName = connectionService.getActiveName()
+    template.push({ label: activeName ? `数据库：已连接（${activeName}）` : '数据库：已连接', enabled: false })
+  } else {
+    template.push({
+      label: '数据库：未连接（点击配置）',
+      click: () => {
+        trayShowWindow(win)
+        if (win && !win.isDestroyed()) win.webContents.send('tray:open-db-config')
+      }
+    })
+  }
+  template.push({ type: 'separator' })
+  template.push({
+    label: '开机启动',
+    type: 'checkbox',
+    checked: !!launch.enabled,
+    click: (item) => autoLaunchService.setEnabled(!!item.checked)
+  })
+  template.push({ label: `当前版本：v${app.getVersion()}`, enabled: false })
+  template.push({ type: 'separator' })
+  template.push({
+    label: '退出',
+    click: () => {
+      // 菜单点击即为明确退出意图，置位后放行 close，不再二次确认
+      isQuitting = true
+      app.quit()
+    }
+  })
+  return Menu.buildFromTemplate(template)
+}
+
+// 同步刷新托盘已设置的菜单（登录/登出等事件时调用；右键时用 popUpContextMenu 手动弹出最新菜单，见 createTray）
+function rebuildTrayMenu() {
   const iconPath = resolveIcon()
   if (!iconPath) return
-  tray = new Tray(nativeImage.createFromPath(iconPath))
+  if (!tray) tray = new Tray(nativeImage.createFromPath(iconPath))
   tray.setToolTip('Grad Studio')
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      {
-        label: '显示主窗口',
-        click: () => {
-          if (win.isMinimized()) win.restore()
-          win.show()
-          win.focus()
-        }
-      },
-      { type: 'separator' },
-      {
-        label: '退出',
-        click: () => {
-          // 菜单点击即为明确退出意图，置位后放行 close，不再二次确认
-          isQuitting = true
-          app.quit()
-        }
-      }
-    ])
-  )
+  tray.setContextMenu(buildTrayMenu())
+}
+
+function createTray() {
+  rebuildTrayMenu()
   // 左键单击托盘：显示 / 恢复主窗口（已显示则聚焦）
-  tray.on('click', () => {
-    if (win.isMinimized()) win.restore()
-    win.show()
-    win.focus()
-  })
+  tray.on('click', () => trayShowWindow(BrowserWindow.getAllWindows()[0]))
+  // 每次右键手动弹出刚构建的菜单（Windows 上 setContextMenu 的缓存菜单不会在右键时自动更新，
+  // popUpContextMenu 保证弹出的菜单一定是最新状态——数据库连接状态实时反映）
+  tray.on('right-click', () => tray.popUpContextMenu(buildTrayMenu()))
+  // 数据库探测状态一变化即同步刷新缓存菜单：程序启动自检完成后（登录页药丸变绿的同时）、
+  // 运行中连接断开/恢复，托盘菜单都会实时跟上，不依赖用户右键
+  dbStatusService.onStatusChange(() => rebuildTrayMenu())
 }
 
 // 单实例锁：同一台电脑只允许运行一份程序；第二份启动时聚焦已有窗口后自动退出
@@ -218,8 +266,8 @@ if (!gotTheLock) {
     connectionService.init()
     // 初始化免密票据服务（加载本机密钥与票据表）
     ticketService.init()
-    // 注册全部 IPC 路由（auth: / sys: 等），渲染层即可通信
-    registerAll(require('electron').ipcMain)
+    // 注册全部 IPC 路由（auth: / sys: 等），渲染层即可通信；登录态变化时重建托盘菜单
+    registerAll(require('electron').ipcMain, { rebuildTray: () => rebuildTrayMenu() })
     // 启动任务定时扫描（数据库未配置时内部自动跳过）
     taskScheduler.start()
     // 启动周报定时提醒（未交 / 批阅超时 / 打回未改）
@@ -228,9 +276,9 @@ if (!gotTheLock) {
     dataVersionService.start()
     // 启动数据库连接探测（先于窗口创建，登录页挂载即可读到真实连接状态）
     dbStatusService.start()
-    // 创建窗口，并挂载系统托盘
+    // 创建窗口，并挂载系统托盘（初始为未登录菜单，登录后由 auth IPC 触发重建）
     const mainWin = createWindow()
-    createTray(mainWin)
+    createTray()
   })
 
   // 应用退出前停止定时扫描与扫码服务子进程

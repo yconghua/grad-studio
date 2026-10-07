@@ -20,6 +20,8 @@ const PROBE_INTERVAL_MS = 5000
 let timer = null
 // 当前状态：connected 是否连通 / message 失败原因（未配置 / 连接错误）
 let state = { connected: false, message: '' }
+// 状态变化回调（main.js 托盘菜单订阅：探测结果一变即同步刷新，无需等右键）
+let statusListener = null
 
 // 广播当前状态给所有打开的窗口
 function broadcast() {
@@ -27,6 +29,7 @@ function broadcast() {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.webContents.send('db:status-changed', payload)
   }
+  if (statusListener) statusListener(payload)
 }
 
 // 单轮探测：读取当前生效连接配置并 SELECT 1 探活，状态变化才广播
@@ -66,4 +69,17 @@ function getStatus() {
   return { connected: state.connected, message: state.message }
 }
 
-module.exports = { start, stop, getStatus }
+// 立即探测一次（连接增/删/切换后由 sys IPC 调用）：probe 内部状态变化时自动广播
+function refresh() {
+  probe()
+}
+
+// 订阅状态变化（探测发现连通/断开时触发；返回取消订阅函数）
+function onStatusChange(cb) {
+  statusListener = cb
+  return () => {
+    if (statusListener === cb) statusListener = null
+  }
+}
+
+module.exports = { start, stop, getStatus, refresh, onStatusChange }

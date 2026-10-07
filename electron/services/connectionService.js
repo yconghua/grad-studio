@@ -238,6 +238,12 @@ function getActiveMeta() {
   return { host: cfg.host, user: cfg.user, port: cfg.port, database: cfg.database }
 }
 
+// 返回当前生效连接的自定义名称（连接清单里的 name，如「本地开发库」）；未配置时返回空串
+function getActiveName() {
+  const c = connections.list.find((x) => x.id === connections.active)
+  return c ? c.name : ''
+}
+
 /**
  * 查看数据表：返回当前库所有表 + 每张表的字段（名 / 类型 / 主键标记）与精确行数。
  * 用 query()（文本协议）而非 execute()（预编译）：information_schema 视图在
@@ -652,6 +658,7 @@ module.exports = {
   init,
   ping,
   getActiveMeta,
+  getActiveName,
   getActiveConfig, // 透传连接层当前配置（sys:db-info 探活时用）
   getTablesInfo,
   exportDatabase,
