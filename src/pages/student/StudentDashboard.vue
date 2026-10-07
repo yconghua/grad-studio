@@ -27,6 +27,10 @@
         <div class="num danger">{{ taskSummary.overdue || 0 }}</div>
         <div class="label">逾期任务</div>
       </div>
+      <div class="stat-card clickable" @click="router.push('/student/academic')">
+        <div class="num">{{ academic ? progressPct + '%' : '—' }}</div>
+        <div class="label">学业档案进度{{ academic ? ' · ' + academic.summary.done + '/' + academic.summary.total : '' }}</div>
+      </div>
     </div>
 
     <!-- 行动区（左列）+ 动态区（右列） -->
@@ -143,6 +147,40 @@
       </div>
 
       <div class="col">
+        <!-- 学业档案进度 -->
+        <div class="panel">
+          <p class="panel-title">
+            学业档案进度
+            <span class="tip">点击进入时间线</span>
+            <span v-if="academic && academic.summary.done === academic.summary.total" class="list-badge">已完成</span>
+          </p>
+          <template v-if="academic">
+            <div class="item" @click="router.push('/student/academic')">
+              <div class="item-main">
+                <div class="item-title">{{ academic.stageTypeLabel || '培养中' }} · 完成率 {{ progressPct }}%</div>
+                <div class="ac-progress">
+                  <div class="ac-progress__bar" :style="{ width: progressPct + '%' }"></div>
+                </div>
+                <div class="item-sub">已完成 {{ academic.summary.done }} / {{ academic.summary.total }} 个节点</div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm" @click="router.push('/student/academic')">查看</button>
+              </div>
+            </div>
+            <div v-for="n in remindNodes" :key="n.nodeKey" class="item" @click="router.push('/student/academic')">
+              <div class="item-main">
+                <div class="item-title">{{ n.nodeName }}</div>
+                <div class="item-sub">{{ n.record && n.record.status === 'pending' ? '已填写，待提交确认' : '尚未填写' }}</div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm" @click="router.push('/student/academic')">{{ n.record && n.record.status === 'pending' ? '去提交' : '去填写' }}</button>
+              </div>
+            </div>
+            <div v-if="!remindNodes.length" class="panel-empty">全部学业节点已完成，无需处理</div>
+          </template>
+          <div v-else class="panel-empty">学业档案加载中…</div>
+        </div>
+
         <!-- 最新公告 -->
         <div class="panel">
           <p class="panel-title">
@@ -205,7 +243,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getCurrentUser, getRecentMeeting, getTaskSummary } from '../../api'
+import { getCurrentUser, getRecentMeeting, getTaskSummary, getAcademicRecords } from '../../api'
 import { reportMyWeek, reportListMine } from '../../api/report'
 import { listNotices, getNoticeUnreadCount } from '../../api/notice'
 import { getChatUnreadCount } from '../../api/chat'
@@ -229,7 +267,20 @@ const noticeUnread = ref(0)
 const chatUnread = ref(0)
 const notes = ref([])
 const noteTotal = ref(0)
+const academic = ref(null)
 const router = useRouter()
+
+// 学业档案完成率（0-100 整数）
+const progressPct = computed(() => {
+  const s = academic.value && academic.value.summary
+  if (!s || !s.total) return 0
+  return Math.round((s.done / s.total) * 100)
+})
+// 待处理节点提醒：未填写 / 已填写待提交（按时间线顺序）
+const remindNodes = computed(() => {
+  const nodes = (academic.value && academic.value.nodes) || []
+  return nodes.filter((n) => !n.record || n.record.status === 'pending')
+})
 
 function goNotifications() {
   router.push('/student/notifications')
@@ -257,7 +308,7 @@ function mentorText(u) {
 // 回库刷新，保证课题组 / 导师信息最新
 // 加载工作台全部数据（挂载时与数据变动时共用）
 async function refreshAll() {
-  const [u, w, m, t, n, nu, cu, ns] = await Promise.allSettled([
+  const [u, w, m, t, n, nu, cu, ns, ac] = await Promise.allSettled([
     getCurrentUser(),
     reportMyWeek(),
     reportListMine(1),
@@ -265,7 +316,8 @@ async function refreshAll() {
     listNotices({ page: 1 }),
     getNoticeUnreadCount(),
     getChatUnreadCount(),
-    listNotes({ page: 1 })
+    listNotes({ page: 1 }),
+    getAcademicRecords()
   ])
   if (u.status === 'fulfilled' && u.value && u.value.success) user.value = u.value.data
   if (w.status === 'fulfilled' && w.value && w.value.success) myWeek.value = w.value.data
@@ -278,6 +330,7 @@ async function refreshAll() {
     notes.value = (ns.value.data && ns.value.data.list) || []
     noteTotal.value = (ns.value.data && ns.value.data.total) || 0
   }
+  if (ac.status === 'fulfilled' && ac.value && ac.value.success) academic.value = ac.value.data
   const r = await getRecentMeeting()
   if (r && r.success) recentMeeting.value = r.data
 }
@@ -292,5 +345,19 @@ useAutoRefresh(refreshAll)
   margin-left: 8px;
   color: var(--primary);
   font-weight: 600;
+}
+.ac-progress {
+  width: 100%;
+  height: 8px;
+  margin: 6px 0 4px;
+  border-radius: 4px;
+  background: var(--line, #e5e7eb);
+  overflow: hidden;
+}
+.ac-progress__bar {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--primary, #2563eb);
+  transition: width 0.3s ease;
 }
 </style>
