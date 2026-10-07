@@ -490,7 +490,7 @@ watch(
   margin-bottom: 10px;
 }
 .preview-table {
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   border-collapse: collapse;
   font-size: 12px;
