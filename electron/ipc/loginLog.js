@@ -6,10 +6,20 @@
  */
 const loginLogService = require('../services/loginLogService')
 const authService = require('../services/authService')
+const ApiError = require('../services/apiError')
+const { handler } = require('./helper')
 const { ROLE_SUPER_ADMIN } = require('../../shared/constants')
 const { dialog, BrowserWindow, app } = require('electron')
 const fs = require('node:fs')
 const path = require('node:path')
+
+// 仅超级管理员（走 handler 包装的通道用：抛 ApiError，由 helper 统一转响应）
+async function requireSuperAdmin() {
+  const u = await authService.getCurrentUser()
+  if (!u) throw new ApiError('未登录，请重新登录', 401)
+  if (u.role !== ROLE_SUPER_ADMIN) throw new ApiError('无权限：仅超级管理员可执行此操作', 403)
+  return u
+}
 
 // 导出通道手写返回结构（不经 handler 包装，供渲染层直接判断 canceled/success）
 async function requireSuperAdminRaw() {
