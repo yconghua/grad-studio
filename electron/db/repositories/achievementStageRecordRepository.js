@@ -20,6 +20,16 @@ class AchievementStageRecordRepository extends BaseRepository {
     return rows
   }
 
+  // 批量取多成果的全部节点记录（导出用，一次往返）
+  async listByAchievements(ids) {
+    const arr = (ids || []).map(Number).filter((n) => n > 0)
+    if (!arr.length) return []
+    const sql =
+      `SELECT * FROM \`achievement_stage_records\` WHERE achievement_id IN (${arr.map(() => '?').join(',')}) ORDER BY achievement_id, node_key`
+    const [rows] = await this._execute(sql, arr, 'listByAchievements')
+    return rows
+  }
+
   // 按主键查记录（供查看/操作前校验归属）
   async findByIdWithOwner(id) {
     const sql = `SELECT * FROM \`achievement_stage_records\` WHERE id = ?`

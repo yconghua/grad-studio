@@ -380,9 +380,12 @@ async function exportDocx(userId, viewer) {
   const target = await assertCanManage(Number(targetId), me)
   const rows = await achievementRepository.listAll({ userId: Number(targetId) })
   const group = await groupOf(targetId)
+  // 每条成果附带节点时间进度（模板 × 节点记录合并）
+  const timelines = await achievementStageService.timelinesOf(rows)
+  const list = rows.map((r) => ({ ...toDto(r), timeline: timelines.get(Number(r.id)) || [] }))
   return buildAchievementDocx({
     user: { ...target, group_name: group ? group.name : '' },
-    list: rows.map(toDto)
+    list
   })
 }
 
@@ -391,9 +394,12 @@ async function exportXlsx({ groupId, type, status, keyword }, viewer) {
   const me = await currentUser()
   const scope = await resolveScope(me, groupId)
   const rows = await achievementRepository.listAll({ ...scope, type, status, keyword })
+  // 每条成果附带节点时间进度（模板 × 节点记录合并）
+  const timelines = await achievementStageService.timelinesOf(rows)
+  const list = rows.map((r) => ({ ...toDto(r), timeline: timelines.get(Number(r.id)) || [] }))
   return buildAchievementXlsx({
     label: scope.label,
-    list: rows.map(toDto)
+    list
   })
 }
 

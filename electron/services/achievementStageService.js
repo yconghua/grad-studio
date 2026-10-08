@@ -208,14 +208,11 @@ async function removeTemplate(id, viewer) {
 
 // ===== 成果时间线 =====
 
-// 某成果的时间进度：模板节点 × 节点记录合并（未填节点显示为待填写）
-async function recordsOf(achievementId, viewer) {
-  const me = await currentUser()
-  const row = await achievementRepository.findByIdWithOwner(Number(achievementId))
-  if (!row) throw new ApiError('成果不存在', 404)
-  await assertCanViewAchievement(row, me)
+// 某成果的时间进度数据（不校验权限，供详情与导出复用）：
+// 模板节点 × 节点记录合并（未填节点显示为待填写）
+async function timelineOf(row) {
   const nodes = await resolveStageNodes(row.group_id, row.type)
-  const records = await achievementStageRecordRepository.listByAchievement(Number(achievementId))
+  const records = await achievementStageRecordRepository.listByAchievement(Number(row.id))
   const byKey = new Map(records.map((r) => [r.node_key, r]))
   const timeline = nodes.map((t, idx) => {
     const rec = byKey.get(t.node_key)
@@ -237,6 +234,64 @@ async function recordsOf(achievementId, viewer) {
         : null
     }
   })
+  return timeline
+}
+
+// 批量时间进度（导出用）：一次取全部记录 + 按 (groupId,type) 缓存模板解析
+async function timelinesOf(rows) {
+  const out = new Map()
+  if (!rows || !rows.length) return out
+  const ids = rows.map((r) => Number(r.id))
+  const records = await achievementStageRecordRepository.listByAchievements(ids)
+  const byAch = new Map()
+  for (const rec of records) {
+    const k = Number(rec.achievement_id)
+    if (!byAch.has(k)) byAch.set(k, [])
+    byAch.get(k).push(rec)
+  }
+  const tplCache = new Map()
+  for (const row of rows) {
+    const key = `${row.group_id}|${row.type}`
+    if (!tplCache.has(key)) {
+      tplCache.set(key, await resolveStageNodes(row.group_id, row.type))
+    }
+    const nodes = tplCache.get(key)
+    const recs = byAch.get(Number(row.id)) || []
+    const byKey = new Map(recs.map((r) => [r.node_key, r]))
+    out.set(
+      Number(row.id),
+      nodes.map((t, idx) => {
+        const rec = byKey.get(t.node_key)
+        return {
+          sortOrder: idx + 1,
+          nodeKey: t.node_key,
+          nodeName: t.node_name,
+          record: rec
+            ? {
+                id: rec.id,
+                status: rec.status,
+                happenDate: fmtDate(rec.happen_date),
+                remark: rec.remark,
+                rejectReason: rec.reject_reason,
+                createdBy: Number(rec.created_by),
+                reviewedBy: rec.reviewed_by == null ? null : Number(rec.reviewed_by),
+                reviewedAt: rec.reviewed_at ? String(rec.reviewed_at).slice(0, 10) : null
+              }
+            : null
+        }
+      })
+    )
+  }
+  return out
+}
+
+// 某成果的时间进度：模板节点 × 节点记录合并（未填节点显示为待填写）
+async function recordsOf(achievementId, viewer) {
+  const me = await currentUser()
+  const row = await achievementRepository.findByIdWithOwner(Number(achievementId))
+  if (!row) throw new ApiError('成果不存在', 404)
+  await assertCanViewAchievement(row, me)
+  const timeline = await timelineOf(row)
   return {
     achievementId: Number(achievementId),
     type: row.type,
@@ -388,6 +443,7 @@ module.exports = {
   toggleTemplate,
   removeTemplate,
   recordsOf,
+  timelinesOf,
   saveRecord,
   submitRecord,
   confirmRecord,

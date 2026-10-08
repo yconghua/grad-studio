@@ -49,7 +49,9 @@ async function safeRemoveDir(dir) {
   return failed
 }
 
-function register(ipcMain) {
+function register(ipcMain, deps = {}) {
+  // 设置页修改开机自启后重建托盘菜单，保证托盘「开机启动」状态与设置页实时一致
+  const rebuildTray = deps.rebuildTray || (() => {})
   // 系统信息（登录后可用，供「系统配置」页块 1 展示）
   ipcMain.handle('sys:info', async () => {
     const user = await authService.getCurrentUser()
@@ -396,7 +398,9 @@ function register(ipcMain) {
       return { success: false, code: 401, message: '未登录，请重新登录' }
     }
     try {
-      return { success: true, code: 0, ...autoLaunchService.setEnabled(!!(payload && payload.enabled)) }
+      const r = autoLaunchService.setEnabled(!!(payload && payload.enabled))
+      rebuildTray()
+      return { success: true, code: 0, ...r }
     } catch (err) {
       console.error('[sys:set-auto-launch] 未预期异常:', err)
       return { success: false, code: 500, message: '设置开机自启失败，请重试' }

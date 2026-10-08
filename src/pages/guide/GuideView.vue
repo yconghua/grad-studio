@@ -1,5 +1,8 @@
 <template>
   <div class="guide-layout">
+    <!-- 无边框窗口自绘标题栏（拖拽 + 最小化/关闭），与角色布局一致 -->
+    <AppTitleBar />
+
     <!-- 顶栏：品牌 + 极简头像下拉（引导页导航精简，只保留个人资料 / 退出登录） -->
     <header class="topbar">
       <div class="brand">
@@ -18,7 +21,7 @@
             :key="item.path"
             :to="item.path"
             class="nav-item"
-            active-class="active"
+            exact-active-class="active"
           >
             <span class="nav-label">{{ item.title }}</span>
             <span
@@ -42,6 +45,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import AppTitleBar from '../../components/layout/AppTitleBar.vue'
 import UserAvatarMenu from '../../components/layout/UserAvatarMenu.vue'
 import ThemeSwitcher from '../../components/layout/ThemeSwitcher.vue'
 import { useAppName } from '../../composables/useAppName'

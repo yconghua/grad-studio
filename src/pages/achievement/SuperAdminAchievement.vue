@@ -14,8 +14,13 @@
     <div v-if="!summary" class="card card-loading">加载中…</div>
 
     <template v-else>
-      <!-- 筛选区：查询 / 重置（与用户管理等页面统一） -->
+      <!-- 筛选区：所属范围置前，查询 / 重置，数字统计放重置按钮后（与用户管理等页面统一） -->
       <div class="toolbar">
+        <span class="scope-label">所属范围</span>
+        <select v-model="filterGroupId" class="select" style="width: 150px" @change="onFilterChange">
+          <option :value="null">全部课题组</option>
+          <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+        </select>
         <input v-model="keyword" class="input" style="width: 220px" placeholder="成果名称 / 学生姓名 / 学号" @keyup.enter="search" />
         <select v-model="filterType" class="select" @change="search">
           <option value="">全部类型</option>
@@ -27,21 +32,14 @@
           <option value="submitted">待确认</option>
           <option value="confirmed">已确认</option>
         </select>
-        <select v-model="filterGroupId" class="select" @change="onFilterChange">
-          <option :value="null">全部课题组</option>
-          <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-        </select>
         <button class="btn btn-primary" @click="search">查询</button>
         <button class="btn" @click="reset">重置</button>
         <div class="spacer"></div>
-        <span style="font-size: 13px; color: var(--text-2)">共 <b>{{ total }}</b> 条</span>
-      </div>
-
-      <div class="card ach-overview">
-        <div class="ach-overview__item"><span class="ach-overview__label">范围</span><b>{{ summary.groupName }}</b></div>
-        <div class="ach-overview__item"><span class="ach-overview__label">总成果</span><b>{{ summary.total }}</b></div>
-        <div class="ach-overview__item"><span class="ach-overview__label">待确认</span><b style="color:#d97706">{{ summary.submitted }}</b></div>
-        <div class="ach-overview__item"><span class="ach-overview__label">已确认</span><b style="color:#16a34a">{{ summary.confirmed }}</b></div>
+        <div class="scope-metrics">
+          <span>总成果 <b>{{ summary.total }}</b></span>
+          <span>待确认 <b style="color:#d97706">{{ summary.submitted }}</b></span>
+          <span>已确认 <b style="color:#16a34a">{{ summary.confirmed }}</b></span>
+        </div>
       </div>
 
       <div class="tbl-wrap">
@@ -181,11 +179,12 @@ function search() {
   page.value = 1
   refreshAll()
 }
-// 重置：清空筛选并回到第一页
+// 重置：清空筛选（含课题组范围）并回到第一页
 function reset() {
   keyword.value = ''
   filterType.value = ''
   filterStatus.value = ''
+  filterGroupId.value = null
   page.value = 1
   refreshAll()
 }
@@ -221,16 +220,9 @@ useAutoRefresh(refreshAll)
 .page-actions { margin-left: auto; display: flex; gap: 10px; }
 .tbl-wrap tr { cursor: pointer; }
 .tbl-wrap tr:hover td { background: var(--bg-hover, #f3f4f6); }
-.ach-overview {
-  display: flex;
-  gap: 22px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-  padding: 14px 18px;
-  align-items: center;
-}
-.ach-overview__item { display: flex; align-items: baseline; gap: 8px; }
-.ach-overview__label { font-size: 13px; color: var(--text-2, #6b7280); }
+.scope-label { font-size: 13px; color: var(--text-2, #6b7280); white-space: nowrap; }
+.scope-metrics { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--text-2, #6b7280); }
+.scope-metrics span { display: flex; align-items: baseline; gap: 4px; }
 .card-loading { padding: 30px; text-align: center; color: var(--text-3, #9aa0aa); }
 .tag-ok { background: #ecfdf5; color: #16a34a; font-size: 12px; padding: 1px 8px; border-radius: 10px; }
 .tag-warn { background: #fffbeb; color: #d97706; font-size: 12px; padding: 1px 8px; border-radius: 10px; }

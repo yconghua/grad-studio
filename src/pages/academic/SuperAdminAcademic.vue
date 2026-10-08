@@ -13,8 +13,13 @@
     <div v-if="!summary" class="card card-loading">加载中…</div>
 
     <template v-else>
-      <!-- 筛选区：查询 / 重置（与用户管理等页面统一） -->
+      <!-- 筛选区：所属范围置前，查询 / 重置，数字统计放重置按钮后（与用户管理等页面统一） -->
       <div class="toolbar">
+        <span class="scope-label">所属范围</span>
+        <select v-model="filterGroupId" class="select" style="width: 150px" @change="onFilterChange">
+          <option :value="null">全部课题组</option>
+          <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+        </select>
         <input v-model="keyword" class="input" style="width: 220px" placeholder="学生姓名 / 学号 / 用户名" @keyup.enter="search" />
         <select v-model="degree" class="select" @change="search">
           <option value="">全部培养类型</option>
@@ -22,21 +27,14 @@
           <option value="博士">博士</option>
           <option value="本科">本科</option>
         </select>
-        <select v-model="filterGroupId" class="select" @change="onFilterChange">
-          <option :value="null">全部课题组</option>
-          <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-        </select>
         <button class="btn btn-primary" @click="search">查询</button>
         <button class="btn" @click="reset">重置</button>
         <div class="spacer"></div>
-        <span style="font-size: 13px; color: var(--text-2)">共 <b>{{ total }}</b> 人</span>
-      </div>
-
-      <div class="card ac-overview">
-        <div class="ac-overview__item"><span class="ac-overview__label">范围</span><b>{{ summary.groupName }}</b></div>
-        <div class="ac-overview__item"><span class="ac-overview__label">学生数</span><b>{{ summary.studentCount }}</b></div>
-        <div class="ac-overview__item"><span class="ac-overview__label">平均完成率</span><b>{{ summary.avgRate }}%</b></div>
-        <div class="ac-overview__item"><span class="ac-overview__label">逾期节点</span><b style="color:#dc2626">{{ summary.totalOverdue }}</b></div>
+        <div class="scope-metrics">
+          <span>学生数 <b>{{ summary.studentCount }}</b></span>
+          <span>平均完成率 <b>{{ summary.avgRate }}%</b></span>
+          <span>逾期 <b style="color:#dc2626">{{ summary.totalOverdue }}</b></span>
+        </div>
       </div>
 
       <div class="tbl-wrap">
@@ -166,10 +164,11 @@ function search() {
   page.value = 1
   refreshAll()
 }
-// 重置：清空筛选并回到第一页
+// 重置：清空筛选（含课题组范围）并回到第一页
 function reset() {
   keyword.value = ''
   degree.value = ''
+  filterGroupId.value = null
   page.value = 1
   refreshAll()
 }
@@ -204,16 +203,9 @@ useAutoRefresh(refreshAll)
 .bar__fill { height: 100%; border-radius: 3px; background: #2563eb; }
 .bar__text { font-size: 11px; color: var(--text-2, #6b7280); margin-left: 6px; }
 .overdue { color: #dc2626; font-weight: 600; }
-.ac-overview {
-  display: flex;
-  gap: 22px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-  padding: 14px 18px;
-  align-items: center;
-}
-.ac-overview__item { display: flex; align-items: baseline; gap: 8px; }
-.ac-overview__label { font-size: 13px; color: var(--text-2, #6b7280); }
+.scope-label { font-size: 13px; color: var(--text-2, #6b7280); white-space: nowrap; }
+.scope-metrics { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--text-2, #6b7280); }
+.scope-metrics span { display: flex; align-items: baseline; gap: 4px; }
 .card-loading { padding: 30px; text-align: center; color: var(--text-3, #9aa0aa); }
 .tbl-wrap tr { cursor: pointer; }
 .tbl-wrap tr:hover td { background: var(--bg-hover, #f3f4f6); }

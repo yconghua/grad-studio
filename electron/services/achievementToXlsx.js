@@ -2,7 +2,7 @@
  * 科研成果导出 Excel 转换（achievementToXlsx）—— 纯函数模块，供 ipc/achievement.js 调用
  *
  * 依赖 exceljs（package.json dependencies）。表头：学号 / 姓名 / 类型 / 名称 / 载体 / 级别 /
- * 作者 / 第一作者 / 日期 / 状态 / 备注；管理端（导师 / 组管 / 超管）范围导出。
+ * 作者 / 第一作者 / 日期 / 状态 / 备注 / 时间进度；管理端（导师 / 组管 / 超管）范围导出。
  */
 const ExcelJS = require('exceljs')
 
@@ -21,8 +21,15 @@ const HEADERS = [
   '发表/授权日期',
   '状态',
   '退回意见',
-  '备注'
+  '备注',
+  '时间进度'
 ]
+
+// 节点时间摘要：已填写的节点按模板顺序合并为「节点名：日期；…」
+function timelineText(timeline) {
+  const filled = (timeline || []).filter((t) => t.record && t.record.happenDate)
+  return filled.map((t) => `${t.nodeName}：${t.record.happenDate}`).join('；')
+}
 
 /**
  * 构建科研成果 Excel 文档 buffer
@@ -36,7 +43,7 @@ async function buildAchievementXlsx({ label, list }) {
   wb.creator = 'GradStudio'
   const ws = wb.addWorksheet('科研成果')
 
-  ws.columns = HEADERS.map((h) => ({ header: h, width: 18 }))
+  ws.columns = HEADERS.map((h, i) => ({ header: h, width: i === HEADERS.length - 1 ? 32 : 18 }))
   ws.getRow(1).font = { bold: true }
   ws.getRow(1).height = 20
 
@@ -53,7 +60,8 @@ async function buildAchievementXlsx({ label, list }) {
       item.publishDate,
       STATUS_LABELS[item.status] || item.status,
       item.rejectReason,
-      item.description
+      item.description,
+      timelineText(item.timeline)
     ])
   }
 

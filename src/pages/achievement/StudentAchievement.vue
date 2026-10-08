@@ -7,13 +7,32 @@
       </div>
       <div class="page-actions">
         <button class="btn" @click="openCreate">新增成果</button>
-        <button class="btn" :disabled="exporting" @click="exportDoc">{{ exporting ? '导出中…' : '导出成果' }}</button>
+        <button class="btn" :disabled="exporting" @click="exportXlsx">{{ exporting ? '导出中…' : '导出成果' }}</button>
       </div>
     </div>
 
     <div v-if="!summary" class="card card-loading">加载中…</div>
 
     <template v-else>
+      <!-- 筛选区：查询 / 重置（与用户管理等页面统一） -->
+      <div class="toolbar">
+        <input v-model="keyword" class="input" style="width: 220px" placeholder="成果名称 / 发表载体" @keyup.enter="search" />
+        <select v-model="filterType" class="select" @change="search">
+          <option value="">全部类型</option>
+          <option v-for="(t, k) in ACH_TYPES" :key="k" :value="k">{{ t }}</option>
+        </select>
+        <select v-model="filterStatus" class="select" @change="search">
+          <option value="">全部状态</option>
+          <option value="pending">待填写</option>
+          <option value="submitted">待确认</option>
+          <option value="confirmed">已确认</option>
+        </select>
+        <button class="btn btn-primary" @click="search">查询</button>
+        <button class="btn" @click="reset">重置</button>
+        <div class="spacer"></div>
+        <span style="font-size: 13px; color: var(--text-2)">共 <b>{{ total }}</b> 条</span>
+      </div>
+
       <div class="card ach-overview">
         <div class="ach-overview__item"><span class="ach-overview__label">课题组</span><b>{{ summary.groupName || '未入组' }}</b></div>
         <div class="ach-overview__item"><span class="ach-overview__label">总成果</span><b>{{ summary.total }}</b></div>
@@ -63,7 +82,7 @@
 import { ref, onMounted } from 'vue'
 import AchievementEditDialog from './AchievementEditDialog.vue'
 import AchievementDetailDialog from './AchievementDetailDialog.vue'
-import { getAchievementStats, getAchievementStatsSummary, saveAchievement, exportAchievementDocx } from '../../api'
+import { getAchievementStats, getAchievementStatsSummary, saveAchievement, exportAchievementXlsx } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
@@ -72,6 +91,11 @@ const STATUS_LABELS = { pending: '待填写', submitted: '待确认', confirmed:
 function statusLabel(s) { return STATUS_LABELS[s] || s }
 function statusTag(s) { return s === 'confirmed' ? 'tag-ok' : s === 'submitted' ? 'tag-warn' : 'tag-off' }
 
+const ACH_TYPES = { paper: '论文', patent: '专利', software: '软件著作权', award: '获奖', project: '项目', other: '其他' }
+
+const keyword = ref('')
+const filterType = ref('')
+const filterStatus = ref('')
 const list = ref([])
 const total = ref(0)
 const totalPages = ref(1)
@@ -87,7 +111,14 @@ const detailRow = ref(null)
 
 async function load() {
   try {
-    const res = await getAchievementStats({ page: page.value, sortField: sortField.value, sortOrder: sortOrder.value })
+    const res = await getAchievementStats({
+      keyword: keyword.value,
+      type: filterType.value,
+      status: filterStatus.value,
+      page: page.value,
+      sortField: sortField.value,
+      sortOrder: sortOrder.value
+    })
     if (res && res.success) {
       list.value = (res.data && res.data.list) || []
       total.value = (res.data && res.data.total) || 0
@@ -107,7 +138,11 @@ function onSort(field, order) {
 }
 async function loadSummary() {
   try {
-    const res = await getAchievementStatsSummary()
+    const res = await getAchievementStatsSummary({
+      keyword: keyword.value,
+      type: filterType.value,
+      status: filterStatus.value
+    })
     if (res && res.success) {
       summary.value = res.data
     } else {
@@ -120,6 +155,19 @@ async function loadSummary() {
 function refreshAll() {
   load()
   loadSummary()
+}
+// 查询：回到第一页并应用当前筛选
+function search() {
+  page.value = 1
+  refreshAll()
+}
+// 重置：清空筛选并回到第一页
+function reset() {
+  keyword.value = ''
+  filterType.value = ''
+  filterStatus.value = ''
+  page.value = 1
+  refreshAll()
 }
 
 function openCreate() {
@@ -142,10 +190,10 @@ async function saveRecord(payload) {
   }
 }
 
-async function exportDoc() {
+async function exportXlsx() {
   exporting.value = true
   try {
-    const res = await exportAchievementDocx()
+    const res = await exportAchievementXlsx()
     const r = (res && res.data) || res
     if (!r) return
     if (r.success) {

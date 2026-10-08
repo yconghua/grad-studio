@@ -18,6 +18,8 @@ const { app } = require('electron')
 const { initDatabase } = require('../db/create_new_database')
 // 连接层：统一管理连接池；本服务只通过它切换活跃连接，不直接建池
 const { setActiveConfig, getActiveConfig, acquireConn } = require('../db/connection')
+// 数据版本轮询：连接生效后广播 db:changed，通知已挂载页面重拉（系统参数等）
+const { notifyDataChanged } = require('./dataVersionService')
 // 前后端共享常量（默认端口等），单一事实来源，避免硬编码
 const { DEFAULT_DB_PORT } = require('../../shared/constants')
 // 应用版本号来自 package.json（与 ipc/sys.js 的 sys:info 同源），用于升级迁移检测
@@ -496,6 +498,7 @@ async function switchConnection(id) {
   activeConfig = cfg
   setActiveConfig(cfg) // 关键：让连接池绑定到新连接
   saveConnections()
+  notifyDataChanged() // 数据源已切换，通知页面重拉
   return { success: true, message: '已切换到「' + target.name + '」' }
 }
 
@@ -525,6 +528,7 @@ async function add(payload) {
     connections.active = conn.id
     activeConfig = buildConfig(conn)
     setActiveConfig(activeConfig)
+    notifyDataChanged() // 首次连接生效，通知页面重拉
   }
   saveConnections()
   return { success: true, id, message: '已添加连接「' + name + '」，并完成初始化' }
@@ -594,6 +598,7 @@ async function importMany(items) {
     connections.active = added[0].id
     activeConfig = buildConfig(added[0])
     setActiveConfig(activeConfig)
+    notifyDataChanged() // 批量导入首条生效，通知页面重拉
   }
   saveConnections()
   return {
@@ -649,6 +654,7 @@ async function update(id, payload) {
     }
     activeConfig = cfg
     setActiveConfig(cfg)
+    notifyDataChanged() // 当前连接热更新成功，通知页面重拉
   }
   connections.list = connections.list.map((x) => (x.id === id ? next : x))
   saveConnections()

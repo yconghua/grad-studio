@@ -93,7 +93,7 @@ function registerAll(ipcMain, deps = {}) {
   reportRoutes.register(logger)
   searchRoutes.register(logger)
   systemRoutes.register(logger)
-  sysRoutes.register(logger)
+  sysRoutes.register(logger, deps)
   updateRoutes.register(logger)
   winRoutes.register(logger)
   diagRoutes.register(logger)

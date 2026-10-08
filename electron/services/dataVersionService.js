@@ -72,6 +72,14 @@ function broadcast() {
   }
 }
 
+// 连接就绪/切换后主动广播一次并重建基线：
+// 首次成功建基线不广播的规则会让「启动无连接 → 之后才连上」的过程不触发页面刷新，
+// 这里由 connectionService 在连接生效点显式调用，通知已挂载页面重拉数据。
+function notifyDataChanged() {
+  lastFingerprint = null
+  broadcast()
+}
+
 // 单轮检测：指纹变化则更新基线并广播
 async function tick() {
   try {
@@ -108,4 +116,4 @@ function stop() {
   lastFingerprint = null
 }
 
-module.exports = { start, stop }
+module.exports = { start, stop, notifyDataChanged }
