@@ -47,8 +47,12 @@ import { avatarUrl } from '../../utils/avatar'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 import { ROLE_HOME } from '../../router'
 import { useTabs } from '../../composables/useTabs'
+import { useAccountHistory } from '../../composables/useAccountHistory'
 import AccountSwitchDialog from '../dialogs/AccountSwitchDialog.vue'
 import UpdateDialog from '../dialogs/UpdateDialog.vue'
+
+// 切换账号成功后同步刷新本地账号历史（弹窗「上次登录时间」与登录页登录同口径）
+const { recordLogin } = useAccountHistory()
 
 // 头像下拉公共组件：菜单项顺序固定
 // 1 个人资料 / 2 系统简介 / 3 设置 / 4 检查更新 / 5 切换账号 / 6 退出登录
@@ -63,8 +67,7 @@ const props = defineProps({
 
 const router = useRouter()
 const { getSessionUser, clearSession, setSession } = useSession()
-const { clearTabs } = useTabs()
-
+const { clearTabs, ensureHomeTab } = useTabs()
 // 用户信息：响应式 ref（非 sessionStorage 快照），写操作后由全局刷新广播触发重读
 const user = ref(getSessionUser())
 const open = ref(false)
@@ -139,8 +142,12 @@ async function onSwitchAccount(username) {
     if (res && res.success && d && d.ok && d.user) {
       setSession(d.user)
       user.value = d.user
-      // 换账号：清空上个账号的标签，防止恢复出不属于新账号的页面
+      // 免密切换成功同样刷新本地账号历史（与登录页登录口径一致）
+      recordLogin(d.user)
+      // 换账号：清空上个账号的标签，防止恢复出不属于新账号的页面；
+      // 清空后立即重建新角色工作台并持久化，杜绝任何恢复路径带出旧账号标签
       clearTabs()
+      ensureHomeTab()
       router.replace(ROLE_HOME[d.user.role] || '/login')
       return
     }

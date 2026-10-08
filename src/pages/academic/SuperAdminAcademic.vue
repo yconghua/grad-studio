@@ -6,6 +6,7 @@
         <p class="page-sub">全局学业档案进度统计、学生档案查看与默认阶段模板管理</p>
       </div>
       <div class="page-actions">
+        <button class="btn" :disabled="exporting" @click="exportAll">{{ exporting ? '导出中…' : '导出全部学业档案' }}</button>
         <button class="btn" @click="openTemplate">管理全局模板</button>
       </div>
     </div>
@@ -82,7 +83,7 @@
 import { ref, onMounted } from 'vue'
 import AcademicTemplateDialog from './AcademicTemplateDialog.vue'
 import AcademicDetailDialog from './AcademicDetailDialog.vue'
-import { getAcademicStats, getAcademicStatsSummary, listGroups } from '../../api'
+import { getAcademicStats, getAcademicStatsSummary, listGroups, exportAllAcademic } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
@@ -184,6 +185,24 @@ function openTemplate() {
   tplVisible.value = true
 }
 
+// 一键导出范围内全部学生学业档案（Excel）：按当前筛选的课题组导出，未选则全部课题组
+const exporting = ref(false)
+async function exportAll() {
+  exporting.value = true
+  try {
+    const res = await exportAllAcademic(filterGroupId.value)
+    const r = (res && res.data) || res
+    if (!r) return
+    if (r.success) {
+      dialogAlert(r.filePath ? `导出成功：${r.filePath}` : (r.message || '导出成功'))
+    } else if (!r.canceled) {
+      dialogAlert((r && r.message) || '导出失败')
+    }
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(() => {
   loadGroups()
   refreshAll()
@@ -204,6 +223,7 @@ useAutoRefresh(refreshAll)
 .bar__text { font-size: 11px; color: var(--text-2, #6b7280); margin-left: 6px; }
 .overdue { color: #dc2626; font-weight: 600; }
 .scope-label { font-size: 13px; color: var(--text-2, #6b7280); white-space: nowrap; }
+.page-actions { margin-left: auto; display: flex; gap: 12px; }
 .scope-metrics { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--text-2, #6b7280); }
 .scope-metrics span { display: flex; align-items: baseline; gap: 4px; }
 .card-loading { padding: 30px; text-align: center; color: var(--text-3, #9aa0aa); }

@@ -73,17 +73,17 @@ function register(ipcMain) {
     return noteService.purgeNote(payload && payload.id)
   }))
 
-  // 导出单篇 Word：弹保存框；内容 = 标题 + 类别/创建时间元信息头 + Markdown 转换后的正文
+  // 导出单篇 Word：弹保存框；内容 = 标题 + 类别/创建时间元信息头 + Markdown 转换后的正文（文件名含年月日时分秒）
   ipcMain.handle('note:export', handler(async (event, payload) => {
     await requireStudent()
     const note = await noteService.exportNote(payload && payload.id)
     const d = new Date()
     const pad2 = (n) => String(n).padStart(2, '0')
-    const date = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`
+    const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
     const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null
     const options = {
       title: '导出笔记',
-      defaultPath: `${safeFileName(note.title)}-${date}.docx`,
+      defaultPath: `${safeFileName(note.title)}-${stamp}.docx`,
       filters: [{ name: 'Word 文档', extensions: ['docx'] }]
     }
     let picked

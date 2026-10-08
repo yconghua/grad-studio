@@ -22,7 +22,7 @@ const academicTemplateRepository = require('../db/repositories/academicTemplateR
 const authService = require('./authService')
 const notificationService = require('./notificationService')
 const ApiError = require('./apiError')
-const { buildAcademicDocx } = require('./academicToDocx')
+const { buildAcademicXlsx, buildAcademicAllXlsx } = require('./academicToXlsx')
 const {
   ROLE_STUDENT,
   ROLE_MENTOR,
@@ -560,12 +560,12 @@ async function statsSummary({ groupId, keyword, degree }, viewer) {
 
 // ===== 导出 =====
 
-// 构建某学生档案 Word buffer（查看权限内可导出）
-async function exportDocx(userId, viewer) {
+// 构建某学生档案 Excel buffer（查看权限内可导出）；fileName 含学生姓名，供保存框默认命名
+async function exportXlsx(userId, viewer) {
   const me = await currentUser()
   const data = await recordsOf(userId, me)
   const group = await groupOf(userId)
-  return buildAcademicDocx({
+  const buffer = await buildAcademicXlsx({
     user: {
       real_name: data.user.realName,
       username: data.user.username,
@@ -575,6 +575,41 @@ async function exportDocx(userId, viewer) {
     groupName: group ? group.name : '',
     nodes: data.nodes
   })
+  return { buffer, fileName: `学业档案-${data.user.realName || data.user.username}` }
+}
+
+// 一键导出范围内全部学生档案 Excel：
+//   导师=名下学生；组管=本组学生；超管=按 groupId 筛选的课题组（不传则全部课题组）
+async function exportAllXlsx({ groupId } = {}, viewer) {
+  const me = await currentUser()
+  let students = []
+  let scopeName = '全部课题组'
+  if (me.role === ROLE_MENTOR) {
+    students = await userRepository.listStudentsByMentor(me.id)
+    scopeName = '名下学生'
+  } else if (me.role === ROLE_GROUP_ADMIN) {
+    const g = await resolveScope(null, me)
+    students = await userRepository.listAllStudentsOfGroup(g.id)
+    scopeName = g.name
+  } else if (me.role === ROLE_SUPER_ADMIN) {
+    const g = await resolveScope(groupId || null, me)
+    students = g ? await userRepository.listAllStudentsOfGroup(g.id) : await userRepository.listAllStudents()
+    if (g) scopeName = g.name
+  } else {
+    throw new ApiError('无权限：仅导师、组管或超管可导出全部档案', 403)
+  }
+
+  // 逐学生构建时间线（recordsOf 内部含查看权限断言），并发分块控制连接压力
+  const datas = []
+  const BATCH = 20
+  for (let i = 0; i < students.length; i += BATCH) {
+    const chunk = students.slice(i, i + BATCH)
+    const rows = await Promise.all(chunk.map((s) => recordsOf(s.id, me)))
+    datas.push(...rows)
+  }
+
+  const buffer = await buildAcademicAllXlsx(datas)
+  return { buffer, fileName: `学业档案汇总-${scopeName}` }
 }
 
 // ===== 定时提醒 =====
@@ -641,7 +676,8 @@ module.exports = {
   removeTemplate,
   stats,
   statsSummary,
-  exportDocx,
+  exportXlsx,
+  exportAllXlsx,
   remindDueNodes,
   deleteByUser
 }

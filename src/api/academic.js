@@ -51,3 +51,6 @@ export function getAcademicStatsSummary(groupId, keyword, degree) {
 export function exportAcademic(userId) {
   return window.api.academic.export(userId ? { userId } : {})
 }
+export function exportAllAcademic(groupId) {
+  return window.api.academic.exportAll(groupId ? { groupId } : {})
+}

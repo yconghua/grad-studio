@@ -5,7 +5,7 @@
       v-for="tab in pinnedTabs"
       :key="tab.key"
       class="tab-item is-pinned"
-      :class="{ 'is-active': tab.key === activeKey }"
+      :class="{ 'is-active': tab.key === displayActiveKey }"
       :title="tab.title"
       @click="clickTab(tab)"
     >
@@ -22,7 +22,7 @@
       <template #item="{ element }">
         <div
           class="tab-item"
-          :class="{ 'is-active': element.key === activeKey }"
+          :class="{ 'is-active': element.key === displayActiveKey }"
           :title="element.title"
           @click="clickTab(element)"
           @mousedown="onMousedown($event, element)"
@@ -54,9 +54,35 @@ import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { CloseOutlined } from '@ant-design/icons-vue'
 import { useTabs } from '../../composables/useTabs'
+import { useSession } from '../../composables/useSession'
+import { SUPER_ADMIN_HOME } from '../../config/nav/super-admin'
+import { GROUP_ADMIN_HOME } from '../../config/nav/group-admin'
+import { MENTOR_HOME } from '../../config/nav/mentor'
+import { STUDENT_HOME } from '../../config/nav/student'
+import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 
 const router = useRouter()
 const { tabs, activeKey, closeTab, reorder, ensureHomeTab } = useTabs()
+const { getSessionUser } = useSession()
+
+// 当前角色工作台路径与路由前缀：标签渲染按角色兜底过滤，
+// 即使状态里残留其它账号/角色的标签也不显示（切换账号后不串台）
+const HOME_BY_ROLE = {
+  [ROLE_SUPER_ADMIN]: SUPER_ADMIN_HOME,
+  [ROLE_GROUP_ADMIN]: GROUP_ADMIN_HOME,
+  [ROLE_MENTOR]: MENTOR_HOME,
+  [ROLE_STUDENT]: STUDENT_HOME
+}
+const homePath = computed(() => {
+  const u = getSessionUser()
+  return (u && HOME_BY_ROLE[u.role]) || ''
+})
+const rolePrefix = computed(() => {
+  const h = homePath.value
+  if (!h) return ''
+  const seg = String(h).split('/')[1] || ''
+  return '/' + seg + '/'
+})
 
 // 标签栏容器引用：用于滚轮横向滚动与激活标签滚动到可见
 const barRef = ref(null)
@@ -65,14 +91,24 @@ const barRef = ref(null)
 // 不依赖路由钩子时序，避免任何异常状态下标签栏空置
 ensureHomeTab()
 
-const pinnedTabs = computed(() => tabs.value.filter((t) => t.pinned))
+// 固定标签只展示当前角色的工作台（其它角色残留的 pinned 标签不渲染）
+const pinnedTabs = computed(() => tabs.value.filter((t) => t.pinned && t.key === homePath.value))
 
-// 可拖标签列表：vuedraggable 直接操作本数组，tabs 增删时同步回来
+// 激活态兜底：若激活 key 不在当前展示的标签内（切换账号后残留的旧角色标签），
+// 高亮回落到当前角色工作台，避免标签栏无激活项
+const displayActiveKey = computed(() => {
+  const shown = new Set([...pinnedTabs.value, ...dragList.value].map((t) => t.key))
+  return shown.has(activeKey.value) ? activeKey.value : homePath.value
+})
+
+// 可拖标签列表：vuedraggable 直接操作本数组，tabs 增删时同步回来；
+// 只同步当前角色路由前缀下的业务标签，跨角色残留标签不进入拖拽列表
 const dragList = ref([])
 watch(
   tabs,
   () => {
-    dragList.value = tabs.value.filter((t) => !t.pinned)
+    const prefix = rolePrefix.value
+    dragList.value = tabs.value.filter((t) => !t.pinned && (!prefix || t.key.startsWith(prefix)))
   },
   { deep: true, immediate: true }
 )

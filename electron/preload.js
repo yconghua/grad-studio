@@ -371,7 +371,8 @@ contextBridge.exposeInMainWorld('api', {
     templateRemove: createInvoke('academic:template-remove'),
     stats: createInvoke('academic:stats'),
     statsSummary: createInvoke('academic:stats-summary'),
-    export: createInvoke('academic:export')
+    export: createInvoke('academic:export'),
+    exportAll: createInvoke('academic:export-all')
   },
 
   // 学生科研成果（对应 ipc/achievement.js，通道前缀 achievement:*）

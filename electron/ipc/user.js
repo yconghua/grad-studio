@@ -122,13 +122,16 @@ function register(ipcMain) {
     return userService.listAllUserNos()
   }))
 
-  // 下载批量新增 CSV 模板（超管）：主进程保存对话框 + 写 UTF-8 BOM 文件
+  // 下载批量新增 CSV 模板（超管）：主进程保存对话框 + 写 UTF-8 BOM 文件（文件名含年月日时分秒）
   ipcMain.handle('user:download-csv-template', handler(async (evt) => {
     await requireSuperAdmin()
     const win = BrowserWindow.fromWebContents(evt.sender)
+    const d = new Date()
+    const pad2 = (n) => String(n).padStart(2, '0')
+    const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
       title: '保存批量新增模板',
-      defaultPath: path.join(app.getPath('documents'), '批量新增用户模板.csv'),
+      defaultPath: path.join(app.getPath('documents'), `批量新增用户模板-${stamp}.csv`),
       filters: [{ name: 'CSV', extensions: ['csv'] }]
     })
     if (canceled || !filePath) return { canceled: true }

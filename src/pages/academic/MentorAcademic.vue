@@ -5,6 +5,9 @@
         <h2 class="page-title">学生学业档案</h2>
         <p class="page-sub">查看名下学生档案，确认或退回已提交节点</p>
       </div>
+      <div class="page-actions">
+        <button class="btn" :disabled="exporting" @click="exportAll">{{ exporting ? '导出中…' : '导出全部学业档案' }}</button>
+      </div>
     </div>
 
     <!-- 筛选区：查询 / 重置（与用户管理等页面统一） -->
@@ -51,7 +54,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import MentorAcademicDetailDialog from './MentorAcademicDetailDialog.vue'
-import { listMyStudents } from '../../api'
+import { listMyStudents, exportAllAcademic } from '../../api'
 import { dialogAlert } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
@@ -117,6 +120,24 @@ function openDetail(userId) {
   detailVisible.value = true
 }
 
+// 一键导出名下全部学生学业档案（Excel）
+const exporting = ref(false)
+async function exportAll() {
+  exporting.value = true
+  try {
+    const res = await exportAllAcademic()
+    const r = (res && res.data) || res
+    if (!r) return
+    if (r.success) {
+      dialogAlert(r.filePath ? `导出成功：${r.filePath}` : (r.message || '导出成功'))
+    } else if (!r.canceled) {
+      dialogAlert((r && r.message) || '导出失败')
+    }
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(load)
 useAutoRefresh(load)
 </script>
@@ -124,4 +145,5 @@ useAutoRefresh(load)
 <style scoped>
 .tbl-wrap tr { cursor: pointer; }
 .tbl-wrap tr:hover td { background: var(--bg-hover, #f3f4f6); }
+.page-actions { margin-left: auto; display: flex; gap: 12px; }
 </style>

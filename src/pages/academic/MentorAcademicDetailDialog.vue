@@ -16,7 +16,7 @@
             <div class="md-overview__item"><span class="md-overview__label">节点进度</span><b>{{ data.summary.done }} / {{ data.summary.total }}</b></div>
             <div class="md-overview__item"><span class="md-overview__label">待确认</span><b>{{ pendingSubmitCount }}</b></div>
             <div class="md-overview__actions">
-              <button class="btn btn-sm" :disabled="exporting" @click="exportDoc">{{ exporting ? '导出中…' : '导出档案' }}</button>
+              <button class="btn btn-sm" :disabled="exporting" @click="exportDoc">{{ exporting ? '导出中…' : '导出Excel' }}</button>
               <button class="btn btn-primary btn-sm" :disabled="pendingSubmitCount === 0" @click="batchConfirmAll">全部确认</button>
             </div>
           </div>

@@ -191,9 +191,12 @@ function register(ipcMain, deps = {}) {
       return { success: false, code: 403, message: '已登录状态下不可下载模板，请退出登录后在登录页操作' }
     }
     const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null
+    const d = new Date()
+    const pad2 = (n) => String(n).padStart(2, '0')
+    const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
     const options = {
       title: '保存批量导入示例',
-      defaultPath: 'db-connections-template.txt',
+      defaultPath: `db-connections-template-${stamp}.txt`,
       filters: [{ name: '文本文件', extensions: ['txt'] }]
     }
     let picked

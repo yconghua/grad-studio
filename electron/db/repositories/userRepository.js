@@ -275,6 +275,22 @@ class UserRepository extends BaseRepository {
   }
 
   /**
+   * 导师名下学生列表（全量，供批量导出）：role=student 且 mentor_id=当前导师
+   * @param {number} mentorId
+   * @returns {Promise<Array>}
+   */
+  async listStudentsByMentor(mentorId) {
+    const sql =
+      'SELECT * FROM `users` WHERE role = ? AND mentor_id = ? AND status = ? ORDER BY id ASC'
+    const [rows] = await this._execute(
+      sql,
+      ['student', Number(mentorId), ACCOUNT_STATUS_ENABLED],
+      'listStudentsByMentor'
+    )
+    return rows
+  }
+
+  /**
    * 课题组内学生列表（分页）：role=student 且 group_id=当前课题组
    * @param {number} groupId
    * @param {{ keyword?: string, page?: number }} filters

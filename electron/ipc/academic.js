@@ -3,7 +3,7 @@
  *
  * 权限闸门：细粒度校验在 academicService 内基于会话 + 实时关系完成
  * （学生只能看/填自己；导师只能确认名下学生；组管只能看本组 + 管本组模板；
- * 超管全局）。导出在主进程弹系统保存框，用 academicToDocx 生成 Word（.docx）。
+ * 超管全局）。导出在主进程弹系统保存框，用 academicToXlsx 生成 Excel（.xlsx）。
  */
 const path = require('node:path')
 const fs = require('node:fs')
@@ -24,6 +24,13 @@ async function requireLogin() {
 function safeFileName(name) {
   const s = String(name == null ? '' : name).replace(/[\\/:*?"<>|]/g, '_').trim()
   return s || '学业档案'
+}
+
+// 文件名时间戳：年月日时分秒（yyyyMMdd_HHmmss）
+function stamp() {
+  const d = new Date()
+  const pad2 = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
 }
 
 function register(ipcMain) {
@@ -101,20 +108,17 @@ function register(ipcMain) {
     return academicService.statsSummary(payload || {}, (await authService.getCurrentUser()))
   }))
 
-  // 导出某学生档案 Word：弹保存框
+  // 导出某学生档案 Excel：弹保存框（文件名含学生姓名 + 年月日时分秒）
   ipcMain.handle('academic:export', handler(async (event, payload) => {
     await requireLogin()
     const me = await authService.getCurrentUser()
     const userId = payload && payload.userId ? payload.userId : me.id
-    const buffer = await academicService.exportDocx(userId, me)
-    const d = new Date()
-    const pad2 = (n) => String(n).padStart(2, '0')
-    const date = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`
+    const result = await academicService.exportXlsx(userId, me)
     const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null
     const options = {
       title: '导出学业档案',
-      defaultPath: `学业档案-${date}.docx`,
-      filters: [{ name: 'Word 文档', extensions: ['docx'] }]
+      defaultPath: `${safeFileName(result.fileName || '学业档案')}-${stamp()}.xlsx`,
+      filters: [{ name: 'Excel 工作簿', extensions: ['xlsx'] }]
     }
     let picked
     try {
@@ -127,10 +131,39 @@ function register(ipcMain) {
       return { success: false, code: 0, canceled: true, message: '已取消导出' }
     }
     try {
-      fs.writeFileSync(picked.filePath, buffer)
+      fs.writeFileSync(picked.filePath, result.buffer)
       return { success: true, code: 0, message: '已导出学业档案', filePath: picked.filePath }
     } catch (err) {
       console.error('[academic:export] 写入文件失败:', err)
+      return { success: false, code: 500, message: `导出失败：${err && err.message ? err.message : '写入文件异常'}` }
+    }
+  }))
+
+  // 一键导出范围内全部学生学业档案 Excel（导师=名下学生；组管=本组；超管=按筛选的课题组或全部）
+  ipcMain.handle('academic:export-all', handler(async (event, payload) => {
+    await requireLogin()
+    const result = await academicService.exportAllXlsx(payload || {}, (await authService.getCurrentUser()))
+    const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null
+    const options = {
+      title: '导出全部学业档案',
+      defaultPath: `${safeFileName(result.fileName || '学业档案汇总')}-${stamp()}.xlsx`,
+      filters: [{ name: 'Excel 工作簿', extensions: ['xlsx'] }]
+    }
+    let picked
+    try {
+      picked = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    } catch (err) {
+      console.error('[academic:export-all] 保存对话框异常:', err)
+      return { success: false, code: 500, message: '打开保存窗口失败，请重试' }
+    }
+    if (!picked || picked.canceled || !picked.filePath) {
+      return { success: false, code: 0, canceled: true, message: '已取消导出' }
+    }
+    try {
+      fs.writeFileSync(picked.filePath, result.buffer)
+      return { success: true, code: 0, message: '已导出全部学业档案', filePath: picked.filePath }
+    } catch (err) {
+      console.error('[academic:export-all] 写入文件失败:', err)
       return { success: false, code: 500, message: `导出失败：${err && err.message ? err.message : '写入文件异常'}` }
     }
   }))

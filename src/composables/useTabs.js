@@ -105,6 +105,11 @@ function ensureHomeTab() {
   const role = currentRole()
   const homePath = role ? ROLE_HOME_PATH[role] : null
   if (!homePath) return
+  // 切换账号/异常恢复后可能残留其它角色的固定工作台：一律降级为普通标签，
+  // 保证 pinned 工作台只有一个（当前角色），防止标签栏出现多个「工作台」
+  for (const t of tabs.value) {
+    if (t.pinned && t.key !== homePath) t.pinned = false
+  }
   const home = tabs.value.find((t) => t.key === homePath)
   if (home) {
     if (!home.pinned) home.pinned = true

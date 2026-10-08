@@ -6,7 +6,7 @@
         <p class="page-sub">按培养类型时间线记录个人学业节点，提交后由导师确认</p>
       </div>
       <div class="page-actions">
-        <button class="btn" :disabled="!data" @click="exportDoc">导出档案</button>
+        <button class="btn" :disabled="!data" @click="exportDoc">导出Excel</button>
       </div>
     </div>
 

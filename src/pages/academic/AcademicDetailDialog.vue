@@ -13,7 +13,7 @@
             <div class="ac-overview__item"><span class="ac-overview__label">培养类型</span><b>{{ data.stageTypeLabel }}</b></div>
             <div class="ac-overview__item"><span class="ac-overview__label">节点进度</span><b>{{ data.summary.done }} / {{ data.summary.total }}</b></div>
             <div class="ac-overview__actions">
-              <button class="btn" :disabled="!data || exporting" @click="exportDoc">{{ exporting ? '导出中…' : '导出档案' }}</button>
+              <button class="btn" :disabled="!data || exporting" @click="exportDoc">{{ exporting ? '导出中…' : '导出Excel' }}</button>
             </div>
           </div>
           <AcademicTimeline :nodes="data.nodes" />

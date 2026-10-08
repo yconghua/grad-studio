@@ -85,7 +85,7 @@ function register(ipcMain) {
     }
     const d = new Date()
     const pad2 = (n) => String(n).padStart(2, '0')
-    const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}`
+    const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
     const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null
     let picked
     try {
