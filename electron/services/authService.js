@@ -21,6 +21,8 @@ const ticketService = require('./ticketService')
 const captchaService = require('./captchaService')
 // 登录失败锁定：同一账号连续失败满 5 次锁定 5 分钟（内存态，重启清零）
 const loginLockService = require('./loginLockService')
+// 登录日志：旁路记录登录成功/失败（写失败静默，不影响登录主流程）
+const loginLogService = require('./loginLogService')
 
 // 锁定剩余时长文案：'X 分 Y 秒'
 function formatRemainMs(ms) {
@@ -86,42 +88,51 @@ function establishSession(row) {
  * 失败响应 data.needCaptcha=true 告知前端显示并刷新验证码。
  */
 async function login({ username, password, captchaId, captchaCode } = {}) {
-  if (!username || !password) {
-    throw new ApiError('请输入账号和密码', 400)
-  }
-  // 账号锁定检查：锁定期间直接拒绝（即使密码正确），返回剩余时间
-  const lock = loginLockService.checkLocked(username)
-  if (lock) {
-    throw new ApiError(`账号已锁定，请 ${formatRemainMs(lock.remainMs)} 后重试`, 423, {
-      locked: true,
-      remainMs: lock.remainMs
-    })
-  }
-  const captchaRequired = captchaService.shouldRequireCaptcha()
-  if (captchaRequired && (!captchaId || !captchaCode)) {
-    throw new ApiError('请输入验证码', 400, { needCaptcha: true })
-  }
-  if (captchaRequired || captchaCode) {
-    if (!captchaService.verify(captchaId, captchaCode)) {
+  try {
+    if (!username || !password) {
+      throw new ApiError('请输入账号和密码', 400)
+    }
+    // 账号锁定检查：锁定期间直接拒绝（即使密码正确），返回剩余时间
+    const lock = loginLockService.checkLocked(username)
+    if (lock) {
+      throw new ApiError(`账号已锁定，请 ${formatRemainMs(lock.remainMs)} 后重试`, 423, {
+        locked: true,
+        remainMs: lock.remainMs
+      })
+    }
+    const captchaRequired = captchaService.shouldRequireCaptcha()
+    if (captchaRequired && (!captchaId || !captchaCode)) {
+      throw new ApiError('请输入验证码', 400, { needCaptcha: true })
+    }
+    if (captchaRequired || captchaCode) {
+      if (!captchaService.verify(captchaId, captchaCode)) {
+        captchaService.recordFailure()
+        const lk = loginLockService.recordFailure(username)
+        throw new ApiError('验证码错误或已过期', 400, { needCaptcha: true, lock: lk })
+      }
+    }
+    const user = await userRepository.findByUsername(username)
+    if (!user || user.status !== ACCOUNT_STATUS_ENABLED) {
       captchaService.recordFailure()
       const lk = loginLockService.recordFailure(username)
-      throw new ApiError('验证码错误或已过期', 400, { needCaptcha: true, lock: lk })
+      throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha(), lock: lk })
     }
+    if (!passwordService.verifyPassword(password, user.password_hash)) {
+      captchaService.recordFailure()
+      const lk = loginLockService.recordFailure(username)
+      throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha(), lock: lk })
+    }
+    captchaService.resetFailures()
+    loginLockService.reset(username)
+    loginLogService.record({ userId: user.id, username: user.username, role: user.role, loginType: 'password', status: 1 })
+    return establishSession(user)
+  } catch (err) {
+    // 登录失败也留痕（账号锁定/验证码错误/账号密码错误等），原因取错误文案
+    if (username) {
+      loginLogService.record({ username, loginType: 'password', status: 0, failReason: (err && err.message) || '登录失败' })
+    }
+    throw err
   }
-  const user = await userRepository.findByUsername(username)
-  if (!user || user.status !== ACCOUNT_STATUS_ENABLED) {
-    captchaService.recordFailure()
-    const lk = loginLockService.recordFailure(username)
-    throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha(), lock: lk })
-  }
-  if (!passwordService.verifyPassword(password, user.password_hash)) {
-    captchaService.recordFailure()
-    const lk = loginLockService.recordFailure(username)
-    throw new ApiError('账号或密码错误', 400, { needCaptcha: captchaService.shouldRequireCaptcha(), lock: lk })
-  }
-  captchaService.resetFailures()
-  loginLockService.reset(username)
-  return establishSession(user)
 }
 
 /**
@@ -130,27 +141,35 @@ async function login({ username, password, captchaId, captchaCode } = {}) {
  * 与账号密码登录共用锁定：锁定期间扫码提交同样被拒绝（防止绕过锁定）。
  */
 async function loginByCredentials(username, password) {
-  if (!username || !password) {
-    throw new ApiError('请输入账号和密码', 400)
+  try {
+    if (!username || !password) {
+      throw new ApiError('请输入账号和密码', 400)
+    }
+    const lock = loginLockService.checkLocked(username)
+    if (lock) {
+      throw new ApiError(`账号已锁定，请 ${formatRemainMs(lock.remainMs)} 后重试`, 423, {
+        locked: true,
+        remainMs: lock.remainMs
+      })
+    }
+    const user = await userRepository.findByUsername(username)
+    if (!user || user.status !== ACCOUNT_STATUS_ENABLED) {
+      loginLockService.recordFailure(username)
+      throw new ApiError('账号或密码错误', 400)
+    }
+    if (!passwordService.verifyPassword(password, user.password_hash)) {
+      loginLockService.recordFailure(username)
+      throw new ApiError('账号或密码错误', 400)
+    }
+    loginLockService.reset(username)
+    loginLogService.record({ userId: user.id, username: user.username, role: user.role, loginType: 'scan', status: 1 })
+    return establishSession(user)
+  } catch (err) {
+    if (username) {
+      loginLogService.record({ username, loginType: 'scan', status: 0, failReason: (err && err.message) || '登录失败' })
+    }
+    throw err
   }
-  const lock = loginLockService.checkLocked(username)
-  if (lock) {
-    throw new ApiError(`账号已锁定，请 ${formatRemainMs(lock.remainMs)} 后重试`, 423, {
-      locked: true,
-      remainMs: lock.remainMs
-    })
-  }
-  const user = await userRepository.findByUsername(username)
-  if (!user || user.status !== ACCOUNT_STATUS_ENABLED) {
-    loginLockService.recordFailure(username)
-    throw new ApiError('账号或密码错误', 400)
-  }
-  if (!passwordService.verifyPassword(password, user.password_hash)) {
-    loginLockService.recordFailure(username)
-    throw new ApiError('账号或密码错误', 400)
-  }
-  loginLockService.reset(username)
-  return establishSession(user)
 }
 
 // 退出登录：停止聊天/通知推送并清除内存登录态（不吊销免密票据，票据仅 7 天到期失效）
@@ -189,6 +208,8 @@ async function switchByTicket(username) {
   currentUser = safe
   chatPoller.start(safe.id)
   notificationPoller.start(safe.id)
+  // 免密票据恢复进入系统同样留痕（登录方式 restore）
+  loginLogService.record({ userId: safe.id, username: safe.username, role: safe.role, loginType: 'restore', status: 1 })
   return { ok: true, user: safe }
 }
 

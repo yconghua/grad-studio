@@ -399,5 +399,13 @@ contextBridge.exposeInMainWorld('api', {
     stageRecordSave: createInvoke('achievement:stage-record-save'),
     stageRecordSubmit: createInvoke('achievement:stage-record-submit'),
     stageRecordReview: createInvoke('achievement:stage-record-review')
+  },
+
+  // 登录日志（对应 ipc/loginLog.js，通道前缀 login-log:*）：仅超管可用
+  loginLog: {
+    list: createInvoke('login-log:list'),
+    export: createInvoke('login-log:export'),
+    getRetainDays: createInvoke('login-log:retain-days'),
+    setRetainDays: createInvoke('login-log:set-retain-days')
   }
 })
