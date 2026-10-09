@@ -762,10 +762,12 @@ onMounted(() => {
   loadVersion()
   refreshDbStatus()
   refreshDbConnected()
-  // 数据库连接状态变化订阅：恢复后表单原地解锁，无需刷新
+  // 数据库连接状态变化订阅：恢复后表单原地解锁，无需刷新；同时刷新右上角状态胶囊
+  // （主进程每 5 秒探测推送，避免胶囊停留在挂载时的旧状态）
   unsubscribeDbStatus = onDbStatusChanged(({ connected, message }) => {
     dbConnected.value = !!connected
     dbBannerMsg.value = connected ? '' : (message || '')
+    refreshDbStatus()
   })
   // 托盘菜单「数据库：未连接（点击配置）」：打开基础配置弹窗
   unsubscribeTrayDbConfig = onTrayOpenDbConfig(() => {
