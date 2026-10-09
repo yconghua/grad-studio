@@ -11,6 +11,7 @@ export const MENTOR_NAV = [
   { key: 'mentor-achievements', path: '/mentor/achievements', title: '学生科研成果', icon: 'TrophyOutlined' },
   { key: 'mentor-meetings', path: '/mentor/meetings', title: '会议记录', icon: 'CalendarOutlined' },
   { key: 'mentor-tasks', path: '/mentor/tasks', title: '任务', icon: 'CheckSquareOutlined' },
+  { key: 'mentor-todo', path: '/mentor/todo', title: '我的待办', icon: 'ScheduleOutlined' },
   { key: 'mentor-report', path: '/mentor/report', title: '周报批阅', icon: 'FileTextOutlined' },
   { key: 'mentor-chat', path: '/mentor/chat', title: '聊天', icon: 'MessageOutlined' }
 ]

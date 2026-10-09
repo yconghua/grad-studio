@@ -12,6 +12,7 @@ export const SUPER_ADMIN_NAV = [
   { key: 'admin-notices', path: '/admin/notices', title: '课题组公告管理', icon: 'NotificationOutlined' },
   { key: 'admin-meetings', path: '/admin/meetings', title: '会议记录管理', icon: 'CalendarOutlined' },
   { key: 'admin-task-overview', path: '/admin/task-overview', title: '任务总览', icon: 'CheckSquareOutlined' },
+  { key: 'admin-todo-overview', path: '/admin/todo-overview', title: '待办总览', icon: 'ScheduleOutlined' },
   { key: 'admin-report', path: '/admin/report', title: '周报统计', icon: 'FileTextOutlined' },
   { key: 'admin-system', path: '/admin/system', title: '系统配置', icon: 'SettingOutlined' },
   { key: 'admin-chat', path: '/admin/chat', title: '聊天', icon: 'MessageOutlined' }

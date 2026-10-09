@@ -12,6 +12,7 @@ export const GROUP_ADMIN_NAV = [
   { key: 'group-admin-notices', path: '/group-admin/notices', title: '本组公告管理', icon: 'NotificationOutlined' },
   { key: 'group-admin-meetings', path: '/group-admin/meetings', title: '本组会议管理', icon: 'CalendarOutlined' },
   { key: 'group-admin-tasks', path: '/group-admin/tasks', title: '本组任务管理', icon: 'CheckSquareOutlined' },
+  { key: 'group-admin-todo-overview', path: '/group-admin/todo-overview', title: '待办总览', icon: 'ScheduleOutlined' },
   { key: 'group-admin-report', path: '/group-admin/report', title: '组内周报', icon: 'FileTextOutlined' },
   { key: 'group-admin-chat', path: '/group-admin/chat', title: '聊天', icon: 'MessageOutlined' }
 ]

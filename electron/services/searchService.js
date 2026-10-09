@@ -262,6 +262,26 @@ function buildQueries(me, kw) {
     })
   }
 
+  // ===== 待办（仅导师/学生搜自己的待办；超管/组管走总览页） =====
+  if ((role === ROLE_MENTOR || role === ROLE_STUDENT) && me.id != null) {
+    specs.push({
+      type: 'todo',
+      label: '待办',
+      query: `SELECT t.id, t.group_id, t.title, t.note, t.tag, t.priority, t.due_time, t.status, t.source_type
+        FROM \`todos\` t
+        WHERE t.owner_id = ? AND t.is_deleted = 0 AND (t.title LIKE ? OR t.note LIKE ? OR t.tag LIKE ?)
+        ORDER BY t.due_time IS NULL, t.due_time ASC LIMIT ${SEARCH_LIMIT}`,
+      params: [me.id, like, like, like],
+      map: (r) => ({
+        id: r.id,
+        title: r.title,
+        snippet: snippetOf(r.note || r.tag, kw) || `状态：${r.status === 'done' ? '已完成' : '待办'}`,
+        groupId: r.group_id,
+        extra: { priority: r.priority, dueTime: r.due_time, status: r.status, sourceType: r.source_type || '' }
+      })
+    })
+  }
+
   return specs
 }
 

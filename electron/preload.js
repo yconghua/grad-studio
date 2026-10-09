@@ -408,5 +408,19 @@ contextBridge.exposeInMainWorld('api', {
     export: createInvoke('login-log:export'),
     getRetainDays: createInvoke('login-log:retain-days'),
     setRetainDays: createInvoke('login-log:set-retain-days')
+  },
+
+  // 个人待办（对应 ipc/todo.js，通道前缀 todo:*）：学生/导师个人轻量待办
+  todo: {
+    listMine: createInvoke('todo:list-mine'),
+    summaryMine: createInvoke('todo:summary-mine'),
+    calendarMine: createInvoke('todo:calendar-mine'),
+    save: createInvoke('todo:save'),
+    checkSource: createInvoke('todo:check-source'),
+    createFromSource: createInvoke('todo:create-from-source'),
+    toggleDone: createInvoke('todo:toggle-done'),
+    remove: createInvoke('todo:remove'),
+    overview: createInvoke('todo:overview'),
+    overviewSummary: createInvoke('todo:overview-summary')
   }
 })

@@ -98,6 +98,7 @@ import {
   EditOutlined,
   FileDoneOutlined,
   TrophyOutlined,
+  ScheduleOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons-vue'
@@ -121,7 +122,8 @@ const navIcons = {
   MessageOutlined,
   EditOutlined,
   FileDoneOutlined,
-  TrophyOutlined
+  TrophyOutlined,
+  ScheduleOutlined
 }
 
 // 汉堡按钮：收起/展开导航栏（状态记忆 localStorage，启动时恢复）

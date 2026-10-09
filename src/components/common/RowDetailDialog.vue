@@ -20,6 +20,7 @@
         </template>
       </div>
       <div class="modal-foot">
+        <slot name="footer"></slot>
         <button class="btn" @click="close">关闭</button>
       </div>
     </div>

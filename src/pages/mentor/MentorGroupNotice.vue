@@ -40,7 +40,14 @@
     </div>
 
     <!-- 公告详情弹窗（统一走 notice:get，查看全文） -->
-    <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" size="lg" />
+    <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" size="lg">
+      <template #footer>
+        <button v-if="detailRow" type="button" class="btn" @click="openTodo">转为待办</button>
+      </template>
+    </RowDetailDialog>
+
+    <!-- 转为待办（新建弹窗，来源预填；转换不会修改原记录） -->
+    <TodoEditDialog v-model:open="todoVisible" :source="todoSource" @saved="onTodoSaved" @goto="onTodoGoto" />
 
     <div v-if="!notInGroup && list.length === 0" class="panel">
       <div class="empty">暂无公告</div>
@@ -56,10 +63,11 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { listNotices, markNoticeRead, markAllNoticeRead, getNotice } from '../../api'
 import NoticeContent from '../../components/notice/NoticeContent.vue'
 import RowDetailDialog from '../../components/common/RowDetailDialog.vue'
+import TodoEditDialog from '../../components/todo/TodoEditDialog.vue'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
@@ -117,9 +125,33 @@ async function openDetailById(id) {
   }
 }
 
+// 转为待办：来源预填（标题 + 发布时间/正文摘要进备注；结束时间由用户自定）
+const todoVisible = ref(false)
+const todoSource = ref(null)
+function openTodo() {
+  const n = detailRow.value
+  const content = String(n.content || '').replace(/[#*`>\[\]!-]/g, ' ').replace(/\s+/g, ' ').trim()
+  todoSource.value = {
+    sourceType: 'notice',
+    sourceId: Number(n.id),
+    title: n.title || '',
+    dueTime: null,
+    priority: 'medium',
+    note: [n.publishTime ? `公告时间：${n.publishTime}` : '', content.slice(0, 200)].filter(Boolean).join('\n')
+  }
+  todoVisible.value = true
+}
+function onTodoSaved() {
+  // 转换不改变原记录，仅关闭弹窗即可
+}
+function onTodoGoto(id) {
+  router.push({ path: '/mentor/todo', query: { open: id } })
+}
+
 // 全局搜索直达：?open=<id> → 滚动定位并高亮对应公告卡片，同时打开详情弹窗
 // （目标可能不在当前页：先翻页找到包含目标的那一页）
 const route = useRoute()
+const router = useRouter()
 async function locateNotice(openId) {
   if (openId == null || !/^\d+$/.test(String(openId))) return
   highlightId.value = Number(openId)

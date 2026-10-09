@@ -11,6 +11,7 @@
         <template v-else-if="task">
           <!-- 操作区（按当前用户角色/身份动态显示） -->
           <div v-if="isCreator || (isParticipant && !isCreator)" class="ops dialog-ops">
+            <button v-if="canTodo" class="btn" type="button" @click="openTodo">转为待办</button>
             <template v-if="isCreator">
               <button class="btn" type="button" @click="$emit('edit', task.id)">编辑</button>
               <button
@@ -144,11 +145,21 @@
     @close="progressVisible = false"
     @saved="onProgressSaved"
   />
+
+  <!-- 转为待办（新建弹窗，来源预填；转换不会修改原记录） -->
+  <TodoEditDialog
+    v-model:open="todoVisible"
+    :source="todoSource"
+    @saved="onTodoSaved"
+    @goto="onTodoGoto"
+  />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import TaskProgressDialog from './TaskProgressDialog.vue'
+import TodoEditDialog from '../todo/TodoEditDialog.vue'
 import {
   getTaskDetail,
   listTaskDynamics,
@@ -167,7 +178,9 @@ import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import {
   TASK_STATUS_DONE,
   TASK_STATUS_CANCELED,
-  TASK_STATUS_REVIEW
+  TASK_STATUS_REVIEW,
+  ROLE_MENTOR,
+  ROLE_STUDENT
 } from '../../config/constants'
 import { taskStatusText, taskStatusTagClass, taskPriorityText, taskPriorityTagClass } from '../../utils/labels'
 
@@ -180,6 +193,9 @@ const emit = defineEmits(['close', 'edit', 'changed'])
 
 const { getSessionUser } = useSession()
 const user = getSessionUser()
+const router = useRouter()
+// 已转过时跳转：我的待办并自动打开对应详情（角色决定路径）
+const todoPath = computed(() => (user.role === ROLE_MENTOR ? '/mentor/todo' : '/student/todo'))
 
 const task = ref(null)
 const errorMsg = ref('')
@@ -193,6 +209,12 @@ const isCreator = computed(() => !!task.value && task.value.creatorId === user.i
 const isParticipant = computed(
   () => !!task.value && task.value.participants.some((p) => p.userId === user.id)
 )
+// 转为待办：仅导师/学生角色，且为创建人或参与人（组管/超管不参与使用待办）
+const canTodo = computed(
+  () => (user.role === ROLE_MENTOR || user.role === ROLE_STUDENT) && (isCreator.value || isParticipant.value)
+)
+// 任务 → 待办来源预填（优先级 1-4 映射为低/中/高）
+const TASK_PRIORITY_MAP = { 1: 'low', 2: 'medium', 3: 'medium', 4: 'high' }
 const isOverdue = computed(() => {
   const t = task.value
   if (!t || !t.dueTime) return false
@@ -348,6 +370,29 @@ async function doComplete() {
   } else {
     dialogAlert((res && res.message) || '操作失败')
   }
+}
+
+// ===== 转为待办 =====
+const todoVisible = ref(false)
+const todoSource = ref(null)
+
+function openTodo() {
+  const t = task.value
+  todoSource.value = {
+    sourceType: 'task',
+    sourceId: Number(t.id),
+    title: t.title || '',
+    dueTime: t.dueTime || null,
+    priority: TASK_PRIORITY_MAP[t.priority] || 'medium',
+    note: t.description || ''
+  }
+  todoVisible.value = true
+}
+function onTodoSaved() {
+  emit('changed')
+}
+function onTodoGoto(id) {
+  router.push({ path: todoPath.value, query: { open: id } })
 }
 
 // ===== 参与人增删 =====

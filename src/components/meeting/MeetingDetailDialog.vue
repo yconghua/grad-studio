@@ -74,17 +74,26 @@
         >
           {{ publishing ? '发布中…' : '发布为公告' }}
         </button>
+        <!-- 转为待办：仅导师/学生角色且为参与人 -->
+        <button v-if="canTodo" class="btn" @click="openTodo">转为待办</button>
         <button class="btn" @click="close">关闭</button>
       </div>
     </div>
   </div>
+
+  <!-- 转为待办（新建弹窗，来源预填；转换不会修改原记录） -->
+  <TodoEditDialog v-model:open="todoVisible" :source="todoSource" @saved="onTodoSaved" @goto="onTodoGoto" />
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import NoticeContent from '../notice/NoticeContent.vue'
+import TodoEditDialog from '../todo/TodoEditDialog.vue'
 import { getMeetingDetail, publishMeetingAsNotice } from '../../api'
+import { useSession } from '../../composables/useSession'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
+import { ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 
 // 组会详情弹窗（纯只读展示）：进入时按 meetingId 请求详情全文 + 参与人 + noticeId；
 // 仅超管/组管可见底部「发布为公告」按钮（仅 status=2 且 noticeId 为空时可用），
@@ -100,6 +109,39 @@ const emit = defineEmits(['update:visible', 'published'])
 const detail = ref(null)
 const loadError = ref('')
 const publishing = ref(false)
+
+const { getSessionUser } = useSession()
+const user = getSessionUser()
+const router = useRouter()
+// 已转过时跳转：我的待办并自动打开对应详情（角色决定路径）
+const todoPath = computed(() => (user.role === ROLE_MENTOR ? '/mentor/todo' : '/student/todo'))
+// 转为待办：仅导师/学生角色且为本组会参与人
+const canTodo = computed(
+  () => (user.role === ROLE_MENTOR || user.role === ROLE_STUDENT)
+    && !!detail.value && !!detail.value.participants
+    && detail.value.participants.some((p) => Number(p.userId) === Number(user.id))
+)
+const todoVisible = ref(false)
+const todoSource = ref(null)
+
+function openTodo() {
+  const d = detail.value
+  todoSource.value = {
+    sourceType: 'meeting',
+    sourceId: Number(d.id),
+    title: d.title || '',
+    dueTime: d.meetingTime || null,
+    priority: 'medium',
+    note: [d.location, d.agenda].filter(Boolean).join('；')
+  }
+  todoVisible.value = true
+}
+function onTodoSaved() {
+  emit('published')
+}
+function onTodoGoto(id) {
+  router.push({ path: todoPath.value, query: { open: id } })
+}
 
 const statusText = computed(() => {
   const s = Number(detail.value?.status)

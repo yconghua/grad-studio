@@ -67,6 +67,7 @@
               <template v-else-if="canWithdraw">
                 <button type="button" class="btn btn-sm" @click="onWithdraw">撤回提交</button>
               </template>
+              <button type="button" class="btn btn-sm" @click="openTodo">转为待办</button>
             </div>
           </div>
 
@@ -137,11 +138,14 @@
       </section>
     </div>
   </div>
+
+  <!-- 转为待办（新建弹窗，来源预填；转换不会修改原记录） -->
+  <TodoEditDialog v-model:open="todoVisible" :source="todoSource" @saved="onTodoSaved" @goto="onTodoGoto" />
 </template>
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount, onMounted } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
   reportMyWeek, reportCreate, reportSaveDraft, reportSubmit, reportWithdrawSubmit,
   reportListMine, reportGet, reportListAttachments, reportAddAttachment,
@@ -152,8 +156,11 @@ import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useD
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
+import TodoEditDialog from '../../components/todo/TodoEditDialog.vue'
 
 const BACKFILL = REPORT_BACKFILL_WEEKS
+const route = useRoute()
+const router = useRouter()
 
 // ===== 列表 =====
 const page = ref(1)
@@ -206,8 +213,7 @@ const backfillWeeks = computed(() => {
 // 附件可接受扩展名（同共享常量）
 const acceptExts = ['.pdf', '.doc', '.docx', '.png', '.jpg', '.jpeg', '.gif', '.webp'].join(',')
 
-function isoWeekKey(date) {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+function isoWeekKey(date) {  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   const dayNum = d.getDay() || 7
   d.setDate(d.getDate() + 4 - dayNum)
   const yearStart = new Date(d.getFullYear(), 0, 1)
@@ -507,6 +513,38 @@ async function onDeleteAttach(a) {
   }
 }
 
+// ===== 转为待办 =====
+const todoVisible = ref(false)
+const todoSource = ref(null)
+
+// 本周截止：本周日 23:59:59
+function thisWeekEnd() {
+  const d = new Date()
+  const day = d.getDay() || 7
+  d.setDate(d.getDate() + (7 - day))
+  d.setHours(23, 59, 59, 0)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} 23:59:59`
+}
+
+function openTodo() {
+  todoSource.value = {
+    sourceType: 'report',
+    sourceId: Number(currentNote.value.id),
+    title: currentNote.value.title || `第${currentNote.value.week_key}周周报`,
+    dueTime: thisWeekEnd(),
+    priority: 'medium',
+    note: (currentNote.value.content || '').slice(0, 200)
+  }
+  todoVisible.value = true
+}
+function onTodoSaved() {
+  load()
+}
+function onTodoGoto(id) {
+  router.push({ path: '/student/todo', query: { open: id } })
+}
+
 // 离开页面前：未保存修改需确认
 onBeforeRouteLeave(async () => {
   if (!dirty || !currentNote.value) return true
@@ -515,7 +553,10 @@ onBeforeRouteLeave(async () => {
 })
 
 onMounted(() => {
-  load()
+  load().then(() => {
+    const openId = route.query.open
+    if (openId && /^\d+$/.test(String(openId))) openNoteById(Number(openId))
+  })
   onStartThisWeek()
 })
 // 数据变动（本页写操作或外部改动）后后台静默重拉，保持周报列表最新

@@ -32,6 +32,8 @@ const reportScheduler = require('./services/reportScheduler')
 // 学业节点提醒：临近/逾期节点扫描（应用 ready 后启动，remind_at 去重）
 const academicScheduler = require('./services/academicScheduler')
 const loginLogScheduler = require('./services/loginLogScheduler')
+// 待办提醒：到点提醒扫描（应用 ready 后启动，reminded_at 去重）
+const todoScheduler = require('./services/todoScheduler')
 // 全局数据版本轮询：业务表指纹变化时广播 db:changed（页面后台静默重拉）
 const dataVersionService = require('./services/dataVersionService')
 // 数据库连接状态：持续 SELECT 1 探测，未连接时登录页禁用登录表单（连接恢复自动解锁）
@@ -303,6 +305,8 @@ if (!gotTheLock) {
     academicScheduler.start()
     // 启动登录日志每日清理（按保留天数删除过期记录）
     loginLogScheduler.start()
+    // 启动待办到点提醒（设了提醒且到点的待办 → 通知归属人）
+    todoScheduler.start()
     // 启动全局数据版本轮询（业务表指纹变化 → 广播 db:changed，页面无感刷新）
     dataVersionService.start()
     // 启动数据库连接探测（先于窗口创建，登录页挂载即可读到真实连接状态）
@@ -318,6 +322,7 @@ if (!gotTheLock) {
     reportScheduler.stop()
     academicScheduler.stop()
     loginLogScheduler.stop()
+    todoScheduler.stop()
     dataVersionService.stop()
     dbStatusService.stop()
     scanServerManager.stop()
