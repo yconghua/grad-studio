@@ -252,7 +252,7 @@ async function calendarMine({ start, end }, viewer) {
   assertPersonalRole(me)
   if (!start || !end) throw new ApiError('请提供时间范围', 400)
   const rows = await todoRepository.listByOwnerRange(me.id, start, end)
-  return rows.map(toDto)
+  return { list: rows.map(toDto) }
 }
 
 // ===== 我的待办写操作 =====
