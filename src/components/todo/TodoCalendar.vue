@@ -125,9 +125,9 @@ const monthCells = computed(() => {
   }
   return cells
 })
-// 周视图格子：cursor 所在周 + weekOffset 偏移
+// 周视图格子：本周一 + weekOffset 偏移（weekOffset=0 即当前周；与 cursor 解耦）
 const weekCells = computed(() => {
-  const monday = addDays(mondayOf(cursor.value), weekOffset.value * 7)
+  const monday = addDays(mondayOf(new Date()), weekOffset.value * 7)
   const cells = []
   for (let i = 0; i < 7; i++) {
     const d = addDays(monday, i)
@@ -152,7 +152,8 @@ async function load() {
     start = cursor.value
     end = new Date(cursor.value.getFullYear(), cursor.value.getMonth() + 1, 1)
   } else {
-    const monday = addDays(mondayOf(cursor.value), weekOffset.value * 7)
+    // 周视图：以本周一为锚 + weekOffset 偏移（与显示格子一致）
+    const monday = addDays(mondayOf(new Date()), weekOffset.value * 7)
     start = monday
     end = addDays(monday, 7)
   }
