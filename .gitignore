@@ -7,3 +7,5 @@ release/
 .DS_Store
 Thumbs.db
 coverage/
+
+myself_note.md
