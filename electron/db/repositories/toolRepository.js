@@ -9,7 +9,17 @@
  * 用户设置（含 API Key 加密串）、公司收藏、数据源调用日志。
  */
 const BaseRepository = require('./BaseRepository')
-const { buildWhereClause, normalizePage, buildPageMeta } = require('./queryHelpers')
+const { buildWhereClause, normalizePage, buildPageMeta, buildOrderBy } = require('./queryHelpers')
+
+// 调用日志排序白名单：语义字段 → 可信列名（前端字符串不进 SQL 列名位置）
+const SORT_MAP_LOG = {
+  createdAt: 'created_at',
+  tool: 'tool',
+  sourceName: 'source_name',
+  status: 'status',
+  costMs: 'cost_ms',
+  resultCount: 'result_count'
+}
 
 class ToolRepository extends BaseRepository {
   constructor() {
@@ -182,7 +192,7 @@ class ToolRepository extends BaseRepository {
     return result.insertId
   }
 
-  async listSourceLogs(userId, { tool = '', status = '', page = 1, pageSize = 10 } = {}) {
+  async listSourceLogs(userId, { tool = '', status = '', page = 1, pageSize = 10, sortField = '', sortOrder = '' } = {}) {
     const cond = ['user_id = ?']
     const params = [Number(userId)]
     if (tool) { cond.push('tool = ?'); params.push(tool) }
@@ -192,8 +202,9 @@ class ToolRepository extends BaseRepository {
     const [countRows] = await this._execute(countSql, params, 'listSourceLogs.count')
     const total = Number(countRows[0] && countRows[0].total) || 0
     const { limit, offset } = normalizePage(page, pageSize)
+    const order = buildOrderBy({ sortField, sortOrder }, SORT_MAP_LOG, 'id DESC')
     const listSql = `SELECT id, tool, query_snapshot, source_name, status, cost_ms, result_count, error_msg, created_at
-                     FROM \`tool_source_logs\` WHERE ${where} ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`
+                     FROM \`tool_source_logs\` WHERE ${where} ${order} LIMIT ${limit} OFFSET ${offset}`
     const [rows] = await this._execute(listSql, params, 'listSourceLogs')
     return { list: rows, ...buildPageMeta(total, page, pageSize) }
   }

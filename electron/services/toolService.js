@@ -442,7 +442,7 @@ async function clearCache(userId, table) {
 // ===== 数据源调用日志 =====
 async function listLogs(userId, payload = {}) {
   requireToolsUser(await currentUser())
-  return toolRepository.listSourceLogs(userId, { tool: payload.tool || '', status: payload.status || '', page: payload.page || 1, pageSize: payload.pageSize || 10 })
+  return toolRepository.listSourceLogs(userId, { tool: payload.tool || '', status: payload.status || '', page: payload.page || 1, pageSize: payload.pageSize || 10, sortField: payload.sortField || '', sortOrder: payload.sortOrder || '' })
 }
 
 async function clearLogs(userId, payload = {}) {

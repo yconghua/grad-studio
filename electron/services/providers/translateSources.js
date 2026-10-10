@@ -112,4 +112,137 @@ const youdao = {
   }
 }
 
-module.exports = { translateSources: [deepL, baidu, youdao] }
+// LibreTranslate：开源免费翻译，免 Key（公共实例有速率限制）
+const libreTranslate = {
+  name: 'libreTranslate',
+  label: 'LibreTranslate',
+  requiresKey: false,
+  async fetch(params) {
+    const r = await fetchJson('https://libretranslate.com/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        q: params.text,
+        source: params.srcLang === 'auto' ? 'auto' : params.srcLang,
+        target: params.targetLang,
+        format: 'text'
+      })
+    })
+    if (!r.ok) return { items: [], error: r.error }
+    const text = r.data && r.data.translatedText
+    if (!text) return { items: [], error: '无译文返回' }
+    return {
+      items: [{
+        engine: 'libreTranslate',
+        label: 'LibreTranslate',
+        translatedText: text,
+        detectedLang: ''
+      }]
+    }
+  }
+}
+
+// MyMemory：免费翻译 API（匿名有额度限制），免 Key；语言对需具体，auto 时用 Autodetect
+const myMemory = {
+  name: 'myMemory',
+  label: 'MyMemory',
+  requiresKey: false,
+  async fetch(params) {
+    const pair = `${params.srcLang === 'auto' ? 'Autodetect' : params.srcLang}|${params.targetLang}`
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(params.text)}&langpair=${encodeURIComponent(pair)}`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const t = r.data && r.data.responseData && r.data.responseData.translatedText
+    if (!t) return { items: [], error: r.data && r.data.responseStatus ? `接口错误(${r.data.responseStatus})` : '无译文返回' }
+    return {
+      items: [{
+        engine: 'myMemory',
+        label: 'MyMemory',
+        translatedText: t,
+        detectedLang: ''
+      }]
+    }
+  }
+}
+
+// Google Cloud Translation：付费（需 API Key）
+const googleTranslate = {
+  name: 'googleTranslate',
+  label: '谷歌翻译',
+  requiresKey: true,
+  keyName: 'googleTranslate',
+  async fetch(params, ctx) {
+    const key = ctx && ctx.keys && ctx.keys.googleTranslate
+    if (!key) return { items: [], error: '未配置 Key' }
+    const src = params.srcLang === 'auto' ? '' : `&source=${params.srcLang}`
+    const url = `https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(key)}&q=${encodeURIComponent(params.text)}&target=${params.targetLang}${src}`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const t = r.data && r.data.data && r.data.data.translations && r.data.data.translations[0]
+    if (!t) return { items: [], error: '无译文返回' }
+    return {
+      items: [{
+        engine: 'googleTranslate',
+        label: '谷歌翻译',
+        translatedText: t.translatedText || '',
+        detectedLang: t.detectedSourceLanguage || ''
+      }]
+    }
+  }
+}
+
+// Microsoft Translator：付费（需 Azure Key）
+const microsoftTranslate = {
+  name: 'microsoftTranslate',
+  label: '微软翻译',
+  requiresKey: true,
+  keyName: 'microsoftTranslate',
+  async fetch(params, ctx) {
+    const key = ctx && ctx.keys && ctx.keys.microsoftTranslate
+    if (!key) return { items: [], error: '未配置 Key' }
+    const from = params.srcLang === 'auto' ? '' : `&from=${params.srcLang}`
+    const url = `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${params.targetLang}${from}`
+    const r = await fetchJson(url, {
+      method: 'POST',
+      headers: { 'Ocp-Apim-Subscription-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ Text: params.text }])
+    })
+    if (!r.ok) return { items: [], error: r.error }
+    const arr = Array.isArray(r.data) ? r.data : []
+    const first = arr[0] || {}
+    const t = first.translations && first.translations[0]
+    if (!t) return { items: [], error: '无译文返回' }
+    return {
+      items: [{
+        engine: 'microsoftTranslate',
+        label: '微软翻译',
+        translatedText: t.text || '',
+        detectedLang: (first.detectedLanguage && first.detectedLanguage.language) || ''
+      }]
+    }
+  }
+}
+
+// 阿里云翻译：需云控制台 AccessKey 与 TC3-HMAC 签名，注册为源但提示暂不可用
+const aliyunTranslate = {
+  name: 'aliyunTranslate',
+  label: '阿里云翻译',
+  requiresKey: true,
+  keyName: 'aliyunTranslate',
+  async fetch() {
+    return { items: [], error: '阿里云机器翻译需 AccessKey 与 TC3-HMAC-SHA256 签名，当前版本暂不支持云端签名（请使用其他翻译引擎）' }
+  }
+}
+
+// 腾讯云翻译：需云控制台密钥与 TC3 签名，注册为源但提示暂不可用
+const tencentTranslate = {
+  name: 'tencentTranslate',
+  label: '腾讯翻译',
+  requiresKey: true,
+  keyName: 'tencentTranslate',
+  async fetch() {
+    return { items: [], error: '腾讯云机器翻译需 SecretId/SecretKey 与 TC3-HMAC-SHA256 签名，当前版本暂不支持云端签名（请使用其他翻译引擎）' }
+  }
+}
+
+module.exports = { translateSources: [deepL, baidu, youdao, libreTranslate, myMemory, googleTranslate, microsoftTranslate, aliyunTranslate, tencentTranslate] }

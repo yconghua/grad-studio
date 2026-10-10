@@ -1,10 +1,11 @@
 /**
- * 期刊信息查询 · 数据源（ShowJCR 本地数据集 / 聚合数据 / Web of Science）
+ * 期刊信息查询 · 数据源（ShowJCR 本地数据集 / 聚合数据 / Web of Science / 新锐学术）
  *
  *   - ShowJCR：开源数据集（GitHub 发布），随项目本地维护于 electron/data/jcr-data.json，
  *     数据文件缺失时该源标记不可用并提示导入路径（不编造数据）；
  *   - 聚合数据 JCR：需 Key（apis.juhe.cn/paper_info/search_jcr）；
- *   - Web of Science：需机构订阅/开发者 Key，无公开免 Key 端点，配置 Key 后仍可能不可用（降级提示）。
+ *   - Web of Science：需机构订阅/开发者 Key，无公开免 Key 端点，配置 Key 后仍可能不可用（降级提示）；
+ *   - 新锐学术：需 Key（webapi.xr-scholar.com WebAPI 管理平台，开发者账号 + API Key）。
  * 统一返回 items：{ name, issn, eissn, publisher, impactFactor, jcrZone, casZone, casWarning, top, oa, ... }
  */
 const fs = require('fs')
@@ -108,4 +109,116 @@ const webOfScience = {
   }
 }
 
-module.exports = { journalSources: [showJcr, juheJcr, webOfScience] }
+// 新锐学术 WebAPI 端点（webapi.xr-scholar.com 为 WebAPI 管理平台，需开发者账号与 API Key）。
+// 接口鉴权与参数以开发者文档为准；如形态不同，调整下方端点常量与 query/header 拼装即可。
+const XR_API_ENDPOINT = 'https://webapi.xr-scholar.com/api/journal'
+
+const xrScholar = {
+  name: 'xrScholar',
+  label: '新锐学术（新锐分区）',
+  requiresKey: true,
+  keyName: 'xrScholar',
+  async fetch(params, ctx) {
+    const key = ctx && ctx.keys && ctx.keys.xrScholar
+    if (!key) return { items: [], error: '未配置 Key' }
+    const qs = []
+    if (params.issn) qs.push(`issn=${encodeURIComponent(params.issn)}`)
+    if (params.keyword) qs.push(`journal=${encodeURIComponent(params.keyword)}`)
+    if (!qs.length) return { items: [], error: '缺少查询参数' }
+    qs.push(`key=${encodeURIComponent(key)}`)
+    const r = await fetchJson(`${XR_API_ENDPOINT}?${qs.join('&')}`, {
+      headers: { Authorization: `Bearer ${key}` }
+    })
+    if (!r.ok) return { items: [], error: r.error }
+    const body = r.data
+    const list = (body && (body.result || body.data || body.list)) || []
+    const arr = Array.isArray(list) ? list : [list]
+    const items = arr.filter(Boolean).map((j) => ({
+      name: j.name || j.journal_name || j.journal || '',
+      issn: j.issn || j.print_issn || '',
+      eissn: j.eissn || j.online_issn || '',
+      publisher: j.publisher || '',
+      impactFactor: j.impact_factor || j.if || j.if2026 || null,
+      jcrZone: j.jcr_zone || '',
+      casZone: j.zone || j.cas_zone || '',
+      xrZone: j.zone || j.xr_zone || '',
+      xrTop: !!(j.top || j.is_top),
+      casWarning: !!(j.warning || j.is_warning),
+      source: '新锐学术'
+    }))
+    if (!items.length) return { items: [], error: body.message || '未查询到期刊数据' }
+    return { items }
+  }
+}
+
+// DOAJ：开放获取期刊目录，免 Key；提供 OA 期刊元数据（无影响因子）
+const doaj = {
+  name: 'doaj',
+  label: 'DOAJ（开放获取）',
+  requiresKey: false,
+  async fetch(params) {
+    const q = params.issn ? `issn:${encodeURIComponent(params.issn)}` : encodeURIComponent(params.keyword || '')
+    const url = `https://doaj.org/api/search/journals/${q}?pageSize=${params.limit || 8}`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const items = ((r.data && r.data.results) || []).map((res) => {
+      const b = res.bibjson || {}
+      return {
+        name: b.title || '',
+        issn: b.issn || '',
+        eissn: b.eissn || '',
+        publisher: b.publisher || '',
+        impactFactor: null,
+        casZone: '',
+        oa: 'oa',
+        top: false,
+        source: 'DOAJ'
+      }
+    })
+    return { items }
+  }
+}
+
+// Scimago SJR：无公开 JSON API（仅网页与数据文件），注册为源但提示不可用
+const scimago = {
+  name: 'scimago',
+  label: 'Scimago SJR',
+  requiresKey: false,
+  async fetch() {
+    return { items: [], error: 'Scimago 无公开 JSON API（仅网页查询与数据文件下载），当前环境不可用（请以其他数据源结果为准）' }
+  }
+}
+
+// Scopus 期刊：Elsevier 期刊指标，付费（需 API Key，机构订阅范围受限）
+const scopusJournal = {
+  name: 'scopusJournal',
+  label: 'Scopus（期刊）',
+  requiresKey: true,
+  keyName: 'scopus',
+  async fetch(params, ctx) {
+    const key = ctx && ctx.keys && ctx.keys.scopus
+    if (!key) return { items: [], error: '未配置 Key' }
+    const url = `https://api.elsevier.com/content/serial/title?title=${encodeURIComponent(params.keyword || '')}&apiKey=${encodeURIComponent(key)}`
+    const r = await fetchJson(url, { headers: { 'X-ELS-APIKey': key } })
+    if (!r.ok) return { items: [], error: r.error }
+    const list = ((r.data && r.data['serial-response'] && r.data['serial-response'].entry) || []).filter(Boolean)
+    const items = list.map((j) => {
+      const cs = j.citeScoreYearInfoList || {}
+      return {
+        name: j['dc:title'] || '',
+        issn: (j['prism:issn'] || '').replace(/-/g, ''),
+        eissn: (j['prism:eIssn'] || '').replace(/-/g, ''),
+        publisher: j.publisher || '',
+        impactFactor: cs.citeScoreCurrentMetric || null,
+        jcrZone: '',
+        casZone: '',
+        oa: j.openaccessArticle ? 'oa' : '',
+        top: false,
+        source: 'Scopus'
+      }
+    })
+    return { items }
+  }
+}
+
+module.exports = { journalSources: [showJcr, juheJcr, webOfScience, xrScholar, doaj, scimago, scopusJournal] }

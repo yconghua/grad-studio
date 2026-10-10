@@ -136,8 +136,219 @@ const semanticScholar = {
   }
 }
 
+// Europe PMC：生物医学文献 + 预印本，免 Key；支持 DOI 精确与标题模糊查询
+const europePmc = {
+  name: 'europePmc',
+  label: 'Europe PMC',
+  requiresKey: false,
+  async fetch(params) {
+    const doi = normDoi(params.doi)
+    const q = doi ? `DOI:"${doi}"` : `TITLE:"${encodeURIComponent(String(params.title || params.pmid || '').replace(/"/g, ' '))}"`
+    const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${q}&format=json&pageSize=${params.limit || 3}&resultType=core`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const items = ((r.data.resultList && r.data.resultList.result) || []).map((it) => {
+      const journal = (it.journalInfo && it.journalInfo.journal) || {}
+      const fullText = (it.fullTextUrlList && it.fullTextUrlList.fullTextUrl) || []
+      return {
+        doi: normDoi(it.doi),
+        title: it.title || '',
+        authors: (it.authorList && it.authorList.author || []).map((a) => ({ name: a.fullName || '', orcid: a.orcid || '' })),
+        venue: journal.title || '',
+        publisher: journal.publisher || '',
+        year: it.pubYear || journal.year || null,
+        volume: journal.volume || '',
+        issue: journal.issue || '',
+        pages: it.pageInfo || '',
+        abstract: it.abstractText || '',
+        citedBy: it.citedByCount || 0,
+        referencesCount: 0,
+        url: it.url || (it.id ? `https://europepmc.org/article/${it.source}/${it.id}` : ''),
+        openAccessPdf: (fullText.find((f) => f.documentStyle === 'pdf') || {}).url || '',
+        oaStatus: it.isOpenAccess ? 'oa' : 'closed',
+        pmid: it.pmid || '',
+        pmcid: it.pmcid || ''
+      }
+    })
+    return { items }
+  }
+}
+
+// DataCite：研究数据/软件 DOI，免 Key；JSON:API 格式
+const datacite = {
+  name: 'datacite',
+  label: 'DataCite',
+  requiresKey: false,
+  async fetch(params) {
+    const doi = normDoi(params.doi)
+    const url = doi
+      ? `https://api.datacite.org/dois/${encodeURIComponent(doi)}`
+      : `https://api.datacite.org/dois?query=title:${encodeURIComponent(params.title || params.pmid || '')}&page[size]=${params.limit || 3}`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const list = doi ? [r.data] : ((r.data && r.data.data) || [])
+    const items = list.filter(Boolean).map((d) => {
+      const a = d.attributes || {}
+      return {
+        doi: normDoi(a.doi || d.id),
+        title: (a.titles && a.titles[0] && a.titles[0].title) || '',
+        authors: (a.creators || []).map((c) => ({ name: c.name || '', orcid: (c.nameIdentifiers && c.nameIdentifiers[0] && c.nameIdentifiers[0].nameIdentifier) || '' })),
+        venue: (a.container && a.container.title) || '',
+        publisher: a.publisher || '',
+        year: a.publicationYear ? Number(a.publicationYear) : null,
+        volume: (a.container && a.container.volume) || '',
+        issue: (a.container && a.container.issue) || '',
+        pages: (a.container && a.container.firstPage) ? [a.container.firstPage, a.container.lastPage].filter(Boolean).join('-') : '',
+        abstract: '',
+        citedBy: 0,
+        referencesCount: 0,
+        url: a.url || (a.doi ? `https://doi.org/${a.doi}` : ''),
+        resourceType: (a.types && a.types.resourceTypeGeneral) || ''
+      }
+    })
+    return { items }
+  }
+}
+
+// OpenCitations（COCI）：引文索引，免 Key；仅支持 DOI 精确查询
+const opencitations = {
+  name: 'opencitations',
+  label: 'OpenCitations',
+  requiresKey: false,
+  async fetch(params) {
+    const doi = normDoi(params.doi)
+    if (!doi) return { items: [], error: 'OpenCitations 仅支持 DOI 精确查询' }
+    const url = `https://opencitations.net/index/coci/api/v1/metadata/${encodeURIComponent(doi)}`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const list = Array.isArray(r.data) ? r.data : []
+    const items = list.map((m) => ({
+      doi: normDoi(m.doi),
+      title: m.title || '',
+      authors: String(m.author || '').split(';').map((n) => ({ name: n.trim() })).filter((a) => a.name),
+      venue: m.venue || '',
+      publisher: m.publisher || '',
+      year: m.year ? Number(m.year) : null,
+      volume: m.volume || '',
+      issue: m.issue || '',
+      pages: m.page || '',
+      abstract: '',
+      citedBy: 0,
+      referencesCount: 0,
+      url: m.doi ? `https://doi.org/${m.doi}` : ''
+    }))
+    return { items }
+  }
+}
+
+// Unpaywall：OA 全文定位，免费（需邮箱注册 Key）；仅支持 DOI 精确查询
+const unpaywall = {
+  name: 'unpaywall',
+  label: 'Unpaywall（OA 全文）',
+  requiresKey: true,
+  keyName: 'unpaywall',
+  async fetch(params, ctx) {
+    const email = ctx && ctx.keys && ctx.keys.unpaywall
+    if (!email) return { items: [], error: '未配置 Key（邮箱）' }
+    const doi = normDoi(params.doi)
+    if (!doi) return { items: [], error: 'Unpaywall 仅支持 DOI 精确查询' }
+    const r = await fetchJson(`https://api.unpaywall.org/v2/${encodeURIComponent(doi)}?email=${encodeURIComponent(email)}`)
+    if (!r.ok) return { items: [], error: r.error }
+    const d = r.data
+    const best = d.best_oa_location || {}
+    const item = {
+      doi: normDoi(d.doi),
+      title: d.title || '',
+      authors: (d.authors || []).map((a) => ({ name: [a.given, a.family].filter(Boolean).join(' '), orcid: a.orcid || '' })),
+      venue: d.journal_name || '',
+      year: d.year ? Number(d.year) : null,
+      abstract: '',
+      citedBy: 0,
+      referencesCount: 0,
+      url: d.url || (d.doi ? `https://doi.org/${d.doi}` : ''),
+      openAccessPdf: best.url_for_pdf || '',
+      oaStatus: d.is_oa ? 'oa' : 'closed'
+    }
+    return { items: [item] }
+  }
+}
+
+// Lens.org：学术 + 专利一体，免费（需个人 access token）；按 DOI 外部 ID 匹配
+const lens = {
+  name: 'lens',
+  label: 'Lens.org',
+  requiresKey: true,
+  keyName: 'lens',
+  async fetch(params, ctx) {
+    const token = ctx && ctx.keys && ctx.keys.lens
+    if (!token) return { items: [], error: '未配置 Key（token）' }
+    const doi = normDoi(params.doi)
+    if (!doi) return { items: [], error: 'Lens 仅支持 DOI 精确查询' }
+    const body = JSON.stringify({
+      query: { match: { 'external_ids.value': doi } },
+      size: 1
+    })
+    const r = await fetchJson('https://api.lens.org/scholarly/search', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body
+    })
+    if (!r.ok) return { items: [], error: r.error }
+    const list = ((r.data && r.data.data) || []).map((w) => ({
+      doi: normDoi((w.external_ids || []).find((x) => x.type === 'doi') && (w.external_ids.find((x) => x.type === 'doi').value)),
+      title: w.title || '',
+      authors: (w.creator || []).map((c) => ({ name: c.name || [c.first_name, c.last_name].filter(Boolean).join(' '), orcid: c.orcid || '' })),
+      venue: (w.source && w.source.name) || '',
+      publisher: (w.source && w.source.publisher) || '',
+      year: w.date_published ? Number(String(w.date_published).slice(0, 4)) : null,
+      abstract: w.abstract_text || '',
+      citedBy: w.citation_count || 0,
+      referencesCount: 0,
+      url: w.url || '',
+      oaStatus: w.is_open_access ? 'oa' : 'closed'
+    }))
+    return { items: list }
+  }
+}
+
+// Scopus：Elsevier 文献元数据，付费（需 API Key，机构订阅范围受限）
+const scopus = {
+  name: 'scopus',
+  label: 'Scopus',
+  requiresKey: true,
+  keyName: 'scopus',
+  async fetch(params, ctx) {
+    const key = ctx && ctx.keys && ctx.keys.scopus
+    if (!key) return { items: [], error: '未配置 Key' }
+    const doi = normDoi(params.doi)
+    const q = doi ? `DOI(${doi})` : `TITLE(${encodeURIComponent(params.title || params.pmid || '')})`
+    const url = `https://api.elsevier.com/content/search/scopus?query=${q}&apiKey=${encodeURIComponent(key)}`
+    const r = await fetchJson(url, { headers: { 'X-ELS-APIKey': key } })
+    if (!r.ok) return { items: [], error: r.error }
+    const list = ((r.data && r.data['search-results'] && r.data['search-results'].entry) || []).filter(Boolean)
+    const items = list.map((e) => {
+      const link = (e.link || []).find((l) => l['@ref'] === 'scopus')
+      return {
+        doi: normDoi(e['prism:doi']),
+        title: e['dc:title'] || '',
+        authors: e['dc:creator'] ? [{ name: e['dc:creator'] }] : [],
+        venue: e['prism:publicationName'] || '',
+        year: e['prism:coverDate'] ? Number(String(e['prism:coverDate']).slice(0, 4)) : null,
+        volume: e['prism:volume'] || '',
+        issue: e['prism:issueIdentifier'] || '',
+        pages: e['prism:pageRange'] || '',
+        abstract: '',
+        citedBy: Number(e['citedby-count']) || 0,
+        referencesCount: 0,
+        url: (link && link['@href']) || (e['prism:doi'] ? `https://doi.org/${e['prism:doi']}` : '')
+      }
+    })
+    return { items }
+  }
+}
+
 module.exports = {
-  doiSources: [crossref, openalex, semanticScholar],
+  doiSources: [crossref, openalex, semanticScholar, europePmc, datacite, opencitations, unpaywall, lens, scopus],
   authorsOf,
   normDoi
 }

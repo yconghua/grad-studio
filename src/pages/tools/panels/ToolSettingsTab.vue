@@ -74,29 +74,33 @@
         <div class="spacer"></div>
       </div>
       <div class="tbl-wrap" v-if="logList.length">
-        <table class="tbl">
+        <table
+          v-resizable-columns="{ min: 48, minByIndex: { 7: 120 } }"
+          v-sortable-columns="{ field: sortField, order: sortOrder, onSort }"
+          class="tbl"
+        >
           <thead>
             <tr>
-              <th>时间</th>
-              <th>工具</th>
+              <th data-sort="createdAt">时间</th>
+              <th data-sort="tool">工具</th>
               <th>查询参数</th>
-              <th>数据源</th>
-              <th>状态</th>
-              <th>耗时</th>
-              <th>结果</th>
+              <th data-sort="sourceName">数据源</th>
+              <th data-sort="status">状态</th>
+              <th data-sort="costMs">耗时</th>
+              <th data-sort="resultCount">结果</th>
               <th>错误信息</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="l in logList" :key="l.id">
+            <tr v-for="l in logList" :key="l.id" @click="openLogDetail(l)">
               <td>{{ l.created_at }}</td>
               <td>{{ toolName(l.tool) }}</td>
-              <td :title="l.query_snapshot">{{ l.query_snapshot || '-' }}</td>
+              <td :title="l.query_snapshot" class="ellipsis" style="max-width: 200px">{{ l.query_snapshot || '-' }}</td>
               <td>{{ l.source_name }}</td>
               <td><span class="tag" :class="logStateTag(l.status)">{{ logStateText(l.status) }}</span></td>
               <td>{{ l.cost_ms }}ms</td>
               <td>{{ l.result_count }}</td>
-              <td :title="l.error_msg" style="max-width: 200px">{{ l.error_msg || '-' }}</td>
+              <td :title="l.error_msg" class="ellipsis" style="max-width: 200px">{{ l.error_msg || '-' }}</td>
             </tr>
           </tbody>
         </table>
@@ -109,6 +113,8 @@
       </div>
       <div v-else class="panel-empty">暂无调用日志</div>
     </div>
+
+    <RowDetailDialog v-model:visible="logDetailVisible" title="调用日志详情" :row="logDetailRow" :fields="logDetailFields" size="lg" />
   </div>
 </template>
 
@@ -116,11 +122,18 @@
 import { ref, onMounted } from 'vue'
 import { showToast } from '../../../composables/useToast'
 import { getToolSettings, saveToolSettings, testToolKey, getToolCacheInfo, clearToolCache, getToolLogs, clearToolLogs } from '../../../api/tool'
+import RowDetailDialog from '../../../components/common/RowDetailDialog.vue'
 
 const engineOptions = [
   { label: 'DeepL', value: 'deepl' },
   { label: '百度翻译', value: 'baidu' },
-  { label: '有道翻译', value: 'youdao' }
+  { label: '有道翻译', value: 'youdao' },
+  { label: 'LibreTranslate', value: 'libreTranslate' },
+  { label: 'MyMemory', value: 'myMemory' },
+  { label: '谷歌翻译', value: 'googleTranslate' },
+  { label: '微软翻译', value: 'microsoftTranslate' },
+  { label: '阿里云翻译', value: 'aliyunTranslate' },
+  { label: '腾讯翻译', value: 'tencentTranslate' }
 ]
 
 const defaultCitation = ref('gb7714')
@@ -137,14 +150,36 @@ const keyGroups = [
       { key: 'baiduAppid', label: '百度翻译 APPID' },
       { key: 'baiduSecret', label: '百度翻译 密钥' },
       { key: 'youdaoAppKey', label: '有道翻译 APP Key' },
-      { key: 'youdaoSecret', label: '有道翻译 密钥' }
+      { key: 'youdaoSecret', label: '有道翻译 密钥' },
+      { key: 'googleTranslate', label: '谷歌翻译 API Key' },
+      { key: 'microsoftTranslate', label: '微软翻译 Azure Key' },
+      { key: 'aliyunTranslate', label: '阿里云翻译 Key（暂不可用）' },
+      { key: 'tencentTranslate', label: '腾讯翻译 Key（暂不可用）' }
     ]
   },
   {
     title: '期刊查询',
     fields: [
       { key: 'juheJcr', label: '聚合数据 JCR Key' },
-      { key: 'webOfScience', label: 'Web of Science 开发者 Key' }
+      { key: 'webOfScience', label: 'Web of Science 开发者 Key' },
+      { key: 'xrScholar', label: '新锐学术 API Key' },
+      { key: 'scopus', label: 'Scopus API Key' }
+    ]
+  },
+  {
+    title: 'DOI 查询',
+    fields: [
+      { key: 'unpaywall', label: 'Unpaywall Key（邮箱）' }
+    ]
+  },
+  {
+    title: '学术搜索（选填提额）',
+    fields: [
+      { key: 'pubmed', label: 'PubMed API Key' },
+      { key: 'semanticScholar', label: 'Semantic Scholar API Key' },
+      { key: 'baseUsername', label: 'BASE Key（注册用户名）' },
+      { key: 'core', label: 'CORE API Key' },
+      { key: 'lens', label: 'Lens.org Token' }
     ]
   },
   {
@@ -154,14 +189,14 @@ const keyGroups = [
       { key: 'qichacha', label: '企查查 Key' },
       { key: 'qichachaSecret', label: '企查查 SecretKey' },
       { key: 'coresignal', label: 'Coresignal Key' },
-      { key: 'apify', label: 'Apify Token' }
-    ]
-  },
-  {
-    title: '学术搜索（选填提额）',
-    fields: [
-      { key: 'pubmed', label: 'PubMed API Key' },
-      { key: 'semanticScholar', label: 'Semantic Scholar API Key' }
+      { key: 'apify', label: 'Apify Token' },
+      { key: 'openCorporates', label: 'OpenCorporates Token' },
+      { key: 'clearbit', label: 'Clearbit Key' },
+      { key: 'adzunaAppId', label: 'Adzuna app_id' },
+      { key: 'adzunaKey', label: 'Adzuna app_key' },
+      { key: 'crunchbase', label: 'Crunchbase user_key' },
+      { key: 'qixin', label: '启信宝 Key' },
+      { key: 'aiqicha', label: '爱企查 Key（暂不可用）' }
     ]
   }
 ]
@@ -175,6 +210,21 @@ const logList = ref([])
 const logTotal = ref(0)
 const logPage = ref(1)
 const logTotalPages = ref(1)
+const sortField = ref('')
+const sortOrder = ref('')
+// 行详情
+const logDetailVisible = ref(false)
+const logDetailRow = ref(null)
+const logDetailFields = [
+  { key: 'created_at', label: '时间' },
+  { key: 'tool', label: '工具', render: (v) => toolName(v) },
+  { key: 'query_snapshot', label: '查询参数' },
+  { key: 'source_name', label: '数据源' },
+  { key: 'status', label: '状态', render: (v) => logStateText(v) },
+  { key: 'cost_ms', label: '耗时', render: (v) => (v != null ? v + 'ms' : '-') },
+  { key: 'result_count', label: '结果数量' },
+  { key: 'error_msg', label: '错误信息' }
+]
 const logToolOptions = [
   { value: 'doi', label: 'DOI 查询' },
   { value: 'journal', label: '期刊查询' },
@@ -276,7 +326,7 @@ async function clearCache(table) {
 
 async function loadLogs(page = 1) {
   try {
-    const res = await getToolLogs({ tool: logTool.value, status: logStatus.value, page, pageSize: 8 })
+    const res = await getToolLogs({ tool: logTool.value, status: logStatus.value, page, pageSize: 8, sortField: sortField.value, sortOrder: sortOrder.value })
     logList.value = res.list || []
     logTotal.value = res.total || 0
     logPage.value = res.page || 1
@@ -284,6 +334,18 @@ async function loadLogs(page = 1) {
   } catch (e) {
     showToast(e.message || '日志加载失败', 'error')
   }
+}
+
+// 表头排序（后端 SQL 排序，翻页保持全局顺序）
+function onSort(field, order) {
+  sortField.value = field
+  sortOrder.value = order
+  loadLogs(1)
+}
+
+function openLogDetail(row) {
+  logDetailRow.value = row
+  logDetailVisible.value = true
 }
 
 async function clearLogs() {

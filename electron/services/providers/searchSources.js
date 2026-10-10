@@ -171,4 +171,159 @@ const semanticScholar = {
   }
 }
 
-module.exports = { searchSources: [crossref, openalex, arxiv, pubmed, semanticScholar] }
+// Europe PMC：生物医学文献 + 预印本，免 Key
+const europePmc = {
+  name: 'europePmc',
+  label: 'Europe PMC',
+  requiresKey: false,
+  async fetch(params) {
+    const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(params.keyword)}&format=json&pageSize=${params.limit || 10}&resultType=core`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const items = ((r.data.resultList && r.data.resultList.result) || []).map((it) => {
+      const journal = (it.journalInfo && it.journalInfo.journal) || {}
+      return {
+        doi: normDoi(it.doi),
+        title: it.title || '',
+        authors: (it.authorList && it.authorList.author || []).map((a) => a.fullName || ''),
+        venue: journal.title || '',
+        year: it.pubYear || journal.year || null,
+        abstract: it.abstractText || '',
+        citedBy: it.citedByCount || 0,
+        url: it.url || (it.id ? `https://europepmc.org/article/${it.source}/${it.id}` : ''),
+        pmid: it.pmid || '',
+        type: it.isOpenAccess ? 'oa' : 'article',
+        oa: it.isOpenAccess ? 'oa' : 'closed',
+        source: 'Europe PMC'
+      }
+    })
+    return { items }
+  }
+}
+
+// DOAJ：开放获取文献目录，免 Key
+const doaj = {
+  name: 'doaj',
+  label: 'DOAJ',
+  requiresKey: false,
+  async fetch(params) {
+    const url = `https://doaj.org/api/search/articles/${encodeURIComponent(params.keyword)}?pageSize=${params.limit || 10}`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const items = ((r.data && r.data.results) || []).map((res) => {
+      const b = res.bibjson || {}
+      const id = (b.identifier || []).find((x) => x.type === 'doi')
+      return {
+        doi: normDoi(id && id.id),
+        title: b.title || '',
+        authors: (b.author || []).map((a) => a.name || ''),
+        venue: (b.journal && b.journal.title) || '',
+        year: b.year ? Number(b.year) : null,
+        abstract: b.abstract || '',
+        citedBy: 0,
+        url: (b.link || []).find((l) => l.type === 'fulltext') ? (b.link.find((l) => l.type === 'fulltext').url || '') : (id && id.id ? `https://doi.org/${id.id}` : ''),
+        type: b.type || 'article',
+        oa: 'oa',
+        source: 'DOAJ'
+      }
+    })
+    return { items }
+  }
+}
+
+// BASE：开放获取聚合，免费（需注册获取用户名）
+const base = {
+  name: 'base',
+  label: 'BASE',
+  requiresKey: true,
+  keyName: 'baseUsername',
+  async fetch(params, ctx) {
+    const username = ctx && ctx.keys && ctx.keys.baseUsername
+    if (!username) return { items: [], error: '未配置 Key（用户名）' }
+    const url = `https://api.base-search.net/cgi-bin/BaseHttpSearchInterface.fcgi?func=PerformSearch&query=${encodeURIComponent(params.keyword)}&format=json&amount=${params.limit || 10}&username=${encodeURIComponent(username)}`
+    const r = await fetchJson(url)
+    if (!r.ok) return { items: [], error: r.error }
+    const docs = ((r.data && r.data.response && r.data.response.docs) || [])
+    const items = docs.map((d) => ({
+      doi: normDoi(d.doi && d.doi[0]),
+      title: (d.title && d.title[0]) || '',
+      authors: d.author || [],
+      venue: (d.journal && d.journal[0]) || (d.publisher && d.publisher[0]) || '',
+      year: d.year ? Number(String(d.year[0]).slice(0, 4)) : null,
+      abstract: (d.dcdescription && d.dcdescription[0]) || '',
+      citedBy: 0,
+      url: (d.url && d.url[0]) || '',
+      type: d.doctype && d.doctype[0] || '',
+      oa: 'oa',
+      source: 'BASE'
+    }))
+    return { items }
+  }
+}
+
+// CORE：开放获取聚合，免费（需注册 Key）
+const core = {
+  name: 'core',
+  label: 'CORE',
+  requiresKey: true,
+  keyName: 'core',
+  async fetch(params, ctx) {
+    const key = ctx && ctx.keys && ctx.keys.core
+    if (!key) return { items: [], error: '未配置 Key' }
+    const url = `https://api.core.ac.uk/v3/search/works?q=${encodeURIComponent(params.keyword)}&limit=${params.limit || 10}`
+    const r = await fetchJson(url, { headers: { Authorization: `Bearer ${key}` } })
+    if (!r.ok) return { items: [], error: r.error }
+    const items = ((r.data && r.data.results) || []).map((w) => ({
+      doi: normDoi(w.doi),
+      title: w.title || '',
+      authors: (w.authors || []).map((a) => a.name || a || ''),
+      venue: w.publisher || '',
+      year: w.yearPublished || w.year || null,
+      abstract: w.abstract || '',
+      citedBy: 0,
+      url: w.downloadUrl || w.oai || '',
+      type: w.type || '',
+      oa: 'oa',
+      source: 'CORE'
+    }))
+    return { items }
+  }
+}
+
+// Lens.org：学术 + 专利一体，免费（需个人 access token）
+const lens = {
+  name: 'lens',
+  label: 'Lens.org',
+  requiresKey: true,
+  keyName: 'lens',
+  async fetch(params, ctx) {
+    const token = ctx && ctx.keys && ctx.keys.lens
+    if (!token) return { items: [], error: '未配置 Key（token）' }
+    const body = JSON.stringify({
+      query: { match: { title: params.keyword } },
+      size: params.limit || 10
+    })
+    const r = await fetchJson('https://api.lens.org/scholarly/search', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body
+    })
+    if (!r.ok) return { items: [], error: r.error }
+    const items = ((r.data && r.data.data) || []).map((w) => ({
+      doi: normDoi((w.external_ids || []).find((x) => x.type === 'doi') && (w.external_ids.find((x) => x.type === 'doi').value)),
+      title: w.title || '',
+      authors: (w.creator || []).map((c) => c.name || [c.first_name, c.last_name].filter(Boolean).join(' ')),
+      venue: (w.source && w.source.name) || '',
+      year: w.date_published ? Number(String(w.date_published).slice(0, 4)) : null,
+      abstract: w.abstract_text || '',
+      citedBy: w.citation_count || 0,
+      url: w.url || '',
+      type: 'scholarly-work',
+      oa: w.is_open_access ? 'oa' : 'closed',
+      source: 'Lens.org'
+    }))
+    return { items }
+  }
+}
+
+module.exports = { searchSources: [crossref, openalex, arxiv, pubmed, semanticScholar, europePmc, doaj, base, core, lens] }
