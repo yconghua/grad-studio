@@ -207,6 +207,13 @@ class UserRepository extends BaseRepository {
     return result.affectedRows
   }
 
+  /** 某导师名下学生数（导师移除/换组课题组前的约束校验；用户删除为物理删除，无需过滤软删） */
+  async countByMentor(mentorId) {
+    const sql = 'SELECT COUNT(*) AS total FROM `users` WHERE mentor_id = ?'
+    const [rows] = await this._execute(sql, [Number(mentorId)], 'countByMentor')
+    return Number(rows[0] && rows[0].total) || 0
+  }
+
   /**
    * 清空某课题组下所有用户的组归属与导师绑定（删除课题组时清理残留，
    * 含停用成员；组管绑定同样归零）。返回受影响行数。

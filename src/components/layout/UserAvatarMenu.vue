@@ -9,15 +9,18 @@
 
     <transition name="pop">
       <div v-if="open" class="menu" @click.stop>
-        <div class="menu-user">
-          <div class="mu-name">{{ user ? user.realName || user.username : '' }}</div>
-          <div class="mu-role">{{ roleText }}</div>
-        </div>
-        <button type="button" class="menu-item" @click="go(profilePath)">个人资料</button>
-        <button v-if="!minimal" type="button" class="menu-item" @click="go(introductionPath)">系统简介</button>
-        <button v-if="!minimal" type="button" class="menu-item" @click="go(settingsPath)">设置</button>
-        <button v-if="!minimal" type="button" class="menu-item" @click="showUpdate">检查更新</button>
-        <div class="menu-divider"></div>
+        <!-- 引导态（未入组/未指定导师/未绑定课题组）：只保留切换账号与退出登录 -->
+        <template v-if="!isGuide">
+          <div class="menu-user">
+            <div class="mu-name">{{ user ? user.realName || user.username : '' }}</div>
+            <div class="mu-role">{{ roleText }}</div>
+          </div>
+          <button type="button" class="menu-item" @click="go(profilePath)">个人资料</button>
+          <button v-if="!minimal" type="button" class="menu-item" @click="go(introductionPath)">系统简介</button>
+          <button v-if="!minimal" type="button" class="menu-item" @click="go(settingsPath)">设置</button>
+          <button v-if="!minimal" type="button" class="menu-item" @click="showUpdate">检查更新</button>
+          <div class="menu-divider"></div>
+        </template>
         <button type="button" class="menu-item" @click="openSwitch">切换账号</button>
         <button type="button" class="menu-item danger" @click="doLogout">退出登录</button>
       </div>
@@ -40,12 +43,13 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSession } from '../../composables/useSession'
+import { useGlobalLoading } from '../../composables/useGlobalLoading'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
 import { dialogConfirm } from '../../composables/useDialog'
 import { logout, switchAccount } from '../../api'
 import { avatarUrl } from '../../utils/avatar'
 import { ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
-import { ROLE_HOME } from '../../router'
+import { ROLE_HOME, guideStateOf } from '../../router'
 import { useTabs } from '../../composables/useTabs'
 import { useAccountHistory } from '../../composables/useAccountHistory'
 import AccountSwitchDialog from '../dialogs/AccountSwitchDialog.vue'
@@ -80,6 +84,8 @@ const ROLE_TEXT = {
   [ROLE_STUDENT]: '学生'
 }
 const roleText = computed(() => (user.value ? ROLE_TEXT[user.value.role] || user.value.role : ''))
+// 引导态（未入组 / 未指定导师 / 未绑定课题组）：该状态下隐藏菜单功能项，仅保留切换账号与退出登录
+const isGuide = computed(() => !!guideStateOf(user.value))
 const avatarChar = computed(() => {
   const name = (user.value && (user.value.realName || user.value.username)) || '?'
   return name.slice(0, 1).toUpperCase()
@@ -136,6 +142,10 @@ function openSwitch() {
  */
 async function onSwitchAccount(username) {
   showSwitch.value = false
+  const { begin, finish, reset } = useGlobalLoading()
+  // 超时兜底：切换后新首页数据若长时间未就绪，强制解除遮罩避免卡死
+  const timeout = setTimeout(reset, 15000)
+  begin()
   try {
     const res = await switchAccount(username)
     const d = res && res.data
@@ -149,11 +159,17 @@ async function onSwitchAccount(username) {
       clearTabs()
       ensureHomeTab()
       router.replace(ROLE_HOME[d.user.role] || '/login')
+      // 遮罩不在此关闭：新首页数据加载完成后由页面调 finish() 解除；
+      // 兜底定时器保留：数据 15s 未就绪时强制解除，避免卡死
       return
     }
+    clearTimeout(timeout)
+    finish()
     clearSession()
     router.replace('/login?pre=' + encodeURIComponent(username))
   } catch (e) {
+    clearTimeout(timeout)
+    finish()
     clearSession()
     router.replace('/login')
   }

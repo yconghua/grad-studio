@@ -346,6 +346,13 @@ async function updateProfile(id, payload = {}) {
         const group = await groupRepository.findById(gid)
         if (!group) throw new ApiError('所选课题组不存在', 400)
       }
+      if (row.role === ROLE_MENTOR && gid !== row.group_id) {
+        // 导师移除课题组 / 换组：名下还有学生时拦截，需先把学生移除或更换导师
+        const n = await userRepository.countByMentor(idNum)
+        if (n > 0) {
+          throw new ApiError(`该导师名下还有 ${n} 名学生，请先将学生移除或更换导师后，再变更导师课题组`, 400)
+        }
+      }
       data.group_id = gid
       if (row.role === ROLE_STUDENT && gid === null && row.mentor_id) {
         data.mentor_id = null

@@ -12,14 +12,19 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useSession } from '../../composables/useSession'
+import { useGlobalLoading } from '../../composables/useGlobalLoading'
 import { ROLE_MENTOR, ROLE_STUDENT, ROLE_GROUP_ADMIN } from '../../config/constants'
 
 // 引导说明卡片：未入组导师 / 未入组学生 / 已入组未指定导师学生 / 组管异常未绑定课题组
 // 四类状态共用同一页面，按 role / groupId / mentorId 计算文案，与服务端口径一致。
 const { getSessionUser } = useSession()
+const { finish } = useGlobalLoading()
 const user = getSessionUser()
+
+// 引导页为纯静态展示（无异步数据）：挂载即就绪，解除切换账号等流程的全局加载遮罩
+onMounted(finish)
 
 const GUIDE_META = {
   'mentor-no-group': {

@@ -37,11 +37,13 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { changePassword } from '../../api'
 import { useSession } from '../../composables/useSession'
+import { useGlobalLoading } from '../../composables/useGlobalLoading'
 import { ROLE_HOME } from '../../router'
 import AppTitleBar from '../../components/layout/AppTitleBar.vue'
 
 const router = useRouter()
 const { getSessionUser, setSession } = useSession()
+const { finish } = useGlobalLoading()
 
 const username = ref('')
 const oldPassword = ref('')
@@ -53,10 +55,13 @@ const saving = ref(false)
 onMounted(() => {
   const u = getSessionUser()
   if (!u) {
+    finish()
     router.replace('/login')
     return
   }
   username.value = u.username || ''
+  // 改密页为静态表单：挂载即就绪，解除切换账号等流程的全局加载遮罩
+  finish()
 })
 
 async function submit() {

@@ -361,9 +361,9 @@ async function addMembers({ groupId, userIds, role } = {}) {
 
 /**
  * 移除课题组成员（超管任意组 / 组管仅本组）：
- * 导师移除时同步清空名下所有学生的导师绑定（全平台，防孤儿）；
+ * 导师移除时若名下还有学生则拦截，需先把学生移除或更换导师；
  * 学生移除时同步解除导师关系、清理本组组会参与关系，放同一事务。
- * 返回 { removedStudentCount }（导师场景为解绑的学生数，其余为 0）。
+ * 返回 { removedStudentCount }（导师场景为 0，其余为 0）。
  */
 async function removeMember(groupId, userId) {
   const me = await authService.getCurrentUser()
@@ -376,8 +376,11 @@ async function removeMember(groupId, userId) {
   let removedStudentCount = 0
   await runTransaction(async () => {
     if (u.role === ROLE_MENTOR) {
-      // 移除导师：无条件清空名下学生绑定（含跨组脏数据），学生变为已入组未指定导师
-      removedStudentCount = await userRepository.clearMentorBindings(idNum)
+      // 移除导师：名下还有学生时拦截，避免学生失去导师归属
+      const n = await userRepository.countByMentor(idNum)
+      if (n > 0) {
+        throw new ApiError(`该导师名下还有 ${n} 名学生，请先将学生移除或更换导师后，再移除导师`, 400)
+      }
       await userRepository.updateById(idNum, { group_id: null })
     } else {
       await userRepository.updateById(idNum, { group_id: null, mentor_id: null })

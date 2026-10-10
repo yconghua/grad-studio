@@ -148,6 +148,7 @@ import { reportListToReview, reportStats } from '../../api/report'
 import { listNotices, getNoticeUnreadCount } from '../../api/notice'
 import { getChatUnreadCount } from '../../api/chat'
 import { useSession } from '../../composables/useSession'
+import { useGlobalLoading } from '../../composables/useGlobalLoading'
 import RecentMeetingPanel from '../../components/dashboard/RecentMeetingPanel.vue'
 import WelcomeInfoPanel from '../../components/dashboard/WelcomeInfoPanel.vue'
 import { weekShortLabel } from '../../utils/labels'
@@ -155,6 +156,7 @@ import { useAutoRefresh } from '../../composables/useAutoRefresh'
 
 // 导师独立工作台（与其他角色工作台为独立文件）
 const { getSessionUser } = useSession()
+const { finish } = useGlobalLoading()
 const user = getSessionUser()
 const router = useRouter()
 
@@ -203,7 +205,14 @@ async function refreshAll() {
   if (r && r.success) recentMeeting.value = r.data
 }
 
-onMounted(refreshAll)
+onMounted(async () => {
+  try {
+    await refreshAll()
+  } finally {
+    // 切换账号等全局加载流程：本页数据就绪后解除遮罩（未 begin 时无害）
+    finish()
+  }
+})
 // 数据变动（本页写操作或外部改动）后后台静默重拉
 useAutoRefresh(refreshAll)
 </script>

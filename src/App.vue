@@ -4,12 +4,15 @@
   <AppDialog />
   <!-- 全局轻量提示（非阻塞，3 秒自动消失） -->
   <AppToast />
+  <!-- 全局"数据加载中"遮罩（切换账号等耗时流程期间禁止操作） -->
+  <GlobalLoadingMask />
 </template>
 
 <script setup>
 import { onMounted } from 'vue'
 import { AppDialog } from './components/dialogs'
 import AppToast from './components/common/AppToast.vue'
+import GlobalLoadingMask from './components/common/GlobalLoadingMask.vue'
 import { applyInitialFontScale } from './composables/useFontScale'
 import { useAutoRefresh } from './composables/useAutoRefresh'
 // 根组件：承载路由出口 + 全局弹窗；具体布局由各角色布局（layouts/*Layout.vue）提供。
