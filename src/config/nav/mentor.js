@@ -13,6 +13,7 @@ export const MENTOR_NAV = [
   { key: 'mentor-tasks', path: '/mentor/tasks', title: '任务', icon: 'CheckSquareOutlined' },
   { key: 'mentor-todo', path: '/mentor/todo', title: '我的待办', icon: 'ScheduleOutlined' },
   { key: 'mentor-report', path: '/mentor/report', title: '周报批阅', icon: 'FileTextOutlined' },
+  { key: 'mentor-tools', path: '/mentor/tools', title: '工具箱', icon: 'ToolOutlined' },
   { key: 'mentor-chat', path: '/mentor/chat', title: '聊天', icon: 'MessageOutlined' }
 ]
 

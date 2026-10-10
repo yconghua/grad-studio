@@ -477,6 +477,15 @@ function register(ipcMain, deps = {}) {
       return { success: false, code: 500, message: '清除缓存失败，请重试' }
     }
   })
+
+  // 打开外链（工具箱等多源查询结果的原文 / 官网跳转）
+  // 仅放行 http / https，防止任意协议（file:、自定义协议等）被渲染层利用
+  ipcMain.handle('sys:open-external', async (_evt, payload) => {
+    const url = payload && payload.url ? String(payload.url) : ''
+    if (!/^https?:\/\//i.test(url)) return { success: false, code: 400, message: '仅支持打开 http / https 链接' }
+    await shell.openExternal(url)
+    return { success: true, code: 0, message: '已打开' }
+  })
 }
 
 module.exports = { register }

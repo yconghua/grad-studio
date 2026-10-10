@@ -13,6 +13,7 @@ export const STUDENT_NAV = [
   { key: 'student-academic', path: '/student/academic', title: '学业档案', icon: 'FileDoneOutlined' },
   { key: 'student-achievements', path: '/student/achievements', title: '科研成果', icon: 'TrophyOutlined' },
   { key: 'student-report', path: '/student/report', title: '我的周报', icon: 'FileTextOutlined' },
+  { key: 'student-tools', path: '/student/tools', title: '工具箱', icon: 'ToolOutlined' },
   { key: 'student-chat', path: '/student/chat', title: '聊天', icon: 'MessageOutlined' }
 ]
 

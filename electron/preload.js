@@ -314,6 +314,7 @@ contextBridge.exposeInMainWorld('api', {
     openAppFolder: createInvoke('sys:open-app-folder'),
     openDataFolder: createInvoke('sys:open-data-folder'),
     clearCache: createInvoke('sys:clear-cache'),
+    openExternal: createInvoke('sys:open-external'),
     uninstallAvailable: createInvoke('sys:uninstall-available'),
     uninstallApp: createInvoke('sys:uninstall-app'),
     getAutoLaunch: createInvoke('sys:get-auto-launch'),
@@ -422,5 +423,27 @@ contextBridge.exposeInMainWorld('api', {
     remove: createInvoke('todo:remove'),
     overview: createInvoke('todo:overview'),
     overviewSummary: createInvoke('todo:overview-summary')
+  },
+
+  // 工具箱（对应 ipc/tool.js，通道前缀 tool:*）：仅导师/学生可见可用
+  tool: {
+    getSettings: createInvoke('tool:get-settings'),
+    saveSettings: createInvoke('tool:save-settings'),
+    testKey: createInvoke('tool:test-key'),
+    doiQuery: createInvoke('tool:doi-query'),
+    journalQuery: createInvoke('tool:journal-query'),
+    search: createInvoke('tool:search'),
+    translate: createInvoke('tool:translate'),
+    companySearch: createInvoke('tool:company-search'),
+    companyFavorites: createInvoke('tool:company-favorites'),
+    companyFavoriteAdd: createInvoke('tool:company-favorite-add'),
+    companyFavoriteUpdate: createInvoke('tool:company-favorite-update'),
+    companyFavoriteRemove: createInvoke('tool:company-favorite-remove'),
+    histories: createInvoke('tool:histories'),
+    cacheInfo: createInvoke('tool:cache-info'),
+    cacheClear: createInvoke('tool:cache-clear'),
+    logs: createInvoke('tool:logs'),
+    logsClear: createInvoke('tool:logs-clear'),
+    citation: createInvoke('tool:citation')
   }
 })
