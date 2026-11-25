@@ -142,11 +142,16 @@ async function init() {
   if (props.source) {
     converting.value = true
     try {
-      // 后端判重：已转过则返回 { already, id, todo }，提示并跳转
+      // 后端判重：已转过则返回 { already, deleted, id, todo }
+      // deleted=true 表示原待办已被删除：来源已锁定，提示后关闭，不跳转（原记录已不存在）
       const res = await checkTodoSource(props.source.sourceType, props.source.sourceId)
       if (res && res.success && res.data && res.data.already) {
-        dialogAlert('该来源已转为待办，正在跳转到已有待办…')
-        emit('goto', res.data.id)
+        if (res.data.deleted) {
+          dialogAlert(res.data.message || '该来源已转为待办，且该待办已被删除，不能再次转换')
+        } else {
+          dialogAlert('该来源已转为待办，正在跳转到已有待办…')
+          emit('goto', res.data.id)
+        }
         emit('update:open', false)
         return
       }
@@ -182,15 +187,19 @@ async function saveNow() {
         ...payload
       })
       if (res && res.success && res.data && res.data.already) {
-        dialogAlert('该来源已转为待办，正在跳转到已有待办…')
-        emit('goto', res.data.id)
+        if (res.data.deleted) {
+          dialogAlert(res.data.message || '该来源已转为待办，且该待办已被删除，不能再次转换')
+        } else {
+          dialogAlert('该来源已转为待办，正在跳转到已有待办…')
+          emit('goto', res.data.id)
+        }
         emit('update:open', false)
         return
       }
       if (res && res.success) {
         dialogAlert('已转为待办')
         emit('update:open', false)
-        emit('saved')
+        emit('saved', res.data && res.data.id)
         return
       }
       dialogAlert((res && res.message) || '转换失败')

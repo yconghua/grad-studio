@@ -42,7 +42,14 @@
     <!-- 公告详情弹窗（统一走 notice:get，查看全文） -->
     <RowDetailDialog v-model:visible="detailVisible" :title="detailTitle" :row="detailRow" :fields="detailFields" size="lg">
       <template #footer>
-        <button v-if="detailRow" type="button" class="btn" @click="openTodo">转为待办</button>
+        <button
+          v-if="detailRow"
+          type="button"
+          class="btn"
+          :disabled="todoState === 'deleted'"
+          :title="todoTip"
+          @click="openTodo"
+        >{{ todoLabel }}</button>
       </template>
     </RowDetailDialog>
 
@@ -71,6 +78,7 @@ import TodoEditDialog from '../../components/todo/TodoEditDialog.vue'
 import { dialogAlert } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { useTodoSourceState } from '../../composables/useTodoSourceState'
 
 // 导师独立页面：当前课题组公告（只读，可标记自己已读）
 const page = ref(1)
@@ -120,12 +128,20 @@ async function openDetailById(id) {
     detailFields.value = noticeDetailFields
     detailTitle.value = '公告详情'
     detailVisible.value = true
+    refreshTodoState('notice', res.data.id)
   } else {
     dialogAlert((res && res.message) || '加载公告详情失败')
   }
 }
 
 // 转为待办：来源预填（标题 + 发布时间/正文摘要进备注；结束时间由用户自定）
+// 入口三态：未转换 / 已转换 / 已转换但待办已删除（锁定，禁用）
+const { state: todoState, refresh: refreshTodoState, markConverted } = useTodoSourceState()
+const todoLabel = computed(() => {
+  if (todoState.value === 'deleted') return '已转为待办（已删除）'
+  return todoState.value === 'converted' ? '已转为待办' : '转为待办'
+})
+const todoTip = computed(() => (todoState.value === 'deleted' ? '该来源的待办已被删除，不能再次转换' : ''))
 const todoVisible = ref(false)
 const todoSource = ref(null)
 function openTodo() {
@@ -141,8 +157,9 @@ function openTodo() {
   }
   todoVisible.value = true
 }
-function onTodoSaved() {
-  // 转换不改变原记录，仅关闭弹窗即可
+function onTodoSaved(id) {
+  // 转换不改变原记录；仅更新入口状态
+  if (id) markConverted(id)
 }
 function onTodoGoto(id) {
   router.push({ path: '/mentor/todo', query: { open: id } })

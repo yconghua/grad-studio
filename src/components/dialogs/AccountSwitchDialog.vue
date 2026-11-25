@@ -28,7 +28,9 @@
                 <span v-if="acc.username === currentUsername" class="acc-tag tag-current">当前</span>
                 <span v-else-if="fastSet.has(acc.username)" class="acc-tag tag-fast">免密</span>
               </div>
-              <div class="acc-meta">{{ roleText(acc.role) }} · {{ timeText(acc.lastLoginAt) }}</div>
+              <div class="acc-meta" :title="fullTimeText(acc.lastLoginAt)">
+                {{ roleText(acc.role) }} · {{ loginText(acc.lastLoginAt) }}
+              </div>
             </div>
             <button
               v-if="acc.username !== currentUsername"
@@ -91,11 +93,33 @@ const ROLE_TEXT = {
 function roleText(role) {
   return ROLE_TEXT[role] || role || ''
 }
-function timeText(ts) {
-  if (!ts) return ''
-  const days = Math.floor((Date.now() - ts) / 86400000)
-  if (days <= 0) return '今天登录'
-  return days + ' 天前登录'
+// 时间戳解析：兼容毫秒数与 ISO 字符串，非法返回 null
+function parseTs(ts) {
+  if (ts === null || ts === undefined || ts === '') return null
+  const d = new Date(ts)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+// 上次登录文案：按「本地自然日」比较，而不是 24 小时滚动窗口
+// （昨晚 20:15 登录、今天上午打开不足 24 小时，仍应显示“昨天”）
+function loginText(ts) {
+  const d = parseTs(ts)
+  if (!d) return ''
+  const dayStart = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const days = Math.round((dayStart(new Date()) - dayStart(d)) / 86400000)
+  const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  if (days <= 0) return `上次登录：今天 ${hm}`
+  if (days === 1) return `上次登录：昨天 ${hm}`
+  if (days < 7) return `上次登录：${days} 天前（${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${hm}）`
+  return `上次登录：${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${hm}`
+}
+// 悬浮提示：完整登录时刻，避免“今天/昨天”再产生歧义
+function fullTimeText(ts) {
+  const d = parseTs(ts)
+  if (!d) return ''
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
 // 打开时：加载历史账号 + 查询可免密账号集合 + 静默刷新各账号最新资料

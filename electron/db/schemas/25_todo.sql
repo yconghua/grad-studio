@@ -6,6 +6,8 @@
 --   - 转换单向：source_type + source_id 仅复制来源信息，不修改原模块数据；
 --   - 唯一约束 uk_owner_source：同一条来源不能被同一人重复转成待办
 --     （MySQL 唯一索引对 NULL 不去重，手动新建的待办 source 为空，互不影响）；
+--     软删除（is_deleted=1）不会释放该唯一约束 —— 转换后删除待办，来源即永久锁定，
+--     判重查询必须查含已删除记录，转换是单向不可逆操作；
 --   - 状态机：pending 待办 / done 已完成（勾掉即完，无验收/退回）；
 --   - change_ts：行变更时间戳（全局刷新指纹检测用）。
 CREATE TABLE IF NOT EXISTS `todos` (

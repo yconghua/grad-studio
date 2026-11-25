@@ -67,7 +67,13 @@
               <template v-else-if="canWithdraw">
                 <button type="button" class="btn btn-sm" @click="onWithdraw">撤回提交</button>
               </template>
-              <button type="button" class="btn btn-sm" @click="openTodo">转为待办</button>
+              <button
+                type="button"
+                class="btn btn-sm"
+                :disabled="todoState === 'deleted'"
+                :title="todoTip"
+                @click="openTodo"
+              >{{ todoLabel }}</button>
             </div>
           </div>
 
@@ -154,6 +160,7 @@ import {
 import { REPORT_BACKFILL_WEEKS, REPORT_STATUS_DRAFT, REPORT_STATUS_SUBMITTED, REPORT_STATUS_RETURNED, REPORT_STATUS_REVIEWED } from '../../config/constants'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 import { useAutoRefresh } from '../../composables/useAutoRefresh'
+import { useTodoSourceState } from '../../composables/useTodoSourceState'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import MarkdownPreview from '../../components/common/MarkdownPreview.vue'
 import TodoEditDialog from '../../components/todo/TodoEditDialog.vue'
@@ -171,6 +178,15 @@ const loading = ref(false)
 // ===== 编辑器 =====
 const currentNote = ref(null)
 const currentId = computed(() => (currentNote.value ? currentNote.value.id : null))
+// 转为待办入口三态：未转换 / 已转换 / 已转换但待办已删除（锁定，禁用）
+const { state: todoState, refresh: refreshTodoState, markConverted } = useTodoSourceState()
+const todoLabel = computed(() => {
+  if (todoState.value === 'deleted') return '已转为待办（已删除）'
+  return todoState.value === 'converted' ? '已转为待办' : '转为待办'
+})
+const todoTip = computed(() => (todoState.value === 'deleted' ? '该来源的待办已被删除，不能再次转换' : ''))
+// 切换当前周报时探测该周报的转换状态
+watch(currentId, (id) => { refreshTodoState('report', id) })
 const draftTitle = ref('')
 const draftContent = ref('')
 const preview = ref(false)
@@ -538,7 +554,8 @@ function openTodo() {
   }
   todoVisible.value = true
 }
-function onTodoSaved() {
+function onTodoSaved(id) {
+  if (id) markConverted(id)
   load()
 }
 function onTodoGoto(id) {

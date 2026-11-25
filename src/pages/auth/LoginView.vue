@@ -198,16 +198,24 @@
       </div>
     </footer>
 
-    <!-- 管理员联系方式弹窗 -->
+    <!-- 忘记密码弹窗（默认密码 + 管理员联系方式） -->
     <div v-if="showAdminContact" class="privacy-overlay">
       <div class="privacy-backdrop" @click="showAdminContact = false"></div>
       <div class="privacy-dialog" role="dialog" aria-modal="true">
         <div class="privacy-head">
-          <h3>联系管理员</h3>
+          <h3>忘记密码</h3>
           <button type="button" class="privacy-close" @click="showAdminContact = false" aria-label="关闭">×</button>
         </div>
         <div class="privacy-body">
-          <p>管理员联系方式：12312341234@qq.com</p>
+          <p class="contact-line">管理员联系方式：12312341234@qq.com</p>
+          <p class="pwd-lead">账号从未修改过密码时，可直接用对应角色的默认密码登录：</p>
+          <div class="pwd-list">
+            <div v-for="item in defaultPasswords" :key="item.role" class="pwd-row">
+              <span class="pwd-role">{{ item.label }}</span>
+              <span class="pwd-value">{{ item.password }}</span>
+            </div>
+          </div>
+          <p class="pwd-note">默认密码仅适用于管理员新建或重置后尚未改密的账号，首次登录会被要求立即修改；若已修改过密码，请通过管理员重置。</p>
         </div>
       </div>
     </div>
@@ -277,6 +285,7 @@ import { useSession } from '../../composables/useSession'
 import { useAccountHistory } from '../../composables/useAccountHistory'
 import { useAppName } from '../../composables/useAppName'
 import { ROLE_HOME } from '../../router'
+import { DEFAULT_PASSWORD_BY_ROLE, ROLE_SUPER_ADMIN, ROLE_GROUP_ADMIN, ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 import { USER_AGREEMENT, PRIVACY_POLICY } from './agreements'
 import { BaseConfig, DbSwitch, DbAdd, DbEdit, DbDeleteConfirm } from '../../components/dialogs'
 import ParticleBackground from '../../components/particles/ParticleBackground.vue'
@@ -298,7 +307,7 @@ const HELP_CONTENT = `【快速上手】
 【常见问题】
 · 数据库连不上：检查 MySQL 是否已启动、账号密码与库名是否正确，点击数据库状态指示查看连接信息。
 · 扫码手机打不开二维码：确认手机与电脑同一网络。
-· 忘记密码：点击登录卡片下方「忘记密码」查看管理员联系方式，由管理员重置。
+· 忘记密码：点击登录卡片下方「忘记密码」查看各角色默认密码与管理员联系方式；默认密码仅适用于未改密的账号，已改密的账号需由管理员重置。
 · 账号被锁定：连续失败 5 次触发锁定，5 分钟后自动解锁，无需联系管理员。`
 
 const { setSession } = useSession()
@@ -808,6 +817,13 @@ async function fillRemembered() {
 
 const copyrightYear = new Date().getFullYear()
 const showAdminContact = ref(false)
+// 忘记密码弹窗展示的角色默认密码：取单一事实来源，避免文案与后端实际值不一致
+const defaultPasswords = [
+  { role: ROLE_SUPER_ADMIN, label: '超级管理员', password: DEFAULT_PASSWORD_BY_ROLE[ROLE_SUPER_ADMIN] },
+  { role: ROLE_GROUP_ADMIN, label: '课题组管理员', password: DEFAULT_PASSWORD_BY_ROLE[ROLE_GROUP_ADMIN] },
+  { role: ROLE_MENTOR, label: '导师', password: DEFAULT_PASSWORD_BY_ROLE[ROLE_MENTOR] },
+  { role: ROLE_STUDENT, label: '学生', password: DEFAULT_PASSWORD_BY_ROLE[ROLE_STUDENT] }
+]
 
 // 数据库管理弹窗（协调层，逻辑在各弹窗组件内）
 const showBaseConfig = ref(false)
@@ -1496,5 +1512,44 @@ async function onDeleteConfirmed(id) {
   font-size: 13px;
   line-height: 1.8;
   color: var(--text-2);
+}
+/* 忘记密码弹窗：默认密码清单 */
+.contact-line {
+  margin: 0 0 12px;
+}
+.pwd-lead {
+  margin: 0 0 8px;
+}
+.pwd-list {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-muted);
+}
+.pwd-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px dashed var(--border-light);
+}
+.pwd-row:last-child {
+  border-bottom: none;
+}
+.pwd-role {
+  flex: 0 0 110px;
+  color: var(--muted);
+}
+.pwd-value {
+  color: var(--text);
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  letter-spacing: 0.3px;
+  user-select: text;
+}
+.pwd-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
 }
 </style>

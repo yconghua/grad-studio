@@ -74,8 +74,14 @@
         >
           {{ publishing ? '发布中…' : '发布为公告' }}
         </button>
-        <!-- 转为待办：仅导师/学生角色且为参与人 -->
-        <button v-if="canTodo" class="btn" @click="openTodo">转为待办</button>
+        <!-- 转为待办：仅导师/学生角色且为参与人；已转换但待办已删除时禁用 -->
+        <button
+          v-if="canTodo"
+          class="btn"
+          :disabled="todoState === 'deleted'"
+          :title="todoTip"
+          @click="openTodo"
+        >{{ todoLabel }}</button>
         <button class="btn" @click="close">关闭</button>
       </div>
     </div>
@@ -92,6 +98,7 @@ import NoticeContent from '../notice/NoticeContent.vue'
 import TodoEditDialog from '../todo/TodoEditDialog.vue'
 import { getMeetingDetail, publishMeetingAsNotice } from '../../api'
 import { useSession } from '../../composables/useSession'
+import { useTodoSourceState } from '../../composables/useTodoSourceState'
 import { dialogAlert, dialogConfirm } from '../../composables/useDialog'
 import { ROLE_MENTOR, ROLE_STUDENT } from '../../config/constants'
 
@@ -123,6 +130,13 @@ const canTodo = computed(
 )
 const todoVisible = ref(false)
 const todoSource = ref(null)
+// 转为待办入口三态：未转换 / 已转换 / 已转换但待办已删除（锁定，禁用）
+const { state: todoState, refresh: refreshTodoState, markConverted } = useTodoSourceState()
+const todoLabel = computed(() => {
+  if (todoState.value === 'deleted') return '已转为待办（已删除）'
+  return todoState.value === 'converted' ? '已转为待办' : '转为待办'
+})
+const todoTip = computed(() => (todoState.value === 'deleted' ? '该来源的待办已被删除，不能再次转换' : ''))
 
 function openTodo() {
   const d = detail.value
@@ -136,7 +150,8 @@ function openTodo() {
   }
   todoVisible.value = true
 }
-function onTodoSaved() {
+function onTodoSaved(id) {
+  if (id) markConverted(id)
   emit('published')
 }
 function onTodoGoto(id) {
@@ -166,6 +181,7 @@ watch(
     const res = await getMeetingDetail(props.meetingId)
     if (res && res.success) {
       detail.value = res.data
+      if (canTodo.value) refreshTodoState('meeting', res.data.id)
     } else {
       loadError.value = (res && res.message) || '加载详情失败'
     }

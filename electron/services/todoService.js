@@ -12,7 +12,8 @@
  *   - 用户删除 → softDeleteByUser 级联软删待办（用户删除事务内调用）。
  *
  * 转换单向：source_type + source_id 仅复制来源信息，不修改原模块数据；
- * 唯一约束 uk_owner_source 防止同一条来源被同一人重复转换。
+ * 唯一约束 uk_owner_source 防止同一条来源被同一人重复转换；
+ * 转换后删除待办为软删，唯一约束不释放 → 该来源永久锁定，不能再转（转换是单向操作）。
  */
 const todoRepository = require('../db/repositories/todoRepository')
 const userRepository = require('../db/repositories/userRepository')
@@ -31,6 +32,10 @@ const PRIORITIES = ['low', 'medium', 'high']
 const REMINDS = ['none', '1h', '1d']
 const SOURCE_TYPES = ['task', 'meeting', 'report', 'notice']
 const SOURCE_LABELS = { task: '任务', meeting: '组会', report: '周报', notice: '公告' }
+// 转换后待办被删除（软删）时，来源仍被唯一约束锁住：明确拒绝再次转换
+const SOURCE_LOCKED_MSG = '该来源已转为待办，且该待办已被删除，不能再次转换'
+// 唯一索引冲突兜底（并发重复提交）：不区分是否已删除，统一提示不可重复转换
+const SOURCE_DUP_MSG = '该来源已转为待办，不能重复转换'
 // 任务优先级（1低 2中 3高 4紧急）→ 待办紧急程度
 const TASK_PRIORITY_MAP = { 1: 'low', 2: 'medium', 3: 'high', 4: 'high' }
 
@@ -308,7 +313,8 @@ async function saveTodo({ id, title, priority, dueTime, allDay, note, tag, remin
   return { id: newId, created: true }
 }
 
-// 来源判重（转换弹窗打开时探测）：返回 { already, id, todo } 或 { already: false }
+// 来源判重（转换弹窗打开时探测）：返回 { already, deleted, id, todo, message }
+// deleted=true 表示转过但待办已被删除（来源已锁定，不可再转，也不跳转）
 async function checkSource({ sourceType, sourceId }, viewer) {
   const me = await currentUser()
   assertPersonalRole(me)
@@ -317,11 +323,19 @@ async function checkSource({ sourceType, sourceId }, viewer) {
   const srcId = Number(sourceId)
   if (!srcId) throw new ApiError('来源记录不存在', 400)
   const existed = await todoRepository.findBySource(me.id, type, srcId)
-  if (existed) return { already: true, id: Number(existed.id), todo: toDto(existed) }
-  return { already: false }
+  if (!existed) return { already: false, deleted: false }
+  const deleted = Number(existed.is_deleted) === 1
+  return {
+    already: true,
+    deleted,
+    id: Number(existed.id),
+    todo: deleted ? null : toDto(existed),
+    message: deleted ? SOURCE_LOCKED_MSG : '该来源已转为待办'
+  }
 }
 
 // 来源转待办：校验可见性 + 判重 + 预填创建
+// 判重口径与 findById 相反：已软删的转换记录同样视为“转过”，直接拒绝并提示
 async function createFromSource({ sourceType, sourceId, title, dueTime, allDay, priority, note, tag, remind }, viewer) {
   const me = await currentUser()
   assertPersonalRole(me)
@@ -332,7 +346,10 @@ async function createFromSource({ sourceType, sourceId, title, dueTime, allDay, 
 
   // 判重（唯一索引兜底，此处先查用于友好提示）
   const existed = await todoRepository.findBySource(me.id, type, srcId)
-  if (existed) return { already: true, id: Number(existed.id), todo: toDto(existed) }
+  if (existed) {
+    if (Number(existed.is_deleted) === 1) throw new ApiError(SOURCE_LOCKED_MSG, 409)
+    return { already: true, deleted: false, id: Number(existed.id), todo: toDto(existed) }
+  }
 
   // 来源可见性 + 预填字段（用户可改，服务端仅校验可见性，预填值以传入为准）
   await assertSourceVisible(me, type, srcId)
@@ -345,21 +362,27 @@ async function createFromSource({ sourceType, sourceId, title, dueTime, allDay, 
   const group = await groupOf(me.id)
   if (!group) throw new ApiError('请先加入课题组', 400)
 
-  const newId = await todoRepository.create({
-    owner_id: me.id,
-    group_id: Number(group.id),
-    title: name,
-    priority: p,
-    due_time: dueTime ? fmtDateTime(dueTime) : null,
-    all_day: allDay ? 1 : 0,
-    note: String(note == null ? '' : note).slice(0, 5000) || null,
-    tag: String(tag == null ? '' : tag).trim().slice(0, 50) || null,
-    remind: r,
-    source_type: type,
-    source_id: srcId,
-    status: 'pending'
-  })
-  return { already: false, id: Number(newId), todo: null }
+  try {
+    const newId = await todoRepository.create({
+      owner_id: me.id,
+      group_id: Number(group.id),
+      title: name,
+      priority: p,
+      due_time: dueTime ? fmtDateTime(dueTime) : null,
+      all_day: allDay ? 1 : 0,
+      note: String(note == null ? '' : note).slice(0, 5000) || null,
+      tag: String(tag == null ? '' : tag).trim().slice(0, 50) || null,
+      remind: r,
+      source_type: type,
+      source_id: srcId,
+      status: 'pending'
+    })
+    return { already: false, deleted: false, id: Number(newId), todo: null }
+  } catch (e) {
+    // 唯一索引兜底：并发双击 / 判重与插入之间被删除操作插队时，转成明确提示
+    if (e && e.code === 'ER_DUP_ENTRY') throw new ApiError(SOURCE_DUP_MSG, 409)
+    throw e
+  }
 }
 
 // 完成 / 取消完成（仅本人）

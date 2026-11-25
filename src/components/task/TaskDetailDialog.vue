@@ -11,7 +11,14 @@
         <template v-else-if="task">
           <!-- 操作区（按当前用户角色/身份动态显示） -->
           <div v-if="isCreator || (isParticipant && !isCreator)" class="ops dialog-ops">
-            <button v-if="canTodo" class="btn" type="button" @click="openTodo">转为待办</button>
+            <button
+              v-if="canTodo"
+              class="btn"
+              type="button"
+              :disabled="todoState === 'deleted'"
+              :title="todoTip"
+              @click="openTodo"
+            >{{ todoLabel }}</button>
             <template v-if="isCreator">
               <button class="btn" type="button" @click="$emit('edit', task.id)">编辑</button>
               <button
@@ -173,6 +180,7 @@ import {
   getTaskParticipantOptions
 } from '../../api/task'
 import { useSession } from '../../composables/useSession'
+import { useTodoSourceState } from '../../composables/useTodoSourceState'
 import { dialogAlert, dialogConfirm, dialogPrompt } from '../../composables/useDialog'
 import { refreshAfterWrite } from '../../composables/useGlobalRefresh'
 import {
@@ -215,6 +223,13 @@ const canTodo = computed(
 )
 // 任务 → 待办来源预填（优先级 1-4 映射为低/中/高）
 const TASK_PRIORITY_MAP = { 1: 'low', 2: 'medium', 3: 'medium', 4: 'high' }
+// 转为待办入口三态：未转换 / 已转换 / 已转换但待办已删除（锁定，禁用）
+const { state: todoState, refresh: refreshTodoState, markConverted } = useTodoSourceState()
+const todoLabel = computed(() => {
+  if (todoState.value === 'deleted') return '已转为待办（已删除）'
+  return todoState.value === 'converted' ? '已转为待办' : '转为待办'
+})
+const todoTip = computed(() => (todoState.value === 'deleted' ? '该来源的待办已被删除，不能再次转换' : ''))
 const isOverdue = computed(() => {
   const t = task.value
   if (!t || !t.dueTime) return false
@@ -259,6 +274,7 @@ async function load() {
     dynamics.value = []
     loadDynamics()
     loadMemberOptions()
+    if (canTodo.value) refreshTodoState('task', task.value.id)
     if (props.initialProgress) openProgress()
   } else {
     errorMsg.value = (res && res.message) || '任务不存在或无权查看'
@@ -388,7 +404,8 @@ function openTodo() {
   }
   todoVisible.value = true
 }
-function onTodoSaved() {
+function onTodoSaved(id) {
+  if (id) markConverted(id)
   emit('changed')
 }
 function onTodoGoto(id) {

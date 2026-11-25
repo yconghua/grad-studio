@@ -72,12 +72,14 @@ class TodoRepository extends BaseRepository {
   }
 
   // 按来源判重：同一人同一来源只能转一次（唯一索引兜底，此查询用于友好提示）
+  // 注意：这里不过滤 is_deleted —— 软删除不释放 uk_owner_source，
+  // 已删除的转换记录仍然占据唯一约束，必须查出来才能给出“不可再转”的明确提示。
   async findBySource(ownerId, sourceType, sourceId) {
     if (!sourceType || sourceId == null) return null
     const sql =
       `SELECT t.*, u.real_name, u.username, u.user_no
        FROM \`todos\` t JOIN \`users\` u ON u.id = t.owner_id
-       WHERE t.owner_id = ? AND t.source_type = ? AND t.source_id = ? AND t.is_deleted = 0`
+       WHERE t.owner_id = ? AND t.source_type = ? AND t.source_id = ?`
     const [rows] = await this._execute(sql, [Number(ownerId), String(sourceType), Number(sourceId)], 'findBySource')
     return rows[0] || null
   }

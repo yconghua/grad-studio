@@ -269,7 +269,10 @@ async function toggleDone(row) {
   }
 }
 async function removeRow(row) {
-  const ok = await dialogConfirm(`确定删除待办「${row.title}」吗？`, '删除待办')
+  const tip = row.sourceType
+    ? `\n该待办由「${row.sourceLabel || row.sourceType}」转换而来，删除后该来源将不能再转为待办。`
+    : ''
+  const ok = await dialogConfirm(`确定删除待办「${row.title}」吗？${tip}`, '删除待办')
   if (!ok) return
   const res = await removeTodo(row.id)
   if (res && res.success) {
